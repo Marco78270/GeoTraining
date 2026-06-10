@@ -597,6 +597,13 @@ export type Database = {
         Args: { target_clue_id: string };
         Returns: boolean;
       };
+      accept_collection_invitation: {
+        Args: { raw_token: string };
+        Returns: {
+          collection_id: string;
+          collection_name: string;
+        }[];
+      };
     };
     Enums: {
       collection_role: CollectionRole;

@@ -1,12 +1,28 @@
 import "../styles/global.css";
-import { Navigate, Route, Routes } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireSession } from "../features/auth/RequireSession";
 import { useAuth } from "../features/auth/authContext";
+import {
+  ActiveCollectionProvider,
+} from "../features/collections/ActiveCollectionProvider";
+import { useActiveCollection } from "../features/collections/activeCollectionContext";
+import { AcceptInvitationPage } from "../features/collections/AcceptInvitationPage";
+import type { CollectionApi } from "../features/collections/collectionApi";
+import { CollectionPicker } from "../features/collections/CollectionPicker";
+import { CollectionsPage } from "../features/collections/CollectionsPage";
 
 function AtlasPlaceholder() {
   const { signOut, user } = useAuth();
+  const {
+    collections,
+    activeCollection,
+    activeCollectionId,
+    setActiveCollectionId,
+    isLoading,
+  } = useActiveCollection();
 
   return (
     <main className="app-shell">
@@ -19,8 +35,13 @@ function AtlasPlaceholder() {
           <span>Atlas</span>
         </div>
         <div className="topbar-actions">
+          <Link to="/collections">Collections</Link>
           <span>{user?.email}</span>
-          <button type="button" className="secondary-button" onClick={() => void signOut()}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => void signOut()}
+          >
             Se déconnecter
           </button>
         </div>
@@ -28,7 +49,22 @@ function AtlasPlaceholder() {
       <section className="atlas-placeholder">
         <p className="eyebrow">Espace protégé</p>
         <h1>Atlas</h1>
-        <p>La carte interactive sera ajoutée dans la prochaine étape.</p>
+        <CollectionPicker
+          collections={collections}
+          value={activeCollectionId}
+          onChange={setActiveCollectionId}
+          disabled={isLoading}
+        />
+        {activeCollection ? (
+          <p>
+            La carte affichera les indices de la collection{" "}
+            <strong>{activeCollection.name}</strong>.
+          </p>
+        ) : (
+          <p>
+            Créez une collection privée pour commencer à classer vos indices.
+          </p>
+        )}
       </section>
     </main>
   );
@@ -48,14 +84,45 @@ function RootRedirect() {
   return <Navigate to={session ? "/atlas" : "/login"} replace />;
 }
 
-export function App() {
+function CollectionWorkspace({
+  api,
+  children,
+}: {
+  api?: CollectionApi;
+  children: ReactNode;
+}) {
+  return (
+    <ActiveCollectionProvider api={api}>{children}</ActiveCollectionProvider>
+  );
+}
+
+export function App({ collectionApi }: { collectionApi?: CollectionApi }) {
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<RequireSession />}>
-        <Route path="/atlas" element={<AtlasPlaceholder />} />
+        <Route
+          path="/atlas"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <AtlasPlaceholder />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
+          path="/collections"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <CollectionsPage api={collectionApi} />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
+          path="/invitations/:token"
+          element={<AcceptInvitationPage api={collectionApi} />}
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

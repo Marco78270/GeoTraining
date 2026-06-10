@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Session } from "@supabase/supabase-js";
@@ -7,6 +8,7 @@ import {
   AuthContext,
   type AuthContextValue,
 } from "../features/auth/authContext";
+import type { CollectionApi } from "../features/collections/collectionApi";
 import { App } from "./App";
 
 const anonymousAuth: AuthContextValue = {
@@ -24,12 +26,18 @@ function renderApp(
   auth: AuthContextValue = anonymousAuth,
   initialPath = "/",
 ) {
+  const collectionApi = {
+    listCollections: vi.fn().mockResolvedValue([]),
+  } as unknown as CollectionApi;
+
   render(
-    <AuthContext.Provider value={auth}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <App />
-      </MemoryRouter>
-    </AuthContext.Provider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <AuthContext.Provider value={auth}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <App collectionApi={collectionApi} />
+        </MemoryRouter>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   );
 }
 

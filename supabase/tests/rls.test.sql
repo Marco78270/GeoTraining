@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(140);
+select plan(148);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -59,6 +59,41 @@ select hasnt_column('public', 'regions', 'code', 'legacy region code column is a
 select has_function('public', 'is_collection_member', array['uuid'], 'membership helper exists');
 select has_function('public', 'is_collection_owner', array['uuid'], 'ownership helper exists');
 select has_function('public', 'shares_collection_with', array['uuid'], 'profile visibility helper exists');
+select has_function(
+  'public',
+  'accept_collection_invitation',
+  array['text'],
+  'atomic invitation acceptance RPC exists'
+);
+select function_lang_is(
+  'public',
+  'accept_collection_invitation',
+  array['text'],
+  'plpgsql',
+  'invitation acceptance RPC uses plpgsql'
+);
+select is_definer(
+  'public',
+  'accept_collection_invitation',
+  array['text'],
+  'invitation acceptance RPC is security definer'
+);
+select function_privs_are(
+  'public',
+  'accept_collection_invitation',
+  array['text'],
+  'authenticated',
+  array['EXECUTE'],
+  'authenticated users can accept invitations'
+);
+select function_privs_are(
+  'public',
+  'accept_collection_invitation',
+  array['text'],
+  'anon',
+  array[]::text[],
+  'anonymous users cannot accept invitations'
+);
 select has_function(
   'public',
   'can_access_clue_image_object',
@@ -989,6 +1024,73 @@ select throws_ok(
   '23505',
   null,
   'invitation token hashes are unique'
+);
+
+insert into public.collection_invitations (
+  collection_id,
+  email,
+  role,
+  invited_by,
+  token_hash
+)
+values (
+  '30000000-0000-0000-0000-000000000001',
+  'editor@example.test',
+  'editor',
+  '10000000-0000-0000-0000-000000000001',
+  encode(
+    extensions.digest(
+      convert_to('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  )
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000003","email":"outsider@example.test","role":"authenticated"}',
+  true
+);
+select throws_ok(
+  $$ select * from public.accept_collection_invitation(
+       'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+     ) $$,
+  'P0001',
+  'invitation_email_mismatch',
+  'invitation rejects a different authenticated email'
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000002","email":"editor@example.test","role":"authenticated"}',
+  true
+);
+select results_eq(
+  $$ select collection_id, collection_name
+     from public.accept_collection_invitation(
+       'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+     ) $$,
+  $$ values (
+       '30000000-0000-0000-0000-000000000001'::uuid,
+       'Owner collection'::text
+     ) $$,
+  'matching authenticated email accepts invitation atomically'
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000001","email":"owner@example.test","role":"authenticated"}',
+  true
+);
+select is(
+  (
+    select status::text
+    from public.collection_invitations
+    where email = 'editor@example.test'
+  ),
+  'accepted',
+  'accepted invitation is marked accepted'
 );
 
 insert into public.training_sessions (
