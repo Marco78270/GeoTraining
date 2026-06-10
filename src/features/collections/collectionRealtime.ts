@@ -5,7 +5,7 @@ type RealtimeChannel = {
   on(
     type: "postgres_changes",
     filter: {
-      event: "*" | "INSERT" | "UPDATE" | "DELETE";
+      event: "INSERT" | "UPDATE";
       schema: "public";
       table: string;
       filter?: string;
@@ -35,12 +35,24 @@ export function subscribeToCollection(
     });
     void queryClient.invalidateQueries({ queryKey: collectionKeys.list() });
   };
+  const invalidateAll = () => {
+    void queryClient.invalidateQueries({ queryKey: collectionKeys.list() });
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.categories(collectionId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.clues(collectionId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.members(collectionId),
+    });
+  };
 
   channel
     .on(
       "postgres_changes",
       {
-        event: "*",
+        event: "INSERT",
         schema: "public",
         table: "categories",
         filter: `collection_id=eq.${collectionId}`,
@@ -50,7 +62,27 @@ export function subscribeToCollection(
     .on(
       "postgres_changes",
       {
-        event: "*",
+        event: "UPDATE",
+        schema: "public",
+        table: "categories",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidate(collectionKeys.categories(collectionId)),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "clues",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidate(collectionKeys.clues(collectionId)),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
         schema: "public",
         table: "clues",
         filter: `collection_id=eq.${collectionId}`,
@@ -77,18 +109,12 @@ export function subscribeToCollection(
       },
       invalidateMembership,
     )
-    .on(
-      "postgres_changes",
-      {
-        event: "DELETE",
-        schema: "public",
-        table: "collection_members",
-      },
-      invalidateMembership,
-    )
     .subscribe();
 
+  const fallbackInterval = window.setInterval(invalidateAll, 25_000);
+
   return () => {
+    window.clearInterval(fallbackInterval);
     void realtime.removeChannel(channel);
   };
 }

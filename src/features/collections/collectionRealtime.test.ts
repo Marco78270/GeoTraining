@@ -4,7 +4,8 @@ import { collectionKeys } from "./collectionKeys";
 import { subscribeToCollection } from "./collectionRealtime";
 
 describe("subscribeToCollection", () => {
-  it("uses one channel, invalidates targeted keys, and cleans up", async () => {
+  it("uses safe filtered events, polls all keys, and cleans up", () => {
+    vi.useFakeTimers();
     const queryClient = new QueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     const handlers: Array<() => void> = [];
@@ -31,36 +32,23 @@ describe("subscribeToCollection", () => {
       queryClient,
       "collection-1",
     );
-    handlers.forEach((handler) => handler());
 
     expect(realtime.channel).toHaveBeenCalledTimes(1);
-    expect(
-      subscriptions.filter(
-        (subscription) =>
-          subscription.table === "collection_members" &&
-          subscription.event === "DELETE",
+    expect(subscriptions).toHaveLength(6);
+    expect(subscriptions.every(({ event }) => event !== "DELETE" && event !== "*"))
+      .toBe(true);
+    expect(subscriptions).toEqual(
+      ["categories", "clues", "collection_members"].flatMap((table) =>
+        ["INSERT", "UPDATE"].map((event) => ({
+          event,
+          schema: "public",
+          table,
+          filter: "collection_id=eq.collection-1",
+        })),
       ),
-    ).toEqual([{ event: "DELETE", schema: "public", table: "collection_members" }]);
-    expect(
-      subscriptions.filter(
-        (subscription) =>
-          subscription.table === "collection_members" &&
-          subscription.event !== "DELETE",
-      ),
-    ).toEqual([
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "collection_members",
-        filter: "collection_id=eq.collection-1",
-      },
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "collection_members",
-        filter: "collection_id=eq.collection-1",
-      },
-    ]);
+    );
+
+    handlers.forEach((handler) => handler());
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: collectionKeys.categories("collection-1"),
     });
@@ -74,7 +62,27 @@ describe("subscribeToCollection", () => {
       queryKey: collectionKeys.list(),
     });
 
+    invalidate.mockClear();
+    vi.advanceTimersByTime(25_000);
+    expect(invalidate).toHaveBeenCalledTimes(4);
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: collectionKeys.list(),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: collectionKeys.categories("collection-1"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: collectionKeys.clues("collection-1"),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: collectionKeys.members("collection-1"),
+    });
+
     cleanup();
     expect(realtime.removeChannel).toHaveBeenCalledWith(channel);
+    invalidate.mockClear();
+    vi.advanceTimersByTime(25_000);
+    expect(invalidate).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
