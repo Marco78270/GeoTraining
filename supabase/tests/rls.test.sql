@@ -734,11 +734,12 @@ select lives_ok(
   'collection member can upload a second object for a published clue'
 );
 select lives_ok(
-  $$ insert into public.clue_images (id, clue_id, storage_path)
+  $$ insert into public.clue_images (id, clue_id, storage_path, sort_order)
      values (
        '70000000-0000-0000-0000-000000000002',
        '50000000-0000-0000-0000-000000000001',
-       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp'
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp',
+       1
      ) $$,
   'published clue accepts metadata after its matching object exists'
 );
