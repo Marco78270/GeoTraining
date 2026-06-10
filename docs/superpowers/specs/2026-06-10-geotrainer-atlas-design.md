@@ -59,6 +59,7 @@ Un indice contient :
 
 - la collection et la catégorie ;
 - le pays ;
+- le niveau `facile`, `moyen` ou `expert` ;
 - le mode de couverture `whole_country` ou `selected_regions` ;
 - une ou plusieurs images privées ;
 - des caractéristiques et notes GeoGuessr ;
@@ -137,7 +138,7 @@ Un dialogue guidé comporte cinq étapes :
 2. choix d'une catégorie unique ;
 3. choix d'un pays ;
 4. pays entier ou sélection de régions ;
-5. caractéristiques, notes et confirmation.
+5. difficulté, caractéristiques, notes et confirmation.
 
 Cocher le pays entier sélectionne logiquement toutes ses régions et désactive leur sélection individuelle. Revenir au mode régional permet de choisir les divisions une par une.
 
