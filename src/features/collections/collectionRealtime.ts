@@ -29,6 +29,12 @@ export function subscribeToCollection(
   const invalidate = (queryKey: readonly unknown[]) => () => {
     void queryClient.invalidateQueries({ queryKey });
   };
+  const invalidateMembership = () => {
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.members(collectionId),
+    });
+    void queryClient.invalidateQueries({ queryKey: collectionKeys.list() });
+  };
 
   channel
     .on(
@@ -59,7 +65,7 @@ export function subscribeToCollection(
         table: "collection_members",
         filter: `collection_id=eq.${collectionId}`,
       },
-      invalidate(collectionKeys.members(collectionId)),
+      invalidateMembership,
     )
     .subscribe();
 

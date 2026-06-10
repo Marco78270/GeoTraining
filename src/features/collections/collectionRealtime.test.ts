@@ -37,6 +37,9 @@ describe("subscribeToCollection", () => {
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: collectionKeys.members("collection-1"),
     });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: collectionKeys.list(),
+    });
 
     cleanup();
     expect(realtime.removeChannel).toHaveBeenCalledWith(channel);
