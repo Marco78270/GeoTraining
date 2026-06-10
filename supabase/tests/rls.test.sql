@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(126);
+select plan(128);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -711,11 +711,12 @@ select lives_ok(
   'clue publishes after matching object, metadata, and region exist'
 );
 select throws_ok(
-  $$ insert into public.clue_images (id, clue_id, storage_path)
+  $$ insert into public.clue_images (id, clue_id, storage_path, sort_order)
      values (
        '70000000-0000-0000-0000-000000000002',
        '50000000-0000-0000-0000-000000000001',
-       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp'
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp',
+       1
      ) $$,
   '23514',
   'published clue image metadata requires its stored object',
@@ -752,8 +753,8 @@ select is(
   public.can_access_clue_image_object(
     '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp'
   ),
-  false,
-  'published storage helper rejects image id without matching metadata'
+  true,
+  'published storage helper accepts the newly linked image'
 );
 select is(
   (
@@ -764,6 +765,17 @@ select is(
   ),
   1,
   'editor can read published object through the strict path policy'
+);
+select lives_ok(
+  $$ delete from public.clue_images
+     where id = '70000000-0000-0000-0000-000000000002' $$,
+  'a non-final published image metadata row can be removed'
+);
+select lives_ok(
+  $$ delete from storage.objects
+     where bucket_id = 'clue-images'
+       and name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp' $$,
+  'an unlinked published-clue object can be cleaned up'
 );
 
 select throws_ok(
