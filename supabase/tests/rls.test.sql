@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(115);
+select plan(126);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -38,6 +38,8 @@ select has_column('public', 'training_sessions', 'total_questions', 'session que
 select col_type_is('public', 'training_sessions', 'total_questions', 'integer', 'question count is integer');
 select has_column('public', 'training_answers', 'selected_code', 'selected answer code exists');
 select col_type_is('public', 'training_answers', 'selected_code', 'text', 'selected answer code is text');
+select has_column('public', 'clues', 'author_id', 'clue author id exists');
+select hasnt_column('public', 'clues', 'created_by', 'legacy clue creator column is absent');
 select has_column('public', 'training_answers', 'correct_code', 'correct answer code exists');
 select col_type_is('public', 'training_answers', 'correct_code', 'text', 'correct answer code is text');
 select hasnt_column(
@@ -61,6 +63,12 @@ select has_function(
   'can_access_clue_image_object',
   array['text'],
   'storage path authorization helper exists'
+);
+select has_function(
+  'public',
+  'can_manage_clue_image_object',
+  array['text'],
+  'storage write authorization helper exists'
 );
 select is(
   (
@@ -108,6 +116,43 @@ select is(
   ),
   array['search_path=""'],
   'storage authorization helper has an empty search_path'
+);
+select is(
+  has_function_privilege('authenticated', 'public.can_manage_clue_image_object(text)', 'execute'),
+  true,
+  'authenticated can execute the narrow storage write helper'
+);
+select is(
+  has_function_privilege('anon', 'public.can_manage_clue_image_object(text)', 'execute'),
+  false,
+  'anon cannot execute the storage write helper'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.can_manage_clue_image_object(text)'::regprocedure
+  ),
+  array['search_path=""'],
+  'storage write helper has an empty search_path'
+);
+select is(
+  has_function_privilege(
+    'authenticated',
+    'public.validate_published_clue_image_insert()',
+    'execute'
+  ),
+  false,
+  'published-image integrity trigger function is not directly executable'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.validate_published_clue_image_insert()'::regprocedure
+  ),
+  array['search_path=""'],
+  'published-image integrity trigger has an empty search_path'
 );
 select is(
   has_function_privilege(
@@ -664,6 +709,37 @@ select lives_ok(
      set status = 'published'
      where id = '50000000-0000-0000-0000-000000000001' $$,
   'clue publishes after matching object, metadata, and region exist'
+);
+select throws_ok(
+  $$ insert into public.clue_images (id, clue_id, storage_path)
+     values (
+       '70000000-0000-0000-0000-000000000002',
+       '50000000-0000-0000-0000-000000000001',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp'
+     ) $$,
+  '23514',
+  'published clue image metadata requires its stored object',
+  'published clue rejects image metadata without a matching stored object'
+);
+select lives_ok(
+  $$ insert into storage.objects (id, bucket_id, name, owner_id, metadata)
+     values (
+       '80000000-0000-0000-0000-000000000002',
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp',
+       '10000000-0000-0000-0000-000000000001',
+       '{"mimetype":"image/webp","size":2048}'::jsonb
+     ) $$,
+  'collection member can upload a second object for a published clue'
+);
+select lives_ok(
+  $$ insert into public.clue_images (id, clue_id, storage_path)
+     values (
+       '70000000-0000-0000-0000-000000000002',
+       '50000000-0000-0000-0000-000000000001',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp'
+     ) $$,
+  'published clue accepts metadata after its matching object exists'
 );
 select is(
   public.can_access_clue_image_object(

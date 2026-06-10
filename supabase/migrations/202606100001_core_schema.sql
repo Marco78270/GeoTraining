@@ -108,7 +108,7 @@ create table public.clues (
   title text not null,
   characteristics text[] not null default '{}',
   notes text,
-  created_by uuid not null default auth.uid() references public.profiles(id) on delete restrict,
+  author_id uuid not null default auth.uid() references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint clues_title_not_blank check (char_length(btrim(title)) between 1 and 160),
@@ -202,7 +202,7 @@ create index clues_collection_id_idx on public.clues(collection_id);
 create index clues_category_id_collection_id_idx on public.clues(category_id, collection_id);
 create index clues_country_code_idx on public.clues(country_code);
 create index clues_collection_status_idx on public.clues(collection_id, status);
-create index clues_created_by_idx on public.clues(created_by);
+create index clues_author_id_idx on public.clues(author_id);
 create index clue_regions_region_id_idx on public.clue_regions(region_id);
 create index clue_images_clue_id_idx on public.clue_images(clue_id);
 create index training_sessions_user_id_idx on public.training_sessions(user_id);
@@ -543,6 +543,39 @@ create trigger clue_images_validate_path
 before insert or update on public.clue_images
 for each row execute function public.validate_clue_image_path();
 
+create function public.validate_published_clue_image_insert()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1
+    from public.clues
+    where id = new.clue_id
+      and status = 'published'
+  )
+    and not exists (
+      select 1
+      from storage.objects
+      where bucket_id = 'clue-images'
+        and name = new.storage_path
+    )
+  then
+    raise exception using
+      errcode = '23514',
+      message = 'published clue image metadata requires its stored object';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger clue_images_validate_published_storage
+before insert on public.clue_images
+for each row execute function public.validate_published_clue_image_insert();
+
 create function public.has_stored_clue_image(target_clue_id uuid)
 returns boolean
 language sql
@@ -723,3 +756,4 @@ revoke all on function public.protect_owner_membership() from public;
 revoke all on function public.validate_training_answer_collection() from public;
 revoke all on function public.has_stored_clue_image(uuid) from public;
 revoke all on function public.validate_published_clue() from public;
+revoke all on function public.validate_published_clue_image_insert() from public;
