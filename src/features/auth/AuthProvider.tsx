@@ -73,6 +73,7 @@ export function AuthProvider({
   const [resolved] = useState(() => resolveAuthClient(suppliedClient));
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(Boolean(resolved.client));
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resolved.client) {
@@ -80,24 +81,52 @@ export function AuthProvider({
     }
 
     let active = true;
-    let unsubscribe: (() => void) | undefined;
+    let authEventVersion = 0;
+    const { data } = resolved.client.onAuthStateChange(
+      (_event, nextSession) => {
+        if (!active) {
+          return;
+        }
 
-    void resolved.client.getSession().then(({ data }) => {
-      if (!active) {
-        return;
-      }
-
-      setSession(data.session);
-      setLoading(false);
-      const result = resolved.client?.onAuthStateChange((_event, nextSession) => {
+        authEventVersion += 1;
         setSession(nextSession);
+        setSessionError(null);
+        setLoading(false);
+      },
+    );
+
+    void resolved.client
+      .getSession()
+      .then(({ data: sessionData, error }) => {
+        if (!active) {
+          return;
+        }
+
+        if (error && authEventVersion === 0) {
+          setSessionError(error.message);
+        } else if (authEventVersion === 0) {
+          setSession(sessionData.session);
+        }
+        setLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (!active) {
+          return;
+        }
+
+        if (authEventVersion === 0) {
+          setSessionError(
+            error instanceof Error
+              ? error.message
+              : "Impossible de charger la session.",
+          );
+        }
+        setLoading(false);
       });
-      unsubscribe = result?.data.subscription.unsubscribe;
-    });
 
     return () => {
       active = false;
-      unsubscribe?.();
+      data.subscription.unsubscribe();
     };
   }, [resolved.client]);
 
@@ -107,6 +136,7 @@ export function AuthProvider({
       user: session?.user ?? null,
       loading,
       configurationError: resolved.error,
+      sessionError,
       signIn: resolved.client
         ? (email, password) =>
             resolved.client!.signInWithPassword({ email, password })
@@ -118,7 +148,7 @@ export function AuthProvider({
         ? () => resolved.client!.signOut()
         : unconfiguredAction,
     }),
-    [loading, resolved.client, resolved.error, session],
+    [loading, resolved.client, resolved.error, session, sessionError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

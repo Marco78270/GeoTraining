@@ -14,6 +14,7 @@ const anonymousAuth: AuthContextValue = {
   user: null,
   loading: false,
   configurationError: null,
+  sessionError: null,
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => ({ error: null }),

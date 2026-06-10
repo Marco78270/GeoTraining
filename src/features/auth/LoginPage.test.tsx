@@ -1,6 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { LoginPage } from "./LoginPage";
 
@@ -91,5 +96,75 @@ describe("LoginPage", () => {
       "href",
       "/register",
     );
+  });
+
+  it("restores pathname, query, and hash after login", async () => {
+    const user = userEvent.setup();
+    const signIn = vi.fn().mockResolvedValue({ error: null });
+
+    function Destination() {
+      const location = useLocation();
+      return <p>{`${location.pathname}${location.search}${location.hash}`}</p>;
+    }
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/login",
+            state: {
+              from: {
+                pathname: "/atlas",
+                search: "?collection=stop",
+                hash: "#france",
+              },
+            },
+          },
+        ]}
+      >
+        <Routes>
+          <Route path="/login" element={<LoginPage signIn={signIn} />} />
+          <Route path="/atlas" element={<Destination />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("Email"), "marco@example.com");
+    await user.type(screen.getByLabelText("Mot de passe"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Se connecter" }));
+
+    expect(await screen.findByText("/atlas?collection=stop#france")).toBeVisible();
+  });
+
+  it("does not redirect to an external location from route state", async () => {
+    const user = userEvent.setup();
+    const signIn = vi.fn().mockResolvedValue({ error: null });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: "/login",
+            state: {
+              from: {
+                pathname: "//malicious.example",
+                search: "?steal=true",
+              },
+            },
+          },
+        ]}
+      >
+        <Routes>
+          <Route path="/login" element={<LoginPage signIn={signIn} />} />
+          <Route path="/atlas" element={<h1>Atlas sûr</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await user.type(screen.getByLabelText("Email"), "marco@example.com");
+    await user.type(screen.getByLabelText("Mot de passe"), "secret123");
+    await user.click(screen.getByRole("button", { name: "Se connecter" }));
+
+    expect(await screen.findByRole("heading", { name: "Atlas sûr" })).toBeVisible();
   });
 });

@@ -20,6 +20,7 @@ export function RegisterPage({
         (async () => ({ error: new Error("Authentification indisponible.") }))
       }
       configurationError={suppliedSignUp ? null : auth?.configurationError}
+      sessionError={suppliedSignUp ? null : auth?.sessionError}
     />
   );
 }

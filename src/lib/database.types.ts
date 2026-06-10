@@ -44,7 +44,16 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey";
+            columns: ["id"];
+            isOneToOne: true;
+            referencedSchema: "auth";
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       collections: {
         Row: {
@@ -71,7 +80,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "collections_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       collection_members: {
         Row: {
@@ -95,7 +112,22 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "collection_members_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "collection_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       collection_invitations: {
         Row: {
@@ -137,7 +169,29 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "collection_invitations_accepted_by_fkey";
+            columns: ["accepted_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "collection_invitations_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "collection_invitations_invited_by_fkey";
+            columns: ["invited_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       categories: {
         Row: {
@@ -167,7 +221,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "categories_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       countries: {
         Row: {
@@ -218,7 +280,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "regions_country_code_fkey";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
+          },
+        ];
       };
       clues: {
         Row: {
@@ -266,13 +336,57 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "clues_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clues_category_same_collection";
+            columns: ["category_id", "collection_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id", "collection_id"];
+          },
+          {
+            foreignKeyName: "clues_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clues_country_code_fkey";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
+          },
+        ];
       };
       clue_regions: {
         Row: { clue_id: string; region_id: string; created_at: string };
         Insert: { clue_id: string; region_id: string; created_at?: string };
         Update: { clue_id?: string; region_id?: string; created_at?: string };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "clue_regions_clue_id_fkey";
+            columns: ["clue_id"];
+            isOneToOne: false;
+            referencedRelation: "clues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clue_regions_region_id_fkey";
+            columns: ["region_id"];
+            isOneToOne: false;
+            referencedRelation: "regions";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       clue_images: {
         Row: {
@@ -302,7 +416,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "clue_images_clue_id_fkey";
+            columns: ["clue_id"];
+            isOneToOne: false;
+            referencedRelation: "clues";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       training_sessions: {
         Row: {
@@ -350,7 +472,36 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "training_sessions_category_same_collection";
+            columns: ["category_id", "collection_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id", "collection_id"];
+          },
+          {
+            foreignKeyName: "training_sessions_collection_id_fkey";
+            columns: ["collection_id"];
+            isOneToOne: false;
+            referencedRelation: "collections";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "training_sessions_country_code_fkey";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "training_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       training_answers: {
         Row: {
@@ -386,7 +537,29 @@ export type Database = {
           answered_at?: string;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "training_answers_clue_id_fkey";
+            columns: ["clue_id"];
+            isOneToOne: false;
+            referencedRelation: "clues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "training_answers_session_owner";
+            columns: ["session_id", "user_id"];
+            isOneToOne: false;
+            referencedRelation: "training_sessions";
+            referencedColumns: ["id", "user_id"];
+          },
+          {
+            foreignKeyName: "training_answers_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;

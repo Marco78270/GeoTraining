@@ -7,6 +7,7 @@ type AuthFormProps = {
   mode: "login" | "register";
   action: (email: string, password: string) => AuthActionResult;
   configurationError?: string | null;
+  sessionError?: string | null;
   onSuccess?: () => void;
 };
 
@@ -16,6 +17,7 @@ export function AuthForm({
   mode,
   action,
   configurationError,
+  sessionError,
   onSuccess,
 }: AuthFormProps) {
   const [pending, setPending] = useState(false);
@@ -96,6 +98,11 @@ export function AuthForm({
         {configurationError ? (
           <p className="notice notice-error" role="alert">
             Configuration requise : {configurationError}
+          </p>
+        ) : null}
+        {!configurationError && sessionError ? (
+          <p className="notice notice-error" role="alert">
+            Session indisponible : {sessionError}
           </p>
         ) : null}
 

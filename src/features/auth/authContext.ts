@@ -8,6 +8,7 @@ export type AuthContextValue = {
   user: User | null;
   loading: boolean;
   configurationError: string | null;
+  sessionError: string | null;
   signIn: (email: string, password: string) => AuthActionResult;
   signUp: (email: string, password: string) => AuthActionResult;
   signOut: () => AuthActionResult;
