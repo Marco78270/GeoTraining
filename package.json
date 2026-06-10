@@ -2,6 +2,10 @@
   "name": "geotrainer-atlas",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "npm@11.8.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "description": "Carte interactive permettant de s'entrainer sur GeoGuessr",
   "scripts": {
     "dev": "vite",
