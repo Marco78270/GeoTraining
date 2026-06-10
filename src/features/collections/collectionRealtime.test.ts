@@ -8,8 +8,14 @@ describe("subscribeToCollection", () => {
     const queryClient = new QueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
     const handlers: Array<() => void> = [];
+    const subscriptions: Array<{
+      event: string;
+      table: string;
+      filter?: string;
+    }> = [];
     const channel = {
-      on: vi.fn((_type, _filter, handler) => {
+      on: vi.fn((_type, filter, handler) => {
+        subscriptions.push(filter);
         handlers.push(handler);
         return channel;
       }),
@@ -28,6 +34,33 @@ describe("subscribeToCollection", () => {
     handlers.forEach((handler) => handler());
 
     expect(realtime.channel).toHaveBeenCalledTimes(1);
+    expect(
+      subscriptions.filter(
+        (subscription) =>
+          subscription.table === "collection_members" &&
+          subscription.event === "DELETE",
+      ),
+    ).toEqual([{ event: "DELETE", schema: "public", table: "collection_members" }]);
+    expect(
+      subscriptions.filter(
+        (subscription) =>
+          subscription.table === "collection_members" &&
+          subscription.event !== "DELETE",
+      ),
+    ).toEqual([
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "collection_members",
+        filter: "collection_id=eq.collection-1",
+      },
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "collection_members",
+        filter: "collection_id=eq.collection-1",
+      },
+    ]);
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: collectionKeys.categories("collection-1"),
     });

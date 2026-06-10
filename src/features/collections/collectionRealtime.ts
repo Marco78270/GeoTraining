@@ -5,7 +5,7 @@ type RealtimeChannel = {
   on(
     type: "postgres_changes",
     filter: {
-      event: "*";
+      event: "*" | "INSERT" | "UPDATE" | "DELETE";
       schema: "public";
       table: string;
       filter?: string;
@@ -60,10 +60,29 @@ export function subscribeToCollection(
     .on(
       "postgres_changes",
       {
-        event: "*",
+        event: "INSERT",
         schema: "public",
         table: "collection_members",
         filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidateMembership,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "collection_members",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidateMembership,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "collection_members",
       },
       invalidateMembership,
     )

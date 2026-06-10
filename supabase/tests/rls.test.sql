@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(148);
+select plan(151);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -16,6 +16,37 @@ select has_table('public', 'clue_regions', 'clue_regions table exists');
 select has_table('public', 'clue_images', 'clue_images table exists');
 select has_table('public', 'training_sessions', 'training_sessions table exists');
 select has_table('public', 'training_answers', 'training_answers table exists');
+
+select ok(
+  exists (
+    select 1
+    from pg_catalog.pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'categories'
+  ),
+  'categories are enabled for Supabase Realtime'
+);
+select ok(
+  exists (
+    select 1
+    from pg_catalog.pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'clues'
+  ),
+  'clues are enabled for Supabase Realtime'
+);
+select ok(
+  exists (
+    select 1
+    from pg_catalog.pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'collection_members'
+  ),
+  'collection memberships are enabled for Supabase Realtime'
+);
 
 select has_type('public', 'collection_role', 'collection_role enum exists');
 select has_type('public', 'coverage_mode', 'coverage_mode enum exists');
