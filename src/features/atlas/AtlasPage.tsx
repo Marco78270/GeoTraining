@@ -27,6 +27,20 @@ import {
 } from "./atlasDemoData";
 
 const difficultyOrder: Difficulty[] = ["easy", "medium", "expert"];
+const continentOrder = ["Europe", "Asie", "Amériques", "Océanie", "Afrique"] as const;
+
+function filterCountries(
+  categoryId: string,
+  difficulties: ReadonlySet<Difficulty>,
+  continents: ReadonlySet<string>,
+) {
+  return atlasCountries.filter(
+    (country) =>
+      difficulties.has(country.difficulty) &&
+      continents.has(country.continent) &&
+      (country.counts[categoryId] ?? 0) > 0,
+  );
+}
 
 function StopSign({ small = false }: { small?: boolean }) {
   return (
@@ -71,7 +85,7 @@ export function AtlasPage() {
     () => new Set(difficultyOrder),
   );
   const [activeContinents, setActiveContinents] = useState<Set<string>>(
-    () => new Set(["Europe", "Asie", "Amériques", "Océanie", "Afrique"]),
+    () => new Set(continentOrder),
   );
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(null);
   const [viewport, setViewport] = useState<"world" | "country">("world");
@@ -81,42 +95,46 @@ export function AtlasPage() {
     atlasCategories.find((category) => category.id === activeCategoryId) ??
     atlasCategories[0];
   const markers = useMemo(
-    () =>
-      atlasCountries.filter(
-        (country) =>
-          activeDifficulties.has(country.difficulty) &&
-          activeContinents.has(country.continent) &&
-          (country.counts[activeCategory.id] ?? 0) > 0,
-      ),
+    () => filterCountries(activeCategory.id, activeDifficulties, activeContinents),
     [activeCategory.id, activeContinents, activeDifficulties],
   );
   const selectedCountry =
-    atlasCountries.find((country) => country.code === selectedCountryCode) ??
+    markers.find((country) => country.code === selectedCountryCode) ??
     markers[0] ??
     atlasCountries[0];
 
+  function reconcileSelection(nextMarkers: typeof markers) {
+    if (selectedCountryCode && !nextMarkers.some((country) => country.code === selectedCountryCode)) {
+      setSelectedCountryCode(nextMarkers[0]?.code ?? null);
+      setViewport(nextMarkers.length > 0 ? "country" : "world");
+    }
+  }
+
   function toggleDifficulty(difficulty: Difficulty) {
-    setActiveDifficulties((current) => {
-      const next = new Set(current);
-      if (next.has(difficulty) && next.size > 1) {
-        next.delete(difficulty);
-      } else {
-        next.add(difficulty);
-      }
-      return next;
-    });
+    const next = new Set(activeDifficulties);
+    if (next.has(difficulty) && next.size > 1) {
+      next.delete(difficulty);
+    } else {
+      next.add(difficulty);
+    }
+    setActiveDifficulties(next);
+    reconcileSelection(filterCountries(activeCategory.id, next, activeContinents));
   }
 
   function toggleContinent(continent: string) {
-    setActiveContinents((current) => {
-      const next = new Set(current);
-      if (next.has(continent) && next.size > 1) {
-        next.delete(continent);
-      } else {
-        next.add(continent);
-      }
-      return next;
-    });
+    const next = new Set(activeContinents);
+    if (next.has(continent) && next.size > 1) {
+      next.delete(continent);
+    } else {
+      next.add(continent);
+    }
+    setActiveContinents(next);
+    reconcileSelection(filterCountries(activeCategory.id, activeDifficulties, next));
+  }
+
+  function selectCategory(categoryId: string) {
+    setActiveCategoryId(categoryId);
+    reconcileSelection(filterCountries(categoryId, activeDifficulties, activeContinents));
   }
 
   function showWorld() {
@@ -184,7 +202,7 @@ export function AtlasPage() {
                     key={category.id}
                     className={active ? "active" : ""}
                     aria-pressed={active}
-                    onClick={() => setActiveCategoryId(category.id)}
+                    onClick={() => selectCategory(category.id)}
                   >
                     {category.id === "stop" ? <StopSign small /> : <Icon aria-hidden="true" />}
                     <span>{category.name}</span>
@@ -198,7 +216,7 @@ export function AtlasPage() {
           <section className="atlas-filter-section atlas-region-filters">
             <h2>Régions</h2>
             <div>
-              {["Europe", "Asie"].map((continent) => (
+              {continentOrder.map((continent) => (
                 <button
                   type="button"
                   key={continent}
@@ -235,6 +253,19 @@ export function AtlasPage() {
         </aside>
 
         <section className="atlas-center">
+          <div
+            className="atlas-demo-notice"
+            role="status"
+            aria-label="Données de démonstration"
+          >
+            <Sparkles aria-hidden="true" />
+            <p>
+              <strong>Données de démonstration.</strong> La carte, les compteurs, les
+              galeries et les notes ci-dessous sont des exemples. Les imports de{" "}
+              <b>{activeCollection?.name ?? "votre collection"}</b> ne sont pas encore
+              affichés dans cet aperçu.
+            </p>
+          </div>
           <div className="atlas-map-panel">
             <AtlasMap
               markers={markers}
@@ -260,11 +291,11 @@ export function AtlasPage() {
           <div className="atlas-stats">
             <article>
               <span className="stat-icon stat-icon-blue"><Bookmark /></span>
-              <div><span>Indices enregistrés</span><strong>{activeCategory.total}</strong></div>
+              <div><span>Indices démo</span><strong>{activeCategory.total}</strong></div>
             </article>
             <article>
               <span className="stat-icon stat-icon-green"><Globe2 /></span>
-              <div><span>Pays couverts</span><strong>{activeCategory.countries}</strong></div>
+              <div><span>Pays démo</span><strong>{activeCategory.countries}</strong></div>
             </article>
             <article>
               <span className="stat-icon stat-icon-red"><StopSign small /></span>
@@ -284,7 +315,7 @@ export function AtlasPage() {
               {difficultyLabels[selectedCountry.difficulty]}
             </span>
           </div>
-          <div className="demo-label"><Sparkles aria-hidden="true" /> aperçu démo</div>
+          <div className="demo-label"><Sparkles aria-hidden="true" /> galerie démo</div>
           <DemoVisual tone={selectedCountry.visualTone} />
           <div className="detail-thumbnails">
             <DemoVisual tone={selectedCountry.visualTone} variant="street" />
@@ -298,7 +329,7 @@ export function AtlasPage() {
             </ul>
           </section>
           <section className="detail-section">
-            <h2>Notes GeoGuessr</h2>
+            <h2>Notes GeoGuessr démo</h2>
             <ul>
               {selectedCountry.notes.map((item) => <li key={item}>{item}</li>)}
             </ul>

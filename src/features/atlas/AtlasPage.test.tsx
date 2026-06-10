@@ -96,12 +96,31 @@ it("change la couverture affichée avec la catégorie active", async () => {
   renderAtlas();
 
   expect(screen.getByText("248")).toBeVisible();
+  expect(screen.getByText("Indices démo")).toBeVisible();
   await user.click(screen.getByRole("button", { name: /Plaques/i }));
 
   expect(screen.getByText("132")).toBeVisible();
   expect(
     screen.getByText("Plaques d’immatriculation", { selector: "strong" }),
   ).toBeVisible();
+});
+
+it("distingue clairement les données de démonstration des imports de la collection", () => {
+  renderAtlas();
+
+  const notice = screen.getByRole("status", { name: "Données de démonstration" });
+  expect(notice).toHaveTextContent(
+    "La carte, les compteurs, les galeries et les notes ci-dessous sont des exemples",
+  );
+  expect(notice).toHaveTextContent("Mes indices");
+});
+
+it("permet de filtrer les cinq continents présents", () => {
+  renderAtlas();
+
+  for (const continent of ["Europe", "Asie", "Amériques", "Océanie", "Afrique"]) {
+    expect(screen.getByRole("button", { name: continent })).toBeVisible();
+  }
 });
 
 it("ouvre le détail du pays sélectionné depuis la carte", async () => {
@@ -140,4 +159,17 @@ it("permet de zoomer sur un pays puis de revenir à la vue monde", async () => {
 
   expect(screen.queryByRole("button", { name: "Vue monde" })).not.toBeInTheDocument();
   expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("monde");
+});
+
+it("sélectionne explicitement le premier marqueur visible si le pays courant est filtré", async () => {
+  const user = userEvent.setup();
+  renderAtlas();
+
+  await user.click(screen.getByRole("button", { name: "Sélectionner la France" }));
+  expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("FR");
+
+  await user.click(screen.getByRole("button", { name: "Europe" }));
+
+  expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("US");
+  expect(screen.getByRole("heading", { name: "États-Unis" })).toBeVisible();
 });

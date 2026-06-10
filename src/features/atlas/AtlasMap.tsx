@@ -21,6 +21,13 @@ const WORLD_BOUNDS: [[number, number], [number, number]] = [
   [178, 75],
 ];
 
+function isSupportedCountryCode(
+  code: unknown,
+  supportedCodes: ReadonlySet<string>,
+): code is string {
+  return typeof code === "string" && supportedCodes.has(code);
+}
+
 const inlineStyle = {
   version: 8 as const,
   sources: {},
@@ -158,20 +165,23 @@ export function AtlasMap({
           viewportRef.current,
         );
 
+        const supportedCodes = new Set(markersRef.current.map((country) => country.code));
         let hoveredId: string | number | null = null;
         map.on("mousemove", "countries-fill", (event: MapLayerMouseEvent) => {
           if (!map) {
             return;
           }
-          map.getCanvas().style.cursor = "pointer";
+          const code = event.features?.[0]?.properties?.iso2;
+          const interactive = isSupportedCountryCode(code, supportedCodes);
+          map.getCanvas().style.cursor = interactive ? "pointer" : "";
           const nextId = event.features?.[0]?.id ?? null;
           if (hoveredId !== null && hoveredId !== nextId) {
             map.setFeatureState({ source: "world-demo", id: hoveredId }, { hover: false });
           }
-          if (nextId !== null) {
+          if (interactive && nextId !== null) {
             map.setFeatureState({ source: "world-demo", id: nextId }, { hover: true });
           }
-          hoveredId = nextId;
+          hoveredId = interactive ? nextId : null;
         });
         map.on("mouseleave", "countries-fill", () => {
           if (!map) {
@@ -184,8 +194,8 @@ export function AtlasMap({
           hoveredId = null;
         });
         map.on("click", "countries-fill", (event: MapLayerMouseEvent) => {
-          const code = event.features?.[0]?.properties?.iso2 as string | undefined;
-          if (code) {
+          const code = event.features?.[0]?.properties?.iso2;
+          if (isSupportedCountryCode(code, supportedCodes)) {
             callbacksRef.current.onCountrySelect(code);
             callbacksRef.current.onViewportChange("country");
           }
