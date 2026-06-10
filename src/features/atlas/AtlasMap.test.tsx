@@ -143,6 +143,38 @@ it("sélectionne un pays documenté et ignore un pays GeoJSON non documenté", a
   expect(onViewportChange).toHaveBeenCalledWith("country");
 });
 
+it("ignore un pays devenu invisible après un changement de filtres", async () => {
+  const onCountrySelect = vi.fn();
+  const onViewportChange = vi.fn();
+  const { rerender } = render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode={null}
+      viewport="world"
+      onCountrySelect={onCountrySelect}
+      onViewportChange={onViewportChange}
+    />,
+  );
+  const map = await getMap();
+  map.emit("load");
+
+  rerender(
+    <AtlasMap
+      markers={atlasCountries.filter((country) => country.code !== "FR")}
+      selectedCountryCode={null}
+      viewport="world"
+      onCountrySelect={onCountrySelect}
+      onViewportChange={onViewportChange}
+    />,
+  );
+  map.emit("click:countries-fill", {
+    features: [{ properties: { iso2: "FR" } }],
+  } as unknown as MapLayerMouseEvent);
+
+  expect(onCountrySelect).not.toHaveBeenCalled();
+  expect(onViewportChange).not.toHaveBeenCalled();
+});
+
 it("réserve le curseur et le survol interactifs aux pays documentés", async () => {
   render(
     <AtlasMap
@@ -220,4 +252,38 @@ it("zoome, revient au monde et met à jour la source marqueurs", async () => {
   );
 
   expect(map.fitBounds).toHaveBeenCalled();
+});
+
+it("efface l'ancienne sélection quand le pays disparaît des marqueurs", async () => {
+  const { rerender } = render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="FR"
+      viewport="country"
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+  const map = await getMap();
+  map.emit("load");
+  map.setFeatureState.mockClear();
+
+  rerender(
+    <AtlasMap
+      markers={atlasCountries.filter((country) => country.code !== "FR")}
+      selectedCountryCode="US"
+      viewport="country"
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+
+  expect(map.setFeatureState).toHaveBeenCalledWith(
+    { source: "world-demo", id: "FR" },
+    { selected: false },
+  );
+  expect(map.setFeatureState).toHaveBeenCalledWith(
+    { source: "world-demo", id: "US" },
+    { selected: true },
+  );
 });

@@ -54,6 +54,7 @@ export function AtlasMap({
   const callbacksRef = useRef({ onCountrySelect, onViewportChange });
   const markersRef = useRef(markers);
   const selectedCountryCodeRef = useRef(selectedCountryCode);
+  const previousSelectedCountryCodeRef = useRef<string | null>(null);
   const viewportRef = useRef(viewport);
 
   useEffect(() => {
@@ -164,15 +165,18 @@ export function AtlasMap({
           selectedCountryCodeRef.current,
           viewportRef.current,
         );
+        previousSelectedCountryCodeRef.current = selectedCountryCodeRef.current;
 
-        const supportedCodes = new Set(markersRef.current.map((country) => country.code));
         let hoveredId: string | number | null = null;
         map.on("mousemove", "countries-fill", (event: MapLayerMouseEvent) => {
           if (!map) {
             return;
           }
           const code = event.features?.[0]?.properties?.iso2;
-          const interactive = isSupportedCountryCode(code, supportedCodes);
+          const interactive = isSupportedCountryCode(
+            code,
+            new Set(markersRef.current.map((country) => country.code)),
+          );
           map.getCanvas().style.cursor = interactive ? "pointer" : "";
           const nextId = event.features?.[0]?.id ?? null;
           if (hoveredId !== null && hoveredId !== nextId) {
@@ -195,7 +199,12 @@ export function AtlasMap({
         });
         map.on("click", "countries-fill", (event: MapLayerMouseEvent) => {
           const code = event.features?.[0]?.properties?.iso2;
-          if (isSupportedCountryCode(code, supportedCodes)) {
+          if (
+            isSupportedCountryCode(
+              code,
+              new Set(markersRef.current.map((country) => country.code)),
+            )
+          ) {
             callbacksRef.current.onCountrySelect(code);
             callbacksRef.current.onViewportChange("country");
           }
@@ -231,6 +240,16 @@ export function AtlasMap({
       return;
     }
     updateSelection(map, markers, selectedCountryCode, viewport);
+    if (
+      previousSelectedCountryCodeRef.current &&
+      previousSelectedCountryCodeRef.current !== selectedCountryCode
+    ) {
+      map.setFeatureState(
+        { source: "world-demo", id: previousSelectedCountryCodeRef.current },
+        { selected: false },
+      );
+    }
+    previousSelectedCountryCodeRef.current = selectedCountryCode;
   }, [markers, selectedCountryCode, viewport]);
 
   return (

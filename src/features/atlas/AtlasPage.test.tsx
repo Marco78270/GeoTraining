@@ -173,3 +173,21 @@ it("sélectionne explicitement le premier marqueur visible si le pays courant es
   expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("US");
   expect(screen.getByRole("heading", { name: "États-Unis" })).toBeVisible();
 });
+
+it("affiche un état vide quand aucun pays ne correspond aux filtres", async () => {
+  const user = userEvent.setup();
+  renderAtlas();
+
+  await user.click(screen.getByRole("button", { name: "Marquages routiers" }));
+  await user.click(screen.getByRole("button", { name: "Facile" }));
+  await user.click(screen.getByRole("button", { name: "Moyen" }));
+  await user.click(screen.getByRole("button", { name: "Europe" }));
+  await user.click(screen.getByRole("button", { name: "Asie" }));
+  await user.click(screen.getByRole("button", { name: "Océanie" }));
+  await user.click(screen.getByRole("button", { name: "Afrique" }));
+
+  expect(screen.getByRole("status", { name: "Aucun pays" })).toHaveTextContent(
+    "Aucun pays ne correspond aux filtres",
+  );
+  expect(screen.queryByRole("heading", { name: "France" })).not.toBeInTheDocument();
+});

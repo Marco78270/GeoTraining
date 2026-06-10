@@ -101,7 +101,7 @@ export function AtlasPage() {
   const selectedCountry =
     markers.find((country) => country.code === selectedCountryCode) ??
     markers[0] ??
-    atlasCountries[0];
+    null;
 
   function reconcileSelection(nextMarkers: typeof markers) {
     if (selectedCountryCode && !nextMarkers.some((country) => country.code === selectedCountryCode)) {
@@ -304,7 +304,8 @@ export function AtlasPage() {
           </div>
         </section>
 
-        <aside className="atlas-details" aria-label="Détail du pays">
+        {selectedCountry ? (
+          <aside className="atlas-details" aria-label="Détail du pays">
           <div className="detail-heading">
             <div>
               <h1>{selectedCountry.name}</h1>
@@ -353,7 +354,18 @@ export function AtlasPage() {
             <GraduationCap aria-hidden="true" />Lancer un quiz
           </button>
           {quizNotice ? <p className="quiz-notice" role="status">Le mode entraînement arrive bientôt.</p> : null}
-        </aside>
+          </aside>
+        ) : (
+          <aside
+            className="atlas-details atlas-empty-results"
+            role="status"
+            aria-label="Aucun pays"
+          >
+            <Globe2 aria-hidden="true" />
+            <h2>Aucun pays ne correspond aux filtres</h2>
+            <p>Réactivez une région, une difficulté ou choisissez une autre catégorie.</p>
+          </aside>
+        )}
       </div>
     </main>
   );
