@@ -430,7 +430,8 @@ declare
 begin
   select country_code, coverage into clue_country, clue_coverage
   from public.clues
-  where id = new.clue_id;
+  where id = new.clue_id
+  for update;
 
   if clue_coverage <> 'selected_regions' then
     raise exception using

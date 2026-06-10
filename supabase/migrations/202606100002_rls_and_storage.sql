@@ -35,7 +35,8 @@ stable
 security definer
 set search_path = ''
 as $$
-  select target_user_id = auth.uid()
+  select coalesce(
+    target_user_id = auth.uid()
     or exists (
       select 1
       from public.collection_members as viewer_membership
@@ -43,7 +44,9 @@ as $$
         on target_membership.collection_id = viewer_membership.collection_id
       where viewer_membership.user_id = auth.uid()
         and target_membership.user_id = target_user_id
-    );
+    ),
+    false
+  );
 $$;
 
 create function public.can_access_clue_image_object(candidate_path text)
