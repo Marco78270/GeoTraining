@@ -11,6 +11,10 @@ import {
 import type { CollectionApi } from "../features/collections/collectionApi";
 import { App } from "./App";
 
+vi.mock("../features/atlas/AtlasMap", () => ({
+  AtlasMap: () => <div aria-label="Carte mondiale interactive" />,
+}));
+
 const anonymousAuth: AuthContextValue = {
   session: null,
   user: null,
