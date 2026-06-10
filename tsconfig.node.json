@@ -13,5 +13,10 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "vitest.setup.ts"]
+  "include": [
+    "vite.config.ts",
+    "playwright.config.ts",
+    "playwright.global-setup.ts",
+    "vitest.setup.ts"
+  ]
 }
