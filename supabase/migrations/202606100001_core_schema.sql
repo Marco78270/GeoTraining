@@ -344,6 +344,12 @@ begin
       message = 'clue collection_id is immutable';
   end if;
 
+  if new.author_id is distinct from old.author_id then
+    raise exception using
+      errcode = '23514',
+      message = 'clue author_id is immutable';
+  end if;
+
   if new.category_id is distinct from old.category_id
     or new.country_code is distinct from old.country_code
   then
@@ -377,7 +383,7 @@ end;
 $$;
 
 create trigger clues_protect_identity
-before update of collection_id, category_id, country_code on public.clues
+before update of collection_id, category_id, country_code, author_id on public.clues
 for each row execute function public.protect_clue_identity();
 
 create function public.protect_owner_membership()
@@ -518,9 +524,11 @@ as $$
 declare
   expected_collection_id uuid;
 begin
-  select collection_id into expected_collection_id
+  select collection_id
+  into expected_collection_id
   from public.clues
-  where id = new.clue_id;
+  where id = new.clue_id
+  for update;
 
   if expected_collection_id is null
     or not public.is_valid_clue_image_path(
@@ -550,11 +558,15 @@ security definer
 set search_path = ''
 as $$
 begin
-  if exists (
-    select 1
+  perform 1
+  from public.clues
+  where id = new.clue_id
+  for update;
+
+  if (
+    select status = 'published'
     from public.clues
     where id = new.clue_id
-      and status = 'published'
   )
     and not exists (
       select 1
@@ -656,7 +668,8 @@ begin
   select status, coverage
   into target_status, target_coverage
   from public.clues
-  where id = target_clue_id;
+  where id = target_clue_id
+  for update;
 
   if target_status = 'published' and tg_table_name = 'clue_images' then
     if tg_op = 'UPDATE'

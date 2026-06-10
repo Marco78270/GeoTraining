@@ -28,6 +28,24 @@ as $$
   );
 $$;
 
+create function public.shares_collection_with(target_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select target_user_id = auth.uid()
+    or exists (
+      select 1
+      from public.collection_members as viewer_membership
+      join public.collection_members as target_membership
+        on target_membership.collection_id = viewer_membership.collection_id
+      where viewer_membership.user_id = auth.uid()
+        and target_membership.user_id = target_user_id
+    );
+$$;
+
 create function public.can_access_clue_image_object(candidate_path text)
 returns boolean
 language sql
@@ -91,10 +109,12 @@ $$;
 
 revoke all on function public.is_collection_member(uuid) from public;
 revoke all on function public.is_collection_owner(uuid) from public;
+revoke all on function public.shares_collection_with(uuid) from public;
 revoke all on function public.can_access_clue_image_object(text) from public;
 revoke all on function public.can_manage_clue_image_object(text) from public;
 grant execute on function public.is_collection_member(uuid) to authenticated;
 grant execute on function public.is_collection_owner(uuid) to authenticated;
+grant execute on function public.shares_collection_with(uuid) to authenticated;
 grant execute on function public.can_access_clue_image_object(text) to authenticated;
 grant execute on function public.can_manage_clue_image_object(text) to authenticated;
 
@@ -125,10 +145,10 @@ alter table public.clue_images enable row level security;
 alter table public.training_sessions enable row level security;
 alter table public.training_answers enable row level security;
 
-create policy "authenticated users can read profiles"
+create policy "users can read relevant profiles"
 on public.profiles for select
 to authenticated
-using (true);
+using ((select public.shares_collection_with(id)));
 
 create policy "users can update own profile"
 on public.profiles for update
@@ -190,10 +210,10 @@ using (
   and role = 'editor'
 );
 
-create policy "collection members can read invitations"
+create policy "owners can read invitations"
 on public.collection_invitations for select
 to authenticated
-using ((select public.is_collection_member(collection_id)));
+using ((select public.is_collection_owner(collection_id)));
 
 create policy "owners can create invitations"
 on public.collection_invitations for insert
@@ -460,29 +480,29 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  linked_clue_id uuid;
+  linked_status public.clue_status;
 begin
-  if old.bucket_id = 'clue-images'
-    and exists (
-      select 1
-      from public.clue_images as image
-      join public.clues as clue on clue.id = image.clue_id
-      where image.storage_path = old.name
-        and clue.status = 'published'
-    )
-  then
+  if old.bucket_id = 'clue-images' then
+    select clue.id, clue.status
+    into linked_clue_id, linked_status
+    from public.clue_images as image
+    join public.clues as clue on clue.id = image.clue_id
+    where image.storage_path = old.name
+    for update of clue;
+  end if;
+
+  if linked_status = 'published' then
     if tg_op = 'DELETE' then
       raise exception using
         errcode = '23514',
         message = 'published clues require their stored image objects';
     end if;
 
-    if new.bucket_id is distinct from old.bucket_id
-      or new.name is distinct from old.name
-    then
-      raise exception using
-        errcode = '23514',
-        message = 'published clues require draft status before storage changes';
-    end if;
+    raise exception using
+      errcode = '23514',
+      message = 'published clues require draft status before storage changes';
   end if;
 
   if tg_op = 'UPDATE' then
@@ -495,7 +515,7 @@ $$;
 revoke all on function public.protect_published_clue_storage_object() from public;
 
 create trigger storage_objects_protect_published_clues
-before update of bucket_id, name or delete on storage.objects
+before update or delete on storage.objects
 for each row execute function public.protect_published_clue_storage_object();
 
 create policy "collection members can read clue images"

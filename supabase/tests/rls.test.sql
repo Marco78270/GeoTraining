@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(128);
+select plan(140);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -58,6 +58,7 @@ select hasnt_column('public', 'regions', 'code', 'legacy region code column is a
 
 select has_function('public', 'is_collection_member', array['uuid'], 'membership helper exists');
 select has_function('public', 'is_collection_owner', array['uuid'], 'ownership helper exists');
+select has_function('public', 'shares_collection_with', array['uuid'], 'profile visibility helper exists');
 select has_function(
   'public',
   'can_access_clue_image_object',
@@ -97,6 +98,35 @@ select is(
   has_function_privilege('anon', 'public.is_collection_member(uuid)', 'execute'),
   false,
   'anon cannot execute membership helper'
+);
+select is(
+  has_function_privilege('authenticated', 'public.shares_collection_with(uuid)', 'execute'),
+  true,
+  'authenticated can execute profile visibility helper'
+);
+select is(
+  has_function_privilege('anon', 'public.shares_collection_with(uuid)', 'execute'),
+  false,
+  'anon cannot execute profile visibility helper'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.shares_collection_with(uuid)'::regprocedure
+  ),
+  array['search_path=""'],
+  'profile visibility helper has an empty search_path'
+);
+select is(
+  public.is_collection_member('30000000-0000-0000-0000-000000000001'),
+  false,
+  'membership helper denies requests without an authenticated user'
+);
+select is(
+  public.shares_collection_with('10000000-0000-0000-0000-000000000001'),
+  false,
+  'profile helper denies requests without an authenticated user'
 );
 select is(
   has_function_privilege('authenticated', 'public.can_access_clue_image_object(text)', 'execute'),
@@ -217,12 +247,21 @@ select policies_are(
   'public',
   'collection_invitations',
   array[
-    'collection members can read invitations',
+    'owners can read invitations',
     'owners can create invitations',
     'owners can update invitations',
     'owners can delete invitations'
   ],
   'invitation policies are complete'
+);
+select policies_are(
+  'public',
+  'profiles',
+  array[
+    'users can read relevant profiles',
+    'users can update own profile'
+  ],
+  'profile policies limit directory visibility'
 );
 select policies_are(
   'public',
@@ -711,6 +750,14 @@ select lives_ok(
   'clue publishes after matching object, metadata, and region exist'
 );
 select throws_ok(
+  $$ update public.clues
+     set author_id = '10000000-0000-0000-0000-000000000003'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'clue author_id is immutable',
+  'collection member cannot reassign clue authorship'
+);
+select throws_ok(
   $$ insert into public.clue_images (id, clue_id, storage_path, sort_order)
      values (
        '70000000-0000-0000-0000-000000000002',
@@ -812,6 +859,15 @@ select throws_ok(
   'published storage object cannot be renamed'
 );
 select throws_ok(
+  $$ update storage.objects
+     set metadata = '{"mimetype":"image/webp","size":4096}'::jsonb
+     where bucket_id = 'clue-images'
+       and name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp' $$,
+  '23514',
+  'published clues require draft status before storage changes',
+  'published storage object cannot be replaced at the same path'
+);
+select throws_ok(
   $$ delete from public.clue_regions
      where clue_id = '50000000-0000-0000-0000-000000000001'
        and region_id = 'FR-IDF' $$,
@@ -885,6 +941,35 @@ select lives_ok(
        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
      ) $$,
   'owner can create invitation with token hash'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
+select is(
+  (
+    select count(*)::integer
+    from public.collection_invitations
+    where collection_id = '30000000-0000-0000-0000-000000000001'
+  ),
+  0,
+  'editor cannot read invitation emails or token hashes'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
+select is(
+  (
+    select count(*)::integer
+    from public.profiles
+  ),
+  1,
+  'outsider can only read their own profile'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
+select is(
+  (
+    select count(*)::integer
+    from public.profiles
+    where id = '10000000-0000-0000-0000-000000000002'
+  ),
+  1,
+  'collection owner can read an editor profile'
 );
 select throws_ok(
   $$ insert into public.collection_invitations (
