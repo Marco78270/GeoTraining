@@ -28,10 +28,51 @@ as $$
   );
 $$;
 
+create function public.can_access_clue_image_object(candidate_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when candidate_path ~ '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$'
+    then exists (
+      select 1
+      from public.clues as clue
+      where clue.id = split_part(candidate_path, '/', 2)::uuid
+        and clue.collection_id = split_part(candidate_path, '/', 1)::uuid
+        and (
+          clue.status = 'draft'
+          or exists (
+            select 1
+            from public.clue_images as image
+            where image.id = split_part(
+              split_part(candidate_path, '/', 3),
+              '.',
+              1
+            )::uuid
+              and image.clue_id = clue.id
+              and image.storage_path = candidate_path
+          )
+        )
+        and exists (
+          select 1
+          from public.collection_members as member
+          where member.collection_id = clue.collection_id
+            and member.user_id = auth.uid()
+        )
+    )
+    else false
+  end;
+$$;
+
 revoke all on function public.is_collection_member(uuid) from public;
 revoke all on function public.is_collection_owner(uuid) from public;
+revoke all on function public.can_access_clue_image_object(text) from public;
 grant execute on function public.is_collection_member(uuid) to authenticated;
 grant execute on function public.is_collection_owner(uuid) to authenticated;
+grant execute on function public.can_access_clue_image_object(text) to authenticated;
 
 grant usage on schema public to authenticated;
 grant select, update on public.profiles to authenticated;
@@ -388,17 +429,57 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+-- Expected write order: upload the object, insert its clue_images row, then publish.
+create function public.protect_published_clue_storage_object()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if old.bucket_id = 'clue-images'
+    and exists (
+      select 1
+      from public.clue_images as image
+      join public.clues as clue on clue.id = image.clue_id
+      where image.storage_path = old.name
+        and clue.status = 'published'
+    )
+  then
+    if tg_op = 'DELETE' then
+      raise exception using
+        errcode = '23514',
+        message = 'published clues require their stored image objects';
+    end if;
+
+    if new.bucket_id is distinct from old.bucket_id
+      or new.name is distinct from old.name
+    then
+      raise exception using
+        errcode = '23514',
+        message = 'published clues require draft status before storage changes';
+    end if;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    return new;
+  end if;
+  return old;
+end;
+$$;
+
+revoke all on function public.protect_published_clue_storage_object() from public;
+
+create trigger storage_objects_protect_published_clues
+before update of bucket_id, name or delete on storage.objects
+for each row execute function public.protect_published_clue_storage_object();
+
 create policy "collection members can read clue images"
 on storage.objects for select
 to authenticated
 using (
   bucket_id = 'clue-images'
-  and name ~ '^[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}/'
-  and (
-    select public.is_collection_member(
-      (storage.foldername(name))[1]::uuid
-    )
-  )
+  and (select public.can_access_clue_image_object(name))
 );
 
 create policy "collection members can upload clue images"
@@ -406,12 +487,7 @@ on storage.objects for insert
 to authenticated
 with check (
   bucket_id = 'clue-images'
-  and name ~ '^[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}/'
-  and (
-    select public.is_collection_member(
-      (storage.foldername(name))[1]::uuid
-    )
-  )
+  and (select public.can_access_clue_image_object(name))
 );
 
 create policy "collection members can update clue images"
@@ -419,21 +495,11 @@ on storage.objects for update
 to authenticated
 using (
   bucket_id = 'clue-images'
-  and name ~ '^[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}/'
-  and (
-    select public.is_collection_member(
-      (storage.foldername(name))[1]::uuid
-    )
-  )
+  and (select public.can_access_clue_image_object(name))
 )
 with check (
   bucket_id = 'clue-images'
-  and name ~ '^[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}/'
-  and (
-    select public.is_collection_member(
-      (storage.foldername(name))[1]::uuid
-    )
-  )
+  and (select public.can_access_clue_image_object(name))
 );
 
 create policy "collection members can delete clue images"
@@ -441,10 +507,5 @@ on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'clue-images'
-  and name ~ '^[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}/'
-  and (
-    select public.is_collection_member(
-      (storage.foldername(name))[1]::uuid
-    )
-  )
+  and (select public.can_access_clue_image_object(name))
 );

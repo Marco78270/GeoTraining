@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(67);
+select plan(115);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -24,17 +24,126 @@ select has_type('public', 'invitation_status', 'invitation_status enum exists');
 select has_type('public', 'training_mode', 'training_mode enum exists');
 select has_type('public', 'clue_status', 'clue_status enum exists');
 
-select has_function(
+select has_column('public', 'collection_invitations', 'token_hash', 'invitation token hash exists');
+select col_type_is('public', 'collection_invitations', 'token_hash', 'text', 'token hash is text');
+select col_not_null('public', 'collection_invitations', 'token_hash', 'token hash is required');
+select has_column('public', 'countries', 'geojson_path', 'country GeoJSON path exists');
+select col_type_is('public', 'countries', 'geojson_path', 'text', 'country GeoJSON path is text');
+select col_not_null('public', 'countries', 'geojson_path', 'country GeoJSON path is required');
+select col_type_is('public', 'regions', 'id', 'text', 'region id is text');
+select col_is_pk('public', 'regions', 'id', 'region id is primary key');
+select has_column('public', 'regions', 'geojson_path', 'region GeoJSON path exists');
+select col_not_null('public', 'regions', 'geojson_path', 'region GeoJSON path is required');
+select has_column('public', 'training_sessions', 'total_questions', 'session question count exists');
+select col_type_is('public', 'training_sessions', 'total_questions', 'integer', 'question count is integer');
+select has_column('public', 'training_answers', 'selected_code', 'selected answer code exists');
+select col_type_is('public', 'training_answers', 'selected_code', 'text', 'selected answer code is text');
+select has_column('public', 'training_answers', 'correct_code', 'correct answer code exists');
+select col_type_is('public', 'training_answers', 'correct_code', 'text', 'correct answer code is text');
+select hasnt_column(
   'public',
-  'is_collection_member',
-  array['uuid'],
-  'membership helper exists'
+  'training_answers',
+  'selected_country_code',
+  'legacy selected country column is absent'
 );
+select hasnt_column(
+  'public',
+  'training_answers',
+  'selected_region_id',
+  'legacy selected region column is absent'
+);
+select hasnt_column('public', 'regions', 'code', 'legacy region code column is absent');
+
+select has_function('public', 'is_collection_member', array['uuid'], 'membership helper exists');
+select has_function('public', 'is_collection_owner', array['uuid'], 'ownership helper exists');
 select has_function(
   'public',
-  'is_collection_owner',
-  array['uuid'],
-  'ownership helper exists'
+  'can_access_clue_image_object',
+  array['text'],
+  'storage path authorization helper exists'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.is_collection_member(uuid)'::regprocedure
+  ),
+  array['search_path=""'],
+  'membership helper has an empty search_path'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.is_collection_owner(uuid)'::regprocedure
+  ),
+  array['search_path=""'],
+  'owner helper has an empty search_path'
+);
+select is(
+  has_function_privilege('authenticated', 'public.is_collection_member(uuid)', 'execute'),
+  true,
+  'authenticated can execute membership helper'
+);
+select is(
+  has_function_privilege('anon', 'public.is_collection_member(uuid)', 'execute'),
+  false,
+  'anon cannot execute membership helper'
+);
+select is(
+  has_function_privilege('authenticated', 'public.can_access_clue_image_object(text)', 'execute'),
+  true,
+  'authenticated can execute the narrow storage authorization helper'
+);
+select is(
+  has_function_privilege('anon', 'public.can_access_clue_image_object(text)', 'execute'),
+  false,
+  'anon cannot execute the storage authorization helper'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.can_access_clue_image_object(text)'::regprocedure
+  ),
+  array['search_path=""'],
+  'storage authorization helper has an empty search_path'
+);
+select is(
+  has_function_privilege(
+    'authenticated',
+    'public.protect_published_clue_storage_object()',
+    'execute'
+  ),
+  false,
+  'storage integrity trigger function is not directly executable'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.protect_published_clue_storage_object()'::regprocedure
+  ),
+  array['search_path=""'],
+  'storage integrity trigger has an empty search_path'
+);
+select is(
+  has_function_privilege(
+    'authenticated',
+    'public.has_stored_clue_image(uuid)',
+    'execute'
+  ),
+  false,
+  'stored-image verification helper is not directly executable'
+);
+select is(
+  (
+    select proconfig
+    from pg_proc
+    where oid = 'public.has_stored_clue_image(uuid)'::regprocedure
+  ),
+  array['search_path=""'],
+  'stored-image verification helper has an empty search_path'
 );
 
 select policies_are(
@@ -164,7 +273,7 @@ select is(
       and allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp']
   ),
   1,
-  'private clue image bucket has the expected restrictions'
+  'private clue image bucket restricts size and MIME types'
 );
 
 insert into auth.users (
@@ -222,22 +331,28 @@ values
   );
 
 select is(
-  (select count(*)::integer from public.profiles where id in (
-    '10000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000002',
-    '10000000-0000-0000-0000-000000000003'
-  )),
+  (
+    select count(*)::integer
+    from public.profiles
+    where id in (
+      '10000000-0000-0000-0000-000000000001',
+      '10000000-0000-0000-0000-000000000002',
+      '10000000-0000-0000-0000-000000000003'
+    )
+  ),
   3,
   'auth user creation creates profiles'
 );
 
-insert into public.countries (code, name)
-values ('FR', 'France'), ('DE', 'Germany');
-
-insert into public.regions (id, country_code, code, name)
+insert into public.countries (code, name, geojson_path)
 values
-  ('20000000-0000-0000-0000-000000000001', 'FR', 'FR-IDF', 'Ile-de-France'),
-  ('20000000-0000-0000-0000-000000000002', 'DE', 'DE-BE', 'Berlin');
+  ('FR', 'France', '/geography/countries/FR.geojson'),
+  ('DE', 'Germany', '/geography/countries/DE.geojson');
+
+insert into public.regions (id, country_code, name, geojson_path)
+values
+  ('FR-IDF', 'FR', 'Ile-de-France', '/geography/regions/FR-IDF.geojson'),
+  ('DE-BE', 'DE', 'Berlin', '/geography/regions/DE-BE.geojson');
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
@@ -259,6 +374,39 @@ select is(
   'owner',
   'collection creation adds owner membership'
 );
+select lives_ok(
+  $$ update public.collection_members
+     set role = 'editor'
+     where collection_id = '30000000-0000-0000-0000-000000000001'
+       and user_id = '10000000-0000-0000-0000-000000000001' $$,
+  'owner membership update is filtered by RLS'
+);
+select is(
+  (
+    select role::text
+    from public.collection_members
+    where collection_id = '30000000-0000-0000-0000-000000000001'
+      and user_id = '10000000-0000-0000-0000-000000000001'
+  ),
+  'owner',
+  'owner membership cannot be modified'
+);
+select lives_ok(
+  $$ delete from public.collection_members
+     where collection_id = '30000000-0000-0000-0000-000000000001'
+       and user_id = '10000000-0000-0000-0000-000000000001' $$,
+  'owner membership delete is filtered by RLS'
+);
+select is(
+  (
+    select count(*)::integer
+    from public.collection_members
+    where collection_id = '30000000-0000-0000-0000-000000000001'
+      and user_id = '10000000-0000-0000-0000-000000000001'
+  ),
+  1,
+  'owner membership cannot be deleted'
+);
 
 insert into public.collection_members (collection_id, user_id, role)
 values (
@@ -274,86 +422,52 @@ values (
   'Stop signs'
 );
 
-select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
-
-select results_eq(
-  $$ select id from public.collections where id = '30000000-0000-0000-0000-000000000001' $$,
-  $$ values ('30000000-0000-0000-0000-000000000001'::uuid) $$,
-  'editor can read collection'
-);
-select lives_ok(
-  $$ insert into public.categories (collection_id, name)
-     values ('30000000-0000-0000-0000-000000000001', 'Road markings') $$,
-  'editor can create category'
-);
 select lives_ok(
   $$ update public.categories
      set name = 'STOP signs'
      where id = '40000000-0000-0000-0000-000000000001' $$,
-  'editor can update category'
-);
-select lives_ok(
-  $$ update public.collections
-     set name = 'Editor renamed'
-     where id = '30000000-0000-0000-0000-000000000001' $$,
-  'unauthorized collection update affects no visible row'
+  'category can be updated'
 );
 select is(
   (
-    select name
-    from public.collections
-    where id = '30000000-0000-0000-0000-000000000001'
+    select updated_at > created_at
+    from public.categories
+    where id = '40000000-0000-0000-0000-000000000001'
   ),
-  'Owner collection',
-  'editor cannot update collection'
+  true,
+  'updated_at advances on update'
 );
+
+insert into public.collections (id, owner_id, name)
+values (
+  '30000000-0000-0000-0000-000000000002',
+  '10000000-0000-0000-0000-000000000001',
+  'Second collection'
+);
+
+insert into public.categories (id, collection_id, name)
+values (
+  '40000000-0000-0000-0000-000000000002',
+  '30000000-0000-0000-0000-000000000002',
+  'Second category'
+);
+
 select throws_ok(
-  $$ insert into public.collection_members (collection_id, user_id, role)
+  $$ insert into public.clues (
+       collection_id,
+       category_id,
+       country_code,
+       title
+     )
      values (
        '30000000-0000-0000-0000-000000000001',
-       '10000000-0000-0000-0000-000000000003',
-       'editor'
+       '40000000-0000-0000-0000-000000000002',
+       'FR',
+       'Wrong category'
      ) $$,
-  '42501',
+  '23503',
   null,
-  'editor cannot manage memberships'
-);
-
-select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
-
-select is(
-  (select count(*)::integer from public.collections where id = '30000000-0000-0000-0000-000000000001'),
-  0,
-  'outsider cannot read collection'
-);
-select throws_ok(
-  $$ insert into public.categories (collection_id, name)
-     values ('30000000-0000-0000-0000-000000000001', 'Forbidden') $$,
-  '42501',
-  null,
-  'outsider cannot create category'
-);
-select throws_ok(
-  $$ insert into storage.objects (bucket_id, name, owner_id)
-     values (
-       'clue-images',
-       '30000000-0000-0000-0000-000000000001/forbidden.webp',
-       '10000000-0000-0000-0000-000000000003'
-     ) $$,
-  '42501',
-  null,
-  'outsider cannot upload collection image'
-);
-
-select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
-select lives_ok(
-  $$ insert into storage.objects (bucket_id, name, owner_id)
-     values (
-       'clue-images',
-       '30000000-0000-0000-0000-000000000001/editor.webp',
-       '10000000-0000-0000-0000-000000000002'
-     ) $$,
-  'editor can upload collection image'
+  'clue category must belong to the same collection'
 );
 
 insert into public.clues (
@@ -377,123 +491,330 @@ values (
   'Regional clue'
 );
 
-select lives_ok(
-  $$ update public.clues
-     set status = 'draft'
-     where id = '50000000-0000-0000-0000-000000000001' $$,
-  'regional clue can remain draft without region or image'
-);
 select throws_ok(
   $$ update public.clues
-     set status = 'published'
+     set collection_id = '30000000-0000-0000-0000-000000000002'
      where id = '50000000-0000-0000-0000-000000000001' $$,
   '23514',
-  'published clues require at least one image',
-  'publishing without image is rejected'
+  'clue collection_id is immutable',
+  'clue cannot move between collections'
 );
 
-insert into public.clue_images (clue_id, storage_path, sort_order)
-values (
-  '50000000-0000-0000-0000-000000000001',
-  '30000000-0000-0000-0000-000000000001/regional.webp',
-  0
-);
-
-select throws_ok(
-  $$ update public.clues
-     set status = 'published'
-     where id = '50000000-0000-0000-0000-000000000001' $$,
-  '23514',
-  'published regional clues require at least one region',
-  'publishing selected_regions clue without region is rejected'
-);
 select throws_ok(
   $$ insert into public.clue_regions (clue_id, region_id)
-     values (
-       '50000000-0000-0000-0000-000000000001',
-       '20000000-0000-0000-0000-000000000002'
-     ) $$,
+     values ('50000000-0000-0000-0000-000000000001', 'DE-BE') $$,
   '23514',
   'clue region must belong to the clue country',
-  'clue region from another country is rejected'
+  'region must belong to clue country'
 );
 select lives_ok(
   $$ insert into public.clue_regions (clue_id, region_id)
-     values (
-       '50000000-0000-0000-0000-000000000001',
-       '20000000-0000-0000-0000-000000000001'
-     ) $$,
+     values ('50000000-0000-0000-0000-000000000001', 'FR-IDF') $$,
   'matching clue region can be added'
-);
-select lives_ok(
-  $$ update public.clues
-     set status = 'published'
-     where id = '50000000-0000-0000-0000-000000000001' $$,
-  'regional clue can publish after image and region exist'
 );
 select throws_ok(
   $$ update public.clues
      set country_code = 'DE'
      where id = '50000000-0000-0000-0000-000000000001' $$,
   '23514',
-  'clue region must belong to the clue country',
-  'clue country cannot diverge from existing regions'
+  'clue category_id and country_code are immutable after children exist',
+  'country cannot change after child creation'
+);
+select throws_ok(
+  $$ update public.clues
+     set category_id = '40000000-0000-0000-0000-000000000002'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'clue category_id and country_code are immutable after children exist',
+  'category cannot change after child creation'
 );
 
 select throws_ok(
-  $$ insert into public.clue_regions (clue_id, region_id)
+  $$ update public.clues
+     set status = 'published'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'published clues require at least one stored image',
+  'publishing without stored image is rejected'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
      values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp',
+       '10000000-0000-0000-0000-000000000003'
+     ) $$,
+  '42501',
+  null,
+  'outsider cannot upload a valid collection path'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
+     values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/not-a-uuid.webp',
+       '10000000-0000-0000-0000-000000000002'
+     ) $$,
+  '42501',
+  null,
+  'storage rejects non-UUID image segment'
+);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
+     values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.gif',
+       '10000000-0000-0000-0000-000000000002'
+     ) $$,
+  '42501',
+  null,
+  'storage rejects unsupported extension'
+);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
+     values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-00000000000A.webp',
+       '10000000-0000-0000-0000-000000000002'
+     ) $$,
+  '42501',
+  null,
+  'storage rejects non-canonical uppercase UUID paths'
+);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
+     values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000002/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp',
+       '10000000-0000-0000-0000-000000000002'
+     ) $$,
+  '42501',
+  null,
+  'storage rejects collection and clue mismatch'
+);
+select throws_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
+     values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp/extra',
+       '10000000-0000-0000-0000-000000000002'
+     ) $$,
+  '42501',
+  null,
+  'storage rejects extra path segments'
+);
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name, owner_id)
+     values (
+       'clue-images',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp',
+       '10000000-0000-0000-0000-000000000002'
+     ) $$,
+  'editor can upload a strict valid path'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
+select is(
+  (
+    select count(*)::integer
+    from storage.objects
+    where bucket_id = 'clue-images'
+  ),
+  0,
+  'outsider cannot read a valid stored image path'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
+
+select throws_ok(
+  $$ insert into public.clue_images (id, clue_id, storage_path)
+     values (
+       '70000000-0000-0000-0000-000000000002',
        '50000000-0000-0000-0000-000000000001',
-       '20000000-0000-0000-0000-000000000002'
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp'
      ) $$,
   '23514',
-  'clue region must belong to the clue country',
-  'published clue still rejects a region from another country'
+  'clue image path must match collection, clue, image id, and extension',
+  'metadata rejects path with another image id'
+);
+select throws_ok(
+  $$ insert into public.clue_images (id, clue_id, storage_path)
+     values (
+       '70000000-0000-0000-0000-000000000001',
+       '50000000-0000-0000-0000-000000000001',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.gif'
+     ) $$,
+  '23514',
+  'clue image path must match collection, clue, image id, and extension',
+  'metadata rejects unsupported extension'
+);
+select lives_ok(
+  $$ insert into public.clue_images (id, clue_id, storage_path)
+     values (
+       '70000000-0000-0000-0000-000000000001',
+       '50000000-0000-0000-0000-000000000001',
+       '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp'
+     ) $$,
+  'metadata accepts exact strict path'
+);
+select lives_ok(
+  $$ update public.clues
+     set status = 'published'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  'clue publishes after matching object, metadata, and region exist'
+);
+select is(
+  public.can_access_clue_image_object(
+    '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp'
+  ),
+  true,
+  'published storage helper accepts exact metadata image id'
+);
+select is(
+  public.can_access_clue_image_object(
+    '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000002.webp'
+  ),
+  false,
+  'published storage helper rejects image id without matching metadata'
+);
+select is(
+  (
+    select count(*)::integer
+    from storage.objects
+    where bucket_id = 'clue-images'
+      and name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp'
+  ),
+  1,
+  'editor can read published object through the strict path policy'
+);
+
+select throws_ok(
+  $$ delete from public.clue_images
+     where id = '70000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'published clues require at least one image metadata row',
+  'last published image metadata cannot be deleted'
+);
+select throws_ok(
+  $$ update public.clue_images
+     set storage_path = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.png'
+     where id = '70000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'published clue images require draft status before path changes',
+  'published metadata path cannot be changed'
+);
+select throws_ok(
+  $$ delete from storage.objects
+     where bucket_id = 'clue-images'
+       and name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp' $$,
+  '23514',
+  'published clues require their stored image objects',
+  'published storage object cannot be deleted'
+);
+select throws_ok(
+  $$ update storage.objects
+     set name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.png'
+     where bucket_id = 'clue-images'
+       and name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp' $$,
+  '23514',
+  'published clues require draft status before storage changes',
+  'published storage object cannot be renamed'
+);
+select throws_ok(
+  $$ delete from public.clue_regions
+     where clue_id = '50000000-0000-0000-0000-000000000001'
+       and region_id = 'FR-IDF' $$,
+  '23514',
+  'published regional clues require at least one region',
+  'last published region cannot be deleted'
+);
+select throws_ok(
+  $$ update public.clues
+     set category_id = '40000000-0000-0000-0000-000000000002'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'published clue category_id and country_code are immutable',
+  'published clue category cannot change'
+);
+
+select lives_ok(
+  $$ update public.clues
+     set status = 'draft'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  'published clue can explicitly return to draft'
+);
+select lives_ok(
+  $$ delete from storage.objects
+     where bucket_id = 'clue-images'
+       and name = '30000000-0000-0000-0000-000000000001/50000000-0000-0000-0000-000000000001/70000000-0000-0000-0000-000000000001.webp' $$,
+  'draft clue storage object can be deleted'
+);
+select throws_ok(
+  $$ update public.clues
+     set status = 'published'
+     where id = '50000000-0000-0000-0000-000000000001' $$,
+  '23514',
+  'published clues require at least one stored image',
+  'metadata without real storage object cannot publish'
 );
 
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
 select throws_ok(
-  $$ update public.collections
-     set owner_id = '10000000-0000-0000-0000-000000000002'
-     where id = '30000000-0000-0000-0000-000000000001' $$,
-  '23514',
-  'collection owner_id is immutable',
-  'collection ownership is immutable'
+  $$ insert into public.collection_invitations (
+       collection_id,
+       email,
+       role,
+       invited_by,
+       token_hash
+     )
+     values (
+       '30000000-0000-0000-0000-000000000001',
+       'missing-token@example.test',
+       'editor',
+       '10000000-0000-0000-0000-000000000001',
+       null
+     ) $$,
+  '23502',
+  null,
+  'invitation requires a token hash'
 );
-
-insert into public.collections (id, owner_id, name)
-values (
-  '30000000-0000-0000-0000-000000000002',
-  '10000000-0000-0000-0000-000000000001',
-  'Second collection'
+select lives_ok(
+  $$ insert into public.collection_invitations (
+       collection_id,
+       email,
+       role,
+       invited_by,
+       token_hash
+     )
+     values (
+       '30000000-0000-0000-0000-000000000001',
+       'new-editor@example.test',
+       'editor',
+       '10000000-0000-0000-0000-000000000001',
+       'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+     ) $$,
+  'owner can create invitation with token hash'
 );
-
-insert into public.categories (id, collection_id, name)
-values (
-  '40000000-0000-0000-0000-000000000002',
-  '30000000-0000-0000-0000-000000000002',
-  'Second category'
-);
-
-insert into public.clues (
-  id,
-  collection_id,
-  category_id,
-  country_code,
-  coverage,
-  difficulty,
-  status,
-  title
-)
-values (
-  '50000000-0000-0000-0000-000000000002',
-  '30000000-0000-0000-0000-000000000002',
-  '40000000-0000-0000-0000-000000000002',
-  'FR',
-  'whole_country',
-  'medium',
-  'draft',
-  'Other collection clue'
+select throws_ok(
+  $$ insert into public.collection_invitations (
+       collection_id,
+       email,
+       role,
+       invited_by,
+       token_hash
+     )
+     values (
+       '30000000-0000-0000-0000-000000000002',
+       'another-editor@example.test',
+       'editor',
+       '10000000-0000-0000-0000-000000000001',
+       'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+     ) $$,
+  '23505',
+  null,
+  'invitation token hashes are unique'
 );
 
 insert into public.training_sessions (
@@ -501,46 +822,30 @@ insert into public.training_sessions (
   user_id,
   collection_id,
   mode,
-  country_code
+  country_code,
+  total_questions
 )
 values (
   '60000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000001',
   '30000000-0000-0000-0000-000000000001',
   'country',
-  'FR'
-);
-
-select throws_ok(
-  $$ insert into public.training_answers (
-       session_id,
-       clue_id,
-       selected_country_code,
-       is_correct
-     )
-     values (
-       '60000000-0000-0000-0000-000000000001',
-       '50000000-0000-0000-0000-000000000002',
-       'FR',
-       false
-     ) $$,
-  '23514',
-  'training answer clue must belong to the session collection',
-  'training answer cannot cross collection boundaries'
+  'FR',
+  10
 );
 
 insert into public.training_answers (
   session_id,
   clue_id,
-  selected_country_code,
-  selected_region_id,
+  selected_code,
+  correct_code,
   is_correct
 )
 values (
   '60000000-0000-0000-0000-000000000001',
   '50000000-0000-0000-0000-000000000001',
-  'FR',
-  '20000000-0000-0000-0000-000000000001',
+  'FR-IDF',
+  'FR-IDF',
   true
 );
 
@@ -555,56 +860,6 @@ select is(
   0,
   'another user cannot read private training answers'
 );
-select throws_ok(
-  $$ insert into public.training_sessions (user_id, collection_id, mode)
-     values (
-       '10000000-0000-0000-0000-000000000001',
-       '30000000-0000-0000-0000-000000000001',
-       'world'
-     ) $$,
-  '42501',
-  null,
-  'user cannot create a training session for another user'
-);
-
-select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
-select lives_ok(
-  $$ update public.collections
-     set name = 'Owner renamed'
-     where id = '30000000-0000-0000-0000-000000000001' $$,
-  'owner can update collection'
-);
-select lives_ok(
-  $$ insert into public.collection_invitations (
-       collection_id,
-       email,
-       role,
-       invited_by
-     )
-     values (
-       '30000000-0000-0000-0000-000000000001',
-       'new-editor@example.test',
-       'editor',
-       '10000000-0000-0000-0000-000000000001'
-     ) $$,
-  'owner can create invitation'
-);
-select lives_ok(
-  $$ delete from public.collection_members
-     where collection_id = '30000000-0000-0000-0000-000000000001'
-       and user_id = '10000000-0000-0000-0000-000000000002' $$,
-  'owner can remove editor'
-);
-
-select is(
-  (
-    select public.is_collection_owner(
-      '30000000-0000-0000-0000-000000000001'
-    )
-  ),
-  true,
-  'owner helper recognizes owner'
-);
 select is(
   (
     select public.is_collection_member(
@@ -612,7 +867,27 @@ select is(
     )
   ),
   true,
-  'membership helper recognizes owner membership'
+  'membership helper recognizes editor'
+);
+select is(
+  (
+    select public.is_collection_owner(
+      '30000000-0000-0000-0000-000000000001'
+    )
+  ),
+  false,
+  'owner helper rejects editor'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000003', true);
+select is(
+  (
+    select public.is_collection_member(
+      '30000000-0000-0000-0000-000000000001'
+    )
+  ),
+  false,
+  'membership helper rejects outsider'
 );
 
 select *
