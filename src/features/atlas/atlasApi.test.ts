@@ -55,6 +55,7 @@ it("construit l'Atlas depuis les catégories et indices publiés", async () => {
         countries: { name: "Kenya" },
         clue_images: [
           {
+            id: "stored-1",
             storage_path: "collection-1/clue-1/image.png",
             alt_text: "Bollard kenyan",
             sort_order: 0,
@@ -96,6 +97,14 @@ it("construit l'Atlas depuis les catégories et indices publiés", async () => {
           coverage: "selected_regions",
           regionIds: ["KE-30"],
           regions: ["Nairobi County"],
+          images: [
+            expect.objectContaining({
+              id: "stored-1",
+              storagePath: "collection-1/clue-1/image.png",
+              altText: "Bollard kenyan",
+              url: "https://example.test/image.png",
+            }),
+          ],
           imageUrls: ["https://example.test/image.png"],
           googleMapsUrl:
             "https://www.google.com/maps/@-0.1048,34.759,3a,75y",

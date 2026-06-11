@@ -53,7 +53,13 @@ export type ClueDataClient = {
   replaceRegions(clueId: string, regionIds: string[]): Promise<void>;
   deleteImageMetadata(imageIds: string[]): Promise<void>;
   updateImageSortOrders(
-    updates: Array<{ id: string; sort_order: number; alt_text: string | null }>,
+    updates: Array<{
+      id: string;
+      clue_id: string;
+      storage_path: string;
+      sort_order: number;
+      alt_text: string | null;
+    }>,
   ): Promise<void>;
   publishClue(clueId: string): Promise<void>;
   removeImages(paths: string[]): Promise<void>;
@@ -228,6 +234,8 @@ export function createClueApi(
         await client.updateImageSortOrders(
           nextImages.map((image, index) => ({
             id: image.id,
+            clue_id: input.clueId,
+            storage_path: image.storagePath,
             sort_order: index,
             alt_text: image.altText,
           })),

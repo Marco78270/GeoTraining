@@ -25,6 +25,12 @@ export type AtlasClue = {
   notes: string | null;
   googleMapsUrl: string | null;
   regionIds: string[];
+  images: Array<{
+    id: string;
+    storagePath: string;
+    altText: string | null;
+    url: string;
+  }>;
   imageUrls: string[];
   imageAlts: string[];
   regions: string[];
@@ -57,6 +63,7 @@ type PublishedClueRow = {
   google_maps_url: string | null;
   countries: { name: string } | null;
   clue_images: Array<{
+    id: string;
     storage_path: string;
     alt_text: string | null;
     sort_order: number;
@@ -162,6 +169,27 @@ export function createAtlasApi(client: AtlasDataClient) {
           .map((item) => item.regions?.name)
           .filter((name): name is string => Boolean(name));
         const regionIds = clue.clue_regions.map((item) => item.region_id);
+        const atlasImages = images
+          .map((image) => {
+            const url = signedUrls[image.storage_path];
+            if (!url) return null;
+            return {
+              id: image.id,
+              storagePath: image.storage_path,
+              altText: image.alt_text,
+              url,
+            };
+          })
+          .filter(
+            (
+              image,
+            ): image is {
+              id: string;
+              storagePath: string;
+              altText: string | null;
+              url: string;
+            } => Boolean(image),
+          );
 
         country.counts[clue.category_id] =
           (country.counts[clue.category_id] ?? 0) + 1;
@@ -175,11 +203,10 @@ export function createAtlasApi(client: AtlasDataClient) {
           notes: clue.notes,
           googleMapsUrl: clue.google_maps_url,
           regionIds,
-          imageUrls: images
-            .map((image) => signedUrls[image.storage_path])
-            .filter((url): url is string => Boolean(url)),
-          imageAlts: images.map(
-            (image) => image.alt_text ?? `${clue.title} - image`,
+          images: atlasImages,
+          imageUrls: atlasImages.map((image) => image.url),
+          imageAlts: atlasImages.map(
+            (image) => image.altText ?? `${clue.title} - image`,
           ),
           regions,
         });
@@ -235,7 +262,7 @@ export function createSupabaseAtlasDataClient(
       const { data, error } = await supabase
         .from("clues")
         .select(
-          "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, countries(name), clue_images(storage_path, alt_text, sort_order), clue_regions(region_id, regions(name))",
+          "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, countries(name), clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id, regions(name))",
         )
         .eq("collection_id", collectionId)
         .eq("status", "published")

@@ -10,6 +10,7 @@ import {
   Leaf,
   LogOut,
   Map,
+  MapPinned,
   Milestone,
   Plus,
   Route,
@@ -145,6 +146,32 @@ export function AtlasPage({
     markers[0] ??
     null;
   const selectedClue = selectedCountry?.clues[0] ?? null;
+  const selectedCountryCoverage = useMemo(() => {
+    if (!selectedCountry || !activeCategory) {
+      return {
+        hasWholeCountryCoverage: false,
+        coveredRegionIds: [] as string[],
+      };
+    }
+
+    return {
+      hasWholeCountryCoverage: selectedCountry.clues.some(
+        (clue) =>
+          clue.categoryId === activeCategory.id &&
+          clue.coverage === "whole_country",
+      ),
+      coveredRegionIds: [
+        ...new Set(
+          selectedCountry.clues.flatMap((clue) =>
+            clue.categoryId === activeCategory.id &&
+            clue.coverage === "selected_regions"
+              ? clue.regionIds
+              : [],
+          ),
+        ),
+      ],
+    };
+  }, [activeCategory, selectedCountry]);
 
   function toggleDifficulty(difficulty: Difficulty) {
     setActiveDifficulties((current) => {
@@ -286,6 +313,10 @@ export function AtlasPage({
               markers={markers}
               selectedCountryCode={effectiveSelectedCountryCode}
               viewport={effectiveSelectedCountryCode ? viewport : "world"}
+              hasWholeCountryCoverage={
+                selectedCountryCoverage.hasWholeCountryCoverage
+              }
+              coveredRegionIds={selectedCountryCoverage.coveredRegionIds}
               onCountrySelect={setSelectedCountryCode}
               onViewportChange={setViewport}
             />
@@ -340,6 +371,35 @@ export function AtlasPage({
             </div>
 
             <h2 className="atlas-clue-title">{selectedClue.title}</h2>
+            {activeCollectionId ? (
+              <Link
+                className="zoom-country-button"
+                to={`/clues/${selectedClue.id}/edit`}
+                state={{
+                  initialClue: {
+                    id: selectedClue.id,
+                    collectionId: activeCollectionId,
+                    categoryId: selectedClue.categoryId,
+                    countryCode: selectedCountry.code,
+                    coverage: selectedClue.coverage,
+                    regionIds: selectedClue.regionIds,
+                    difficulty: selectedClue.difficulty,
+                    title: selectedClue.title,
+                    characteristics: selectedClue.characteristics,
+                    notes: selectedClue.notes ?? "",
+                    googleMapsUrl: selectedClue.googleMapsUrl ?? "",
+                    existingImages: selectedClue.images.map((image, index) => ({
+                      id: image.id,
+                      storagePath: image.storagePath,
+                      altText: image.altText,
+                      sortOrder: index,
+                    })),
+                  },
+                }}
+              >
+                Modifier l’indice
+              </Link>
+            ) : null}
             {selectedClue.imageUrls[0] ? (
               <img
                 className="atlas-clue-image"
@@ -371,6 +431,17 @@ export function AtlasPage({
               <h2>Notes GeoGuessr</h2>
               <p>{selectedClue.notes || "Aucune note renseignée."}</p>
             </section>
+            {selectedClue.googleMapsUrl ? (
+              <a
+                className="zoom-country-button"
+                href={selectedClue.googleMapsUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <MapPinned aria-hidden="true" />
+                Ouvrir dans Google Maps
+              </a>
+            ) : null}
             <section className="detail-section detail-regions">
               <h2>Régions couvertes</h2>
               <div>

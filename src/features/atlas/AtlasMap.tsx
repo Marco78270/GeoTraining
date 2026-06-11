@@ -16,6 +16,8 @@ export type AtlasMapProps = {
   markers: AtlasMapCountry[];
   selectedCountryCode: string | null;
   viewport: Viewport;
+  hasWholeCountryCoverage?: boolean;
+  coveredRegionIds?: string[];
   onCountrySelect(code: string): void;
   onViewportChange(viewport: Viewport): void;
 };
@@ -50,6 +52,8 @@ export function AtlasMap({
   markers,
   selectedCountryCode,
   viewport,
+  hasWholeCountryCoverage = false,
+  coveredRegionIds = [],
   onCountrySelect,
   onViewportChange,
 }: AtlasMapProps) {
@@ -60,6 +64,8 @@ export function AtlasMap({
   const selectedCountryCodeRef = useRef(selectedCountryCode);
   const previousSelectedCountryCodeRef = useRef<string | null>(null);
   const viewportRef = useRef(viewport);
+  const hasWholeCountryCoverageRef = useRef(hasWholeCountryCoverage);
+  const coveredRegionIdsRef = useRef(coveredRegionIds);
 
   useEffect(() => {
     callbacksRef.current = { onCountrySelect, onViewportChange };
@@ -69,7 +75,9 @@ export function AtlasMap({
     markersRef.current = markers;
     selectedCountryCodeRef.current = selectedCountryCode;
     viewportRef.current = viewport;
-  }, [markers, selectedCountryCode, viewport]);
+    hasWholeCountryCoverageRef.current = hasWholeCountryCoverage;
+    coveredRegionIdsRef.current = coveredRegionIds;
+  }, [markers, selectedCountryCode, viewport, hasWholeCountryCoverage, coveredRegionIds]);
 
   useEffect(() => {
     let disposed = false;
@@ -170,6 +178,13 @@ export function AtlasMap({
           viewportRef.current,
         );
         previousSelectedCountryCodeRef.current = selectedCountryCodeRef.current;
+        void updateRegionOverlay(
+          map,
+          selectedCountryCodeRef.current,
+          viewportRef.current,
+          hasWholeCountryCoverageRef.current,
+          coveredRegionIdsRef.current,
+        );
 
         let hoveredId: string | number | null = null;
         map.on("mousemove", "countries-fill", (event: MapLayerMouseEvent) => {
@@ -254,7 +269,20 @@ export function AtlasMap({
       );
     }
     previousSelectedCountryCodeRef.current = selectedCountryCode;
-  }, [markers, selectedCountryCode, viewport]);
+    void updateRegionOverlay(
+      map,
+      selectedCountryCode,
+      viewport,
+      hasWholeCountryCoverage,
+      coveredRegionIds,
+    );
+  }, [
+    markers,
+    selectedCountryCode,
+    viewport,
+    hasWholeCountryCoverage,
+    coveredRegionIds,
+  ]);
 
   return (
     <div className="atlas-map-frame">
@@ -291,6 +319,81 @@ export function AtlasMap({
       </div>
     </div>
   );
+}
+
+async function updateRegionOverlay(
+  map: MapLibreMap,
+  selectedCountryCode: string | null,
+  viewport: Viewport,
+  hasWholeCountryCoverage: boolean,
+  coveredRegionIds: string[],
+) {
+  const coveredRegionMatchExpression: any = [
+    "match",
+    ["get", "id"],
+    coveredRegionIds,
+    true,
+    false,
+  ];
+  const source = map.getSource("country-regions") as GeoJSONSource | undefined;
+  if (!selectedCountryCode || viewport !== "country") {
+    source?.setData({
+      type: "FeatureCollection",
+      features: [],
+    });
+    return;
+  }
+
+  try {
+    const response = await fetch(`/geography/regions/${selectedCountryCode}.geojson`);
+    if (!response.ok) return;
+    const data = await response.json();
+
+    if (!source) {
+      map.addSource("country-regions", {
+        type: "geojson",
+        data,
+      });
+      map.addLayer({
+        id: "country-regions-fill",
+        type: "fill",
+        source: "country-regions",
+        paint: {
+          "fill-color": [
+            "case",
+            coveredRegionMatchExpression,
+            "#20d4e6",
+            hasWholeCountryCoverage,
+            "#173c57",
+            "#10293d",
+          ],
+          "fill-opacity": [
+            "case",
+            coveredRegionMatchExpression,
+            0.62,
+            hasWholeCountryCoverage,
+            0.38,
+            0.16,
+          ],
+        },
+      });
+      map.addLayer({
+        id: "country-regions-line",
+        type: "line",
+        source: "country-regions",
+        paint: {
+          "line-color": "#9cb1c5",
+          "line-width": 0.8,
+          "line-opacity": 0.75,
+        },
+      });
+      return;
+    }
+
+    source.setData(data);
+  } catch {
+    // Keep the country map usable even when regional geometry is missing.
+  }
 }
 
 function updateMarkers(map: MapLibreMap, markers: AtlasMapCountry[]) {

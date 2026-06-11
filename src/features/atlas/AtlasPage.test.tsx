@@ -21,11 +21,19 @@ vi.mock("./AtlasMap", () => ({
     selectedCountryCode,
     onCountrySelect,
     onViewportChange,
+    hasWholeCountryCoverage,
+    coveredRegionIds = [],
   }: ComponentProps<typeof import("./AtlasMap").AtlasMap>) => (
     <div data-testid="atlas-map">
       <output aria-label="Nombre de marqueurs">{markers.length}</output>
       <output aria-label="Pays sélectionné">
         {selectedCountryCode ?? "monde"}
+      </output>
+      <output aria-label="Couverture nationale">
+        {hasWholeCountryCoverage ? "oui" : "non"}
+      </output>
+      <output aria-label="Régions couvertes">
+        {coveredRegionIds.join(",")}
       </output>
       <button
         type="button"
@@ -80,7 +88,7 @@ const atlasApi: AtlasApi = {
         id: "category-bollards",
         name: "Bollards",
         shortName: "Bollards",
-        total: 1,
+        total: 2,
         countries: 1,
         icon: "sign",
         color: "#20D4E6",
@@ -92,19 +100,53 @@ const atlasApi: AtlasApi = {
         name: "Kenya",
         coordinates: [37.9, 0.2],
         difficulty: "medium",
-        counts: { "category-bollards": 1 },
-        regions: [],
+        counts: { "category-bollards": 2 },
+        regions: ["Nairobi County", "Mombasa County"],
         clues: [
           {
             id: "clue-1",
             categoryId: "category-bollards",
             title: "Bollards Kenyan",
             difficulty: "medium",
+            coverage: "whole_country",
             characteristics: ["Peinture noire et blanche"],
             notes: "Typique du Kenya",
+            googleMapsUrl:
+              "https://www.google.com/maps/@-0.1048,34.759,3a,75y",
+            regionIds: [],
+            images: [
+              {
+                id: "stored-1",
+                storagePath: "collection-1/clue-1/stored-1.png",
+                altText: "Bollard kenyan",
+                url: "https://example.test/kenya.png",
+              },
+            ],
             imageUrls: ["https://example.test/kenya.png"],
             imageAlts: ["Bollard kenyan"],
             regions: [],
+          },
+          {
+            id: "clue-2",
+            categoryId: "category-bollards",
+            title: "Bollards Nairobi",
+            difficulty: "easy",
+            coverage: "selected_regions",
+            characteristics: ["Jaune"],
+            notes: null,
+            googleMapsUrl: null,
+            regionIds: ["KE-30", "KE-40"],
+            images: [
+              {
+                id: "stored-2",
+                storagePath: "collection-1/clue-2/stored-2.png",
+                altText: "Bollard Nairobi",
+                url: "https://example.test/nairobi.png",
+              },
+            ],
+            imageUrls: ["https://example.test/nairobi.png"],
+            imageAlts: ["Bollard Nairobi"],
+            regions: ["Nairobi County", "Mombasa County"],
           },
         ],
       },
@@ -144,6 +186,25 @@ it("affiche les catégories et indices publiés de la collection active", async 
     "src",
     "https://example.test/kenya.png",
   );
+  expect(
+    screen.getByRole("link", { name: "Ouvrir dans Google Maps" }),
+  ).toHaveAttribute(
+    "href",
+    "https://www.google.com/maps/@-0.1048,34.759,3a,75y",
+  );
+  expect(
+    screen.getByRole("link", { name: "Modifier l’indice" }),
+  ).toHaveAttribute("href", "/clues/clue-1/edit");
+});
+
+it("agrège la couverture régionale du pays sélectionné", async () => {
+  const user = userEvent.setup();
+  renderAtlas();
+
+  await user.click(await screen.findByRole("button", { name: "Sélectionner le Kenya" }));
+
+  expect(screen.getByLabelText("Couverture nationale")).toHaveTextContent("oui");
+  expect(screen.getByLabelText("Régions couvertes")).toHaveTextContent("KE-30,KE-40");
 });
 
 it("affiche un état vide lorsque la collection ne contient aucun indice", async () => {
@@ -156,7 +217,7 @@ it("affiche un état vide lorsque la collection ne contient aucun indice", async
   ).toHaveTextContent("Aucun indice publié");
 });
 
-it("ouvre l'éditeur d'indice depuis l'action principale", async () => {
+it("ouvre l’éditeur d’indice depuis l’action principale", async () => {
   renderAtlas();
 
   expect(

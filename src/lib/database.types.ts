@@ -302,6 +302,7 @@ export type Database = {
           title: string;
           characteristics: string[];
           notes: string | null;
+          google_maps_url: string | null;
           author_id: string;
           created_at: string;
           updated_at: string;
@@ -317,6 +318,7 @@ export type Database = {
           title: string;
           characteristics?: string[];
           notes?: string | null;
+          google_maps_url?: string | null;
           author_id?: string;
           created_at?: string;
           updated_at?: string;
@@ -332,6 +334,7 @@ export type Database = {
           title?: string;
           characteristics?: string[];
           notes?: string | null;
+          google_maps_url?: string | null;
           author_id?: string;
           created_at?: string;
           updated_at?: string;

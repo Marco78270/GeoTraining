@@ -78,6 +78,16 @@ async function getMap() {
 
 beforeEach(() => {
   mapState.instances.length = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        type: "FeatureCollection",
+        features: [],
+      }),
+    }),
+  );
 });
 
 it("configure le GeoJSON local, les couches et les marqueurs", async () => {
@@ -297,5 +307,38 @@ it("efface l'ancienne sélection quand le pays disparaît des marqueurs", async 
   expect(map.setFeatureState).toHaveBeenCalledWith(
     { source: "world-demo", id: "US" },
     { selected: true },
+  );
+});
+
+it("charge et dessine les regions d'un pays en vue pays", async () => {
+  render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="FR"
+      viewport="country"
+      hasWholeCountryCoverage
+      coveredRegionIds={["FR-IDF", "FR-OCC"]}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+  const map = await getMap();
+  const addSource = vi.spyOn(map, "addSource");
+  map.emit("load");
+
+  await waitFor(() => {
+    expect(fetch).toHaveBeenCalledWith("/geography/regions/FR.geojson");
+  });
+  expect(addSource).toHaveBeenCalledWith(
+    "country-regions",
+    expect.objectContaining({
+      type: "geojson",
+    }),
+  );
+  expect(map.layers.map((layer) => layer.id)).toEqual(
+    expect.arrayContaining([
+      "country-regions-fill",
+      "country-regions-line",
+    ]),
   );
 });

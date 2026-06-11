@@ -57,7 +57,9 @@ function client(events: string[]): ClueDataClient {
     }),
     updateImageSortOrders: vi.fn(async (updates) => {
       events.push(
-        `sort:${updates.map((update) => `${update.id}:${update.sort_order}`).join(",")}`,
+        `sort:${updates
+          .map((update: { id: string; sort_order: number }) => `${update.id}:${update.sort_order}`)
+          .join(",")}`,
       );
     }),
     publishClue: vi.fn(async () => {
@@ -241,8 +243,20 @@ describe("createClueApi", () => {
       sort_order: 1,
     });
     expect(dataClient.updateImageSortOrders).toHaveBeenCalledWith([
-      { id: "stored-1", sort_order: 0, alt_text: "Bollard 1" },
-      { id: "image-3", sort_order: 1, alt_text: "Bollards Kenyan - image 2" },
+      {
+        id: "stored-1",
+        clue_id: "clue-1",
+        storage_path: "collection-1/clue-1/stored-1.jpg",
+        sort_order: 0,
+        alt_text: "Bollard 1",
+      },
+      {
+        id: "image-3",
+        clue_id: "clue-1",
+        storage_path: "collection-1/clue-1/image-3.jpg",
+        sort_order: 1,
+        alt_text: "Bollards Kenyan - image 2",
+      },
     ]);
   });
 });

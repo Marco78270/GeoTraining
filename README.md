@@ -131,3 +131,11 @@ npx supabase test db
 - Natural Earth : domaine public ;
 - geoBoundaries gbOpen : CC BY 4.0,
   [www.geoboundaries.org](https://www.geoboundaries.org/).
+
+## Édition Atlas et zoom régional
+
+- route d’édition : `/clues/:clueId/edit` ;
+- modification d’un indice depuis le panneau de détail Atlas ;
+- conservation ou retrait individuel des images déjà enregistrées ;
+- ajout de nouvelles images pendant l’édition ;
+- zoom sur un pays avec couverture agrégée par régions selon les filtres actifs.
