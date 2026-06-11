@@ -2,8 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CollectionError,
   createCollectionApi,
+  createSupabaseCollectionDataClient,
   type CollectionDataClient,
 } from "./collectionApi";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../../lib/database.types";
 
 const collection = {
   id: "collection-1",
@@ -54,6 +57,27 @@ function createClient(
 }
 
 describe("collectionApi", () => {
+  it("creates collections through the authenticated RPC", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: collection, error: null });
+    const supabase = {
+      rpc,
+    } as unknown as SupabaseClient<Database>;
+    const client = createSupabaseCollectionDataClient(supabase);
+
+    await expect(
+      client.insertCollection({
+        owner_id: "user-1",
+        name: "Panneaux",
+        description: null,
+      }),
+    ).resolves.toEqual(collection);
+
+    expect(rpc).toHaveBeenCalledWith("create_collection", {
+      collection_name: "Panneaux",
+      collection_description: null,
+    });
+  });
+
   it("creates a collection and returns its owner membership", async () => {
     const client = createClient();
     const api = createCollectionApi(client);
