@@ -2,8 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../lib/database.types";
 import { getSupabaseClient } from "../../lib/supabase";
 import {
+  parseClueEditForm,
   parseClueForm,
+  type ClueEditInput,
   type ClueFormInput,
+  type ParsedClueEditForm,
   type ParsedClueForm,
 } from "./clueSchema";
 
@@ -14,6 +17,7 @@ type ImageInsert = Tables["clue_images"]["Insert"];
 export type ClueCreationStage =
   | "validation"
   | "draft"
+  | "update"
   | "upload"
   | "metadata"
   | "regions"
@@ -38,6 +42,7 @@ export class ClueCreationError extends Error {
 
 export type ClueDataClient = {
   insertDraft(input: DraftInsert): Promise<{ id: string }>;
+  updateClue(clueId: string, input: DraftInsert): Promise<void>;
   uploadImage(
     path: string,
     file: File,
@@ -45,6 +50,11 @@ export type ClueDataClient = {
   ): Promise<void>;
   insertImage(input: ImageInsert): Promise<void>;
   insertRegions(clueId: string, regionIds: string[]): Promise<void>;
+  replaceRegions(clueId: string, regionIds: string[]): Promise<void>;
+  deleteImageMetadata(imageIds: string[]): Promise<void>;
+  updateImageSortOrders(
+    updates: Array<{ id: string; sort_order: number; alt_text: string | null }>,
+  ): Promise<void>;
   publishClue(clueId: string): Promise<void>;
   removeImages(paths: string[]): Promise<void>;
   deleteClue(clueId: string): Promise<void>;
@@ -56,7 +66,7 @@ const extensionByMimeType: Record<string, string> = {
   "image/webp": "webp",
 };
 
-function draftInput(input: ParsedClueForm): DraftInsert {
+function draftInput(input: ParsedClueForm | ParsedClueEditForm): DraftInsert {
   return {
     collection_id: input.collectionId,
     category_id: input.categoryId,
@@ -67,7 +77,12 @@ function draftInput(input: ParsedClueForm): DraftInsert {
     title: input.title,
     characteristics: input.characteristics,
     notes: input.notes,
+    google_maps_url: input.googleMapsUrl,
   };
+}
+
+function createImageAltText(title: string, index: number) {
+  return `${title} - image ${index + 1}`;
 }
 
 export function createClueApi(
@@ -110,7 +125,7 @@ export function createClueApi(
             id: imageId,
             clue_id: clue.id,
             storage_path: storagePath,
-            alt_text: `${input.title} - image ${index + 1}`,
+            alt_text: createImageAltText(input.title, index),
             sort_order: index,
           });
         }
@@ -135,6 +150,102 @@ export function createClueApi(
         if (clueId) {
           try {
             await client.deleteClue(clueId);
+          } catch {
+            cleanupFailed = true;
+          }
+        }
+        throw new ClueCreationError("clue_create_failed", stage, {
+          cause,
+          cleanupFailed,
+        });
+      }
+    },
+
+    async update(rawInput: ClueEditInput): Promise<{ id: string }> {
+      let input: ParsedClueEditForm;
+      try {
+        input = parseClueEditForm(rawInput);
+      } catch (cause) {
+        throw new ClueCreationError("clue_validation_failed", "validation", {
+          cause,
+        });
+      }
+
+      let stage: ClueCreationStage = "update";
+      const uploadedPaths: string[] = [];
+      const insertedImageIds: string[] = [];
+      const keptImages = input.existingImages;
+      const nextImages = [...keptImages];
+
+      try {
+        await client.updateClue(input.clueId, draftInput(input));
+
+        stage = "regions";
+        await client.replaceRegions(
+          input.clueId,
+          input.coverage === "selected_regions" ? input.regionIds : [],
+        );
+
+        for (const [index, file] of input.images.entries()) {
+          const imageId = createId();
+          const extension = extensionByMimeType[file.type];
+          const storagePath = `${input.collectionId}/${input.clueId}/${imageId}.${extension}`;
+          const altText = createImageAltText(input.title, keptImages.length + index);
+
+          stage = "upload";
+          await client.uploadImage(storagePath, file, {
+            contentType: file.type,
+            upsert: false,
+          });
+          uploadedPaths.push(storagePath);
+
+          stage = "metadata";
+          await client.insertImage({
+            id: imageId,
+            clue_id: input.clueId,
+            storage_path: storagePath,
+            alt_text: altText,
+            sort_order: keptImages.length + index,
+          });
+          insertedImageIds.push(imageId);
+          nextImages.push({
+            id: imageId,
+            storagePath,
+            altText,
+            sortOrder: keptImages.length + index,
+          });
+        }
+
+        const removedImages = rawInput.existingImages.filter((image) =>
+          input.removedImageIds.includes(image.id),
+        );
+        if (removedImages.length > 0) {
+          await client.removeImages(removedImages.map((image) => image.storagePath));
+          await client.deleteImageMetadata(removedImages.map((image) => image.id));
+        }
+
+        stage = "metadata";
+        await client.updateImageSortOrders(
+          nextImages.map((image, index) => ({
+            id: image.id,
+            sort_order: index,
+            alt_text: image.altText,
+          })),
+        );
+
+        return { id: input.clueId };
+      } catch (cause) {
+        let cleanupFailed = false;
+        if (uploadedPaths.length > 0) {
+          try {
+            await client.removeImages(uploadedPaths);
+          } catch {
+            cleanupFailed = true;
+          }
+        }
+        if (insertedImageIds.length > 0) {
+          try {
+            await client.deleteImageMetadata(insertedImageIds);
           } catch {
             cleanupFailed = true;
           }
@@ -171,9 +282,14 @@ export function createSupabaseClueDataClient(
         .single();
       throwIfError(error, "clue_draft_failed");
       if (!data) {
-        throw new Error("Le brouillon créé n'a pas été retourné.");
+        throw new Error("Le brouillon crÃ©Ã© n'a pas Ã©tÃ© retournÃ©.");
       }
       return data;
+    },
+
+    async updateClue(clueId, input) {
+      const { error } = await supabase.from("clues").update(input).eq("id", clueId);
+      throwIfError(error, "clue_update_failed");
     },
 
     async uploadImage(path, file, options) {
@@ -198,6 +314,31 @@ export function createSupabaseClueDataClient(
       throwIfError(error, "clue_regions_failed");
     },
 
+    async replaceRegions(clueId, regionIds) {
+      const { error: deleteError } = await supabase
+        .from("clue_regions")
+        .delete()
+        .eq("clue_id", clueId);
+      throwIfError(deleteError, "clue_regions_failed");
+      if (regionIds.length === 0) return;
+      await this.insertRegions(clueId, regionIds);
+    },
+
+    async deleteImageMetadata(imageIds) {
+      if (imageIds.length === 0) return;
+      const { error } = await supabase
+        .from("clue_images")
+        .delete()
+        .in("id", imageIds);
+      throwIfError(error, "clue_image_metadata_cleanup_failed");
+    },
+
+    async updateImageSortOrders(updates) {
+      if (updates.length === 0) return;
+      const { error } = await supabase.from("clue_images").upsert(updates);
+      throwIfError(error, "clue_image_sort_failed");
+    },
+
     async publishClue(clueId) {
       const { error } = await supabase
         .from("clues")
@@ -207,6 +348,7 @@ export function createSupabaseClueDataClient(
     },
 
     async removeImages(paths) {
+      if (paths.length === 0) return;
       const { error } = await supabase.storage.from("clue-images").remove(paths);
       throwIfError(error, "clue_image_cleanup_failed");
     },

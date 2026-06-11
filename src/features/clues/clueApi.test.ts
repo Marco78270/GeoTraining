@@ -4,7 +4,7 @@ import {
   createClueApi,
   type ClueDataClient,
 } from "./clueApi";
-import type { ClueFormInput } from "./clueSchema";
+import type { ClueEditInput, ClueFormInput } from "./clueSchema";
 
 function image(name: string, type: string) {
   return new File(["image"], name, { type });
@@ -20,7 +20,8 @@ function form(): ClueFormInput {
     difficulty: "medium",
     title: "Panneau STOP",
     characteristics: ["Contour blanc"],
-    notes: "Souvent accompagné d'une ligne au sol.",
+    notes: "Souvent accompagne d'une ligne au sol.",
+    googleMapsUrl: "https://www.google.com/maps/@48.8566,2.3522,3a,75y",
     images: [
       image("front.jpg", "image/jpeg"),
       image("side.webp", "image/webp"),
@@ -45,6 +46,20 @@ function client(events: string[]): ClueDataClient {
     insertRegions: vi.fn(async (_clueId, regionIds) => {
       events.push(`regions:${regionIds.join(",")}`);
     }),
+    updateClue: vi.fn(async () => {
+      events.push("update");
+    }),
+    replaceRegions: vi.fn(async (_clueId, regionIds) => {
+      events.push(`replaceRegions:${regionIds.join(",")}`);
+    }),
+    deleteImageMetadata: vi.fn(async (imageIds) => {
+      events.push(`deleteImageMetadata:${imageIds.join(",")}`);
+    }),
+    updateImageSortOrders: vi.fn(async (updates) => {
+      events.push(
+        `sort:${updates.map((update) => `${update.id}:${update.sort_order}`).join(",")}`,
+      );
+    }),
     publishClue: vi.fn(async () => {
       events.push("publish");
     }),
@@ -58,7 +73,7 @@ function client(events: string[]): ClueDataClient {
 }
 
 describe("createClueApi", () => {
-  it("crée le brouillon, charge les images privées, lie les enfants puis publie", async () => {
+  it("cree le brouillon, charge les images privees, lie les enfants puis publie", async () => {
     const events: string[] = [];
     const dataClient = client(events);
     const ids = ["image-1", "image-2"];
@@ -84,7 +99,8 @@ describe("createClueApi", () => {
       status: "draft",
       title: "Panneau STOP",
       characteristics: ["Contour blanc"],
-      notes: "Souvent accompagné d'une ligne au sol.",
+      notes: "Souvent accompagne d'une ligne au sol.",
+      google_maps_url: "https://www.google.com/maps/@48.8566,2.3522,3a,75y",
     });
     expect(dataClient.insertImage).toHaveBeenNthCalledWith(1, {
       id: "image-1",
@@ -95,7 +111,7 @@ describe("createClueApi", () => {
     });
   });
 
-  it("ne crée aucune région explicite pour un pays entier", async () => {
+  it("ne cree aucune region explicite pour un pays entier", async () => {
     const events: string[] = [];
     const dataClient = client(events);
     const api = createClueApi(dataClient, () => "image-1");
@@ -111,7 +127,7 @@ describe("createClueApi", () => {
     expect(events.at(-1)).toBe("publish");
   });
 
-  it("supprime les objets chargés et le brouillon si une étape enfant échoue", async () => {
+  it("supprime les objets charges et le brouillon si une etape enfant echoue", async () => {
     const events: string[] = [];
     const dataClient = client(events);
     vi.mocked(dataClient.insertRegions).mockImplementationOnce(async () => {
@@ -144,7 +160,7 @@ describe("createClueApi", () => {
     expect(originalForm.images).toHaveLength(2);
   });
 
-  it("conserve l'erreur principale même si le nettoyage échoue", async () => {
+  it("conserve l'erreur principale meme si le nettoyage echoue", async () => {
     const events: string[] = [];
     const dataClient = client(events);
     vi.mocked(dataClient.uploadImage).mockRejectedValueOnce(
@@ -167,5 +183,66 @@ describe("createClueApi", () => {
     expect((error as ClueCreationError).cause).toEqual(
       new Error("upload failed"),
     );
+  });
+
+  it("met a jour un indice existant, conserve ses images et ajoute les nouvelles", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    const api = createClueApi(
+      dataClient,
+      (() => {
+        const ids = ["image-3"];
+        return () => ids.shift()!;
+      })(),
+    );
+
+    const input: ClueEditInput = {
+      ...form(),
+      clueId: "clue-1",
+      countryCode: "KE",
+      regionIds: ["KE-30"],
+      title: "Bollards Kenyan",
+      characteristics: ["Peinture jaune"],
+      notes: "Nairobi et ses environs",
+      googleMapsUrl: "https://www.google.com/maps/@-1.286389,36.817223,3a,75y",
+      existingImages: [
+        {
+          id: "stored-1",
+          storagePath: "collection-1/clue-1/stored-1.jpg",
+          altText: "Bollard 1",
+          sortOrder: 0,
+        },
+      ],
+      removedImageIds: [],
+      images: [image("new.jpg", "image/jpeg")],
+    };
+
+    await expect(api.update(input)).resolves.toEqual({ id: "clue-1" });
+
+    expect(dataClient.updateClue).toHaveBeenCalledWith(
+      "clue-1",
+      expect.objectContaining({
+        country_code: "KE",
+        coverage: "selected_regions",
+        title: "Bollards Kenyan",
+      }),
+    );
+    expect(dataClient.replaceRegions).toHaveBeenCalledWith("clue-1", ["KE-30"]);
+    expect(dataClient.uploadImage).toHaveBeenCalledWith(
+      "collection-1/clue-1/image-3.jpg",
+      expect.any(File),
+      { contentType: "image/jpeg", upsert: false },
+    );
+    expect(dataClient.insertImage).toHaveBeenCalledWith({
+      id: "image-3",
+      clue_id: "clue-1",
+      storage_path: "collection-1/clue-1/image-3.jpg",
+      alt_text: "Bollards Kenyan - image 2",
+      sort_order: 1,
+    });
+    expect(dataClient.updateImageSortOrders).toHaveBeenCalledWith([
+      { id: "stored-1", sort_order: 0, alt_text: "Bollard 1" },
+      { id: "image-3", sort_order: 1, alt_text: "Bollards Kenyan - image 2" },
+    ]);
   });
 });
