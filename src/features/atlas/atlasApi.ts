@@ -20,8 +20,11 @@ export type AtlasClue = {
   categoryId: string;
   title: string;
   difficulty: Difficulty;
+  coverage: "whole_country" | "selected_regions";
   characteristics: string[];
   notes: string | null;
+  googleMapsUrl: string | null;
+  regionIds: string[];
   imageUrls: string[];
   imageAlts: string[];
   regions: string[];
@@ -48,15 +51,20 @@ type PublishedClueRow = {
   country_code: string;
   title: string;
   difficulty: Difficulty;
+  coverage: "whole_country" | "selected_regions";
   characteristics: string[];
   notes: string | null;
+  google_maps_url: string | null;
   countries: { name: string } | null;
   clue_images: Array<{
     storage_path: string;
     alt_text: string | null;
     sort_order: number;
   }>;
-  clue_regions: Array<{ regions: { name: string } | null }>;
+  clue_regions: Array<{
+    region_id: string;
+    regions: { name: string } | null;
+  }>;
 };
 
 type Position = [number, number];
@@ -153,6 +161,7 @@ export function createAtlasApi(client: AtlasDataClient) {
         const regions = clue.clue_regions
           .map((item) => item.regions?.name)
           .filter((name): name is string => Boolean(name));
+        const regionIds = clue.clue_regions.map((item) => item.region_id);
 
         country.counts[clue.category_id] =
           (country.counts[clue.category_id] ?? 0) + 1;
@@ -161,8 +170,11 @@ export function createAtlasApi(client: AtlasDataClient) {
           categoryId: clue.category_id,
           title: clue.title,
           difficulty: clue.difficulty,
+          coverage: clue.coverage,
           characteristics: clue.characteristics,
           notes: clue.notes,
+          googleMapsUrl: clue.google_maps_url,
+          regionIds,
           imageUrls: images
             .map((image) => signedUrls[image.storage_path])
             .filter((url): url is string => Boolean(url)),
@@ -223,7 +235,7 @@ export function createSupabaseAtlasDataClient(
       const { data, error } = await supabase
         .from("clues")
         .select(
-          "id, category_id, country_code, title, difficulty, characteristics, notes, countries(name), clue_images(storage_path, alt_text, sort_order), clue_regions(regions(name))",
+          "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, countries(name), clue_images(storage_path, alt_text, sort_order), clue_regions(region_id, regions(name))",
         )
         .eq("collection_id", collectionId)
         .eq("status", "published")

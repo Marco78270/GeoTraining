@@ -47,8 +47,11 @@ it("construit l'Atlas depuis les catégories et indices publiés", async () => {
         country_code: "KE",
         title: "Bollards Kenyan",
         difficulty: "medium",
+        coverage: "selected_regions",
         characteristics: ["Peinture noire et blanche"],
         notes: "Typique du Kenya",
+        google_maps_url:
+          "https://www.google.com/maps/@-0.1048,34.759,3a,75y",
         countries: { name: "Kenya" },
         clue_images: [
           {
@@ -57,7 +60,12 @@ it("construit l'Atlas depuis les catégories et indices publiés", async () => {
             sort_order: 0,
           },
         ],
-        clue_regions: [],
+        clue_regions: [
+          {
+            region_id: "KE-30",
+            regions: { name: "Nairobi County" },
+          },
+        ],
       },
     ]),
     createSignedImageUrls: vi.fn().mockResolvedValue({
@@ -82,10 +90,15 @@ it("construit l'Atlas depuis les catégories et indices publiés", async () => {
       name: "Kenya",
       coordinates: [37.9, 0.19999999999999973],
       counts: { "category-bollards": 1 },
-      clues: [
+        clues: [
         expect.objectContaining({
           title: "Bollards Kenyan",
+          coverage: "selected_regions",
+          regionIds: ["KE-30"],
+          regions: ["Nairobi County"],
           imageUrls: ["https://example.test/image.png"],
+          googleMapsUrl:
+            "https://www.google.com/maps/@-0.1048,34.759,3a,75y",
         }),
       ],
     }),
