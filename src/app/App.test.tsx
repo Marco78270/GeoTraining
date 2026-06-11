@@ -15,6 +15,10 @@ vi.mock("../features/atlas/AtlasMap", () => ({
   AtlasMap: () => <div aria-label="Carte mondiale interactive" />,
 }));
 
+vi.mock("../features/clues/ClueEditor", () => ({
+  ClueEditor: () => <h1>Éditeur d’indice</h1>,
+}));
+
 const anonymousAuth: AuthContextValue = {
   session: null,
   user: null,
@@ -70,4 +74,21 @@ it("lands authenticated visitors on Atlas and allows signing out", async () => {
   expect(await screen.findByRole("heading", { name: "Atlas" })).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Se déconnecter" }));
   expect(signOut).toHaveBeenCalledOnce();
+});
+
+it("ouvre l'éditeur protégé depuis sa route dédiée", async () => {
+  const session = { user: { id: "user-1" } } as Session;
+
+  renderApp(
+    {
+      ...anonymousAuth,
+      session,
+      user: session.user,
+    },
+    "/clues/new",
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: "Éditeur d’indice" }),
+  ).toBeVisible();
 });

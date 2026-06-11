@@ -247,7 +247,7 @@ export function AtlasPage() {
             </div>
           </section>
 
-          <Link className="add-clue-button" to="/collections">
+          <Link className="add-clue-button" to="/clues/new">
             <Plus aria-hidden="true" />Ajouter un indice
           </Link>
         </aside>

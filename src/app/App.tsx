@@ -6,6 +6,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireSession } from "../features/auth/RequireSession";
 import { useAuth } from "../features/auth/authContext";
+import { ClueEditorPage } from "../features/clues/ClueEditorPage";
 import { AcceptInvitationPage } from "../features/collections/AcceptInvitationPage";
 import { ActiveCollectionProvider } from "../features/collections/ActiveCollectionProvider";
 import type { CollectionApi } from "../features/collections/collectionApi";
@@ -57,6 +58,14 @@ export function App({ collectionApi }: { collectionApi?: CollectionApi }) {
           element={
             <CollectionWorkspace api={collectionApi}>
               <CollectionsPage api={collectionApi} />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
+          path="/clues/new"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <ClueEditorPage collectionApi={collectionApi} />
             </CollectionWorkspace>
           }
         />

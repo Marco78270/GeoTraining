@@ -115,6 +115,14 @@ it("distingue clairement les données de démonstration des imports de la collec
   expect(notice).toHaveTextContent("Mes indices");
 });
 
+it("ouvre l'éditeur d'indice depuis l'action principale", () => {
+  renderAtlas();
+
+  expect(
+    screen.getByRole("link", { name: "Ajouter un indice" }),
+  ).toHaveAttribute("href", "/clues/new");
+});
+
 it("permet de filtrer les cinq continents présents", () => {
   renderAtlas();
 
