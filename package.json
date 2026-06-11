@@ -12,6 +12,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:geography": "node --test scripts/geography/normalize-geography.test.mjs && vitest run src/features/geography",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc -b --pretty false"

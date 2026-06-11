@@ -1,0 +1,48 @@
+{
+  "naturalEarthAdmin0": {
+    "name": "Natural Earth Admin 0 - Countries",
+    "version": "5.1.1",
+    "commit": "9380cca83db5f9aef52d5e762765100745f84b27",
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/9380cca83db5f9aef52d5e762765100745f84b27/geojson/ne_110m_admin_0_countries.geojson",
+    "license": "Public domain",
+    "sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f",
+    "cachePath": "scripts/geography/cache/ne_110m_admin_0_countries.geojson",
+    "outputPath": "public/geography/world.geojson",
+    "outputSha256": "f9ac01ba60f5165e3656dfa413deb201cd78e4872d8ee193c9a59017d668c94d"
+  },
+  "geoBoundariesAdm1": {
+    "name": "geoBoundaries CGAZ ADM1",
+    "version": "2023-12-13",
+    "commit": "9469f09592ced973a3448cf66b6100b741b64c0d",
+    "url": "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09592ced973a3448cf66b6100b741b64c0d/releaseData/CGAZ/geoBoundariesCGAZ_ADM1.geojson",
+    "license": "CC BY 4.0",
+    "attributionUrl": "https://www.geoboundaries.org/",
+    "sha256": "a38536de77aa51f759b91083f4a99a34ae362ce5b0cc22296b400140720f2fe3",
+    "cachePath": "scripts/geography/cache/geoBoundariesCGAZ_ADM1.geojson",
+    "outputDirectory": "public/geography/regions"
+  },
+  "geoBoundariesCountryAdm1": [
+    {
+      "countryCode": "FR",
+      "sourceCountryCode": "FRA",
+      "name": "geoBoundaries France ADM1 simplified",
+      "url": "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09592ced973a3448cf66b6100b741b64c0d/releaseData/gbOpen/FRA/ADM1/geoBoundaries-FRA-ADM1_simplified.geojson",
+      "license": "CC BY 4.0",
+      "sha256": "7dc61e5c7e4c81f5fa10d339e6a5bc8428f1346f43f4426d9d165d2e44fc3a7e",
+      "cachePath": "scripts/geography/cache/geoBoundaries-FRA-ADM1_simplified.geojson",
+      "outputPath": "public/geography/regions/FR.geojson",
+      "outputSha256": "0d446d9b36cc112c37d796ffc6b7a55908a5a0c333c344c421bb737c3e9ee615"
+    }
+  ],
+  "iso3166Overrides": {
+    "name": "ISO 3166 country mapping overrides",
+    "versionDate": "2026-06-11",
+    "url": "https://www.iso.org/obp/ui/#search",
+    "license": "ISO terms and conditions",
+    "path": "scripts/geography/iso-country-overrides.json",
+    "sha256": "2886f76c73e7bce78d2266893cc1548aaf931ddb9f5afe16b929517e4af9577d"
+  },
+  "legacyRegionIdMappings": {
+    "FR-COR": "FR-20R"
+  }
+}

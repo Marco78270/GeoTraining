@@ -95,7 +95,7 @@ export function AtlasMap({
         }
         map.addSource("world-demo", {
           type: "geojson",
-          data: "/geography/world-demo.geojson",
+          data: "/geography/world.geojson",
           promoteId: "iso2",
         });
         map.addLayer({
@@ -255,6 +255,22 @@ export function AtlasMap({
   return (
     <div className="atlas-map-frame">
       <div ref={containerRef} className="atlas-map" aria-label="Carte mondiale interactive" />
+      <div className="map-data-attribution">
+        <a href="https://www.naturalearthdata.com/" target="_blank" rel="noreferrer">
+          Natural Earth
+        </a>
+        <span>·</span>
+        <a href="https://www.geoboundaries.org/" target="_blank" rel="noreferrer">
+          geoBoundaries
+        </a>
+        <a
+          href="https://creativecommons.org/licenses/by/4.0/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          CC BY 4.0
+        </a>
+      </div>
       <div className="map-access-list" aria-label="Sélection accessible des pays">
         {markers.map((country) => (
           <button

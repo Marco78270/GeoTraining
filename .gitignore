@@ -3,6 +3,9 @@ node_modules/
 dist/
 playwright-report/
 test-results/
+output/
+debug.log
+supabase/.temp/
 *.local
 .env
 .env.*

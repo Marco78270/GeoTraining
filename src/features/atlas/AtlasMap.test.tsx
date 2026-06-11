@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 
 it("configure le GeoJSON local, les couches et les marqueurs", async () => {
-  render(
+  const { getByRole } = render(
     <AtlasMap
       markers={atlasCountries}
       selectedCountryCode={null}
@@ -97,7 +97,7 @@ it("configure le GeoJSON local, les couches et les marqueurs", async () => {
   expect(map.options).toMatchObject({ center: [5, 18], zoom: 1.15 });
   expect(addSource).toHaveBeenCalledWith("world-demo", {
     type: "geojson",
-    data: "/geography/world-demo.geojson",
+    data: "/geography/world.geojson",
     promoteId: "iso2",
   });
   expect(map.layers.map((layer) => layer.id)).toEqual([
@@ -112,6 +112,18 @@ it("configure le GeoJSON local, les couches et les marqueurs", async () => {
         expect.objectContaining({ properties: expect.objectContaining({ code: "FR" }) }),
       ]),
     }),
+  );
+  expect(getByRole("link", { name: "Natural Earth" })).toHaveAttribute(
+    "href",
+    "https://www.naturalearthdata.com/",
+  );
+  expect(getByRole("link", { name: "geoBoundaries" })).toHaveAttribute(
+    "href",
+    "https://www.geoboundaries.org/",
+  );
+  expect(getByRole("link", { name: "CC BY 4.0" })).toHaveAttribute(
+    "href",
+    "https://creativecommons.org/licenses/by/4.0/",
   );
 });
 
