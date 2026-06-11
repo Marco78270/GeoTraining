@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
@@ -11,6 +12,7 @@ import {
   ActiveCollectionContext,
   type ActiveCollectionContextValue,
 } from "../collections/activeCollectionContext";
+import type { AtlasApi } from "./atlasApi";
 import { AtlasPage } from "./AtlasPage";
 
 vi.mock("./AtlasMap", () => ({
@@ -25,14 +27,14 @@ vi.mock("./AtlasMap", () => ({
       <output aria-label="Pays sélectionné">
         {selectedCountryCode ?? "monde"}
       </output>
-      <button type="button" onClick={() => onCountrySelect("FR")}>
-        Sélectionner la France
-      </button>
-      <button type="button" onClick={() => onViewportChange("country")}>
-        Zoomer sur la France
-      </button>
-      <button type="button" onClick={() => onViewportChange("world")}>
-        Vue monde simulée
+      <button
+        type="button"
+        onClick={() => {
+          onCountrySelect("KE");
+          onViewportChange("country");
+        }}
+      >
+        Sélectionner le Kenya
       </button>
     </div>
   ),
@@ -52,150 +54,112 @@ const authValue: AuthContextValue = {
   signOut: async () => ({ error: null }),
 };
 
+const collection = {
+  id: "collection-1",
+  name: "Mes indices",
+  description: null,
+  owner_id: "user-1",
+  created_at: "2026-06-10T00:00:00.000Z",
+  updated_at: "2026-06-10T00:00:00.000Z",
+  role: "owner" as const,
+};
+
 const collectionValue: ActiveCollectionContextValue = {
-  collections: [
-    {
-      id: "collection-1",
-      name: "Mes indices",
-      description: null,
-      owner_id: "user-1",
-      created_at: "2026-06-10T00:00:00.000Z",
-      updated_at: "2026-06-10T00:00:00.000Z",
-      role: "owner",
-    },
-  ],
-  activeCollection: {
-    id: "collection-1",
-    name: "Mes indices",
-    description: null,
-    owner_id: "user-1",
-    created_at: "2026-06-10T00:00:00.000Z",
-    updated_at: "2026-06-10T00:00:00.000Z",
-    role: "owner",
-  },
-  activeCollectionId: "collection-1",
+  collections: [collection],
+  activeCollection: collection,
+  activeCollectionId: collection.id,
   setActiveCollectionId: vi.fn(),
   isLoading: false,
   error: null,
 };
 
-function renderAtlas() {
+const atlasApi: AtlasApi = {
+  load: vi.fn().mockResolvedValue({
+    categories: [
+      {
+        id: "category-bollards",
+        name: "Bollards",
+        shortName: "Bollards",
+        total: 1,
+        countries: 1,
+        icon: "sign",
+        color: "#20D4E6",
+      },
+    ],
+    countries: [
+      {
+        code: "KE",
+        name: "Kenya",
+        coordinates: [37.9, 0.2],
+        difficulty: "medium",
+        counts: { "category-bollards": 1 },
+        regions: [],
+        clues: [
+          {
+            id: "clue-1",
+            categoryId: "category-bollards",
+            title: "Bollards Kenyan",
+            difficulty: "medium",
+            characteristics: ["Peinture noire et blanche"],
+            notes: "Typique du Kenya",
+            imageUrls: ["https://example.test/kenya.png"],
+            imageAlts: ["Bollard kenyan"],
+            regions: [],
+          },
+        ],
+      },
+    ],
+  }),
+};
+
+function renderAtlas(api: AtlasApi = atlasApi) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   render(
-    <MemoryRouter>
-      <AuthContext.Provider value={authValue}>
-        <ActiveCollectionContext.Provider value={collectionValue}>
-          <AtlasPage />
-        </ActiveCollectionContext.Provider>
-      </AuthContext.Provider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AuthContext.Provider value={authValue}>
+          <ActiveCollectionContext.Provider value={collectionValue}>
+            <AtlasPage atlasApi={api} />
+          </ActiveCollectionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
-it("change la couverture affichée avec la catégorie active", async () => {
+it("affiche les catégories et indices publiés de la collection active", async () => {
   const user = userEvent.setup();
   renderAtlas();
 
-  expect(screen.getByText("248")).toBeVisible();
-  expect(screen.getByText("Indices démo")).toBeVisible();
-  await user.click(screen.getByRole("button", { name: /Plaques/i }));
+  expect(await screen.findByRole("button", { name: /Bollards/i })).toBeVisible();
+  expect(screen.getByLabelText("Nombre de marqueurs")).toHaveTextContent("1");
 
-  expect(screen.getByText("132")).toBeVisible();
-  expect(
-    screen.getByText("Plaques d’immatriculation", { selector: "strong" }),
-  ).toBeVisible();
-});
+  await user.click(screen.getByRole("button", { name: "Sélectionner le Kenya" }));
 
-it("distingue clairement les données de démonstration des imports de la collection", () => {
-  renderAtlas();
-
-  const notice = screen.getByRole("status", { name: "Données de démonstration" });
-  expect(notice).toHaveTextContent(
-    "La carte, les compteurs, les galeries et les notes ci-dessous sont des exemples",
+  expect(screen.getByRole("heading", { name: "Kenya" })).toBeVisible();
+  expect(screen.getByText("Bollards Kenyan")).toBeVisible();
+  expect(screen.getByRole("img", { name: "Bollard kenyan" })).toHaveAttribute(
+    "src",
+    "https://example.test/kenya.png",
   );
-  expect(notice).toHaveTextContent("Mes indices");
 });
 
-it("ouvre l'éditeur d'indice depuis l'action principale", () => {
+it("affiche un état vide lorsque la collection ne contient aucun indice", async () => {
+  renderAtlas({
+    load: vi.fn().mockResolvedValue({ categories: [], countries: [] }),
+  });
+
+  expect(
+    await screen.findByRole("status", { name: "Atlas vide" }),
+  ).toHaveTextContent("Aucun indice publié");
+});
+
+it("ouvre l'éditeur d'indice depuis l'action principale", async () => {
   renderAtlas();
 
   expect(
-    screen.getByRole("link", { name: "Ajouter un indice" }),
+    await screen.findByRole("link", { name: "Ajouter un indice" }),
   ).toHaveAttribute("href", "/clues/new");
-});
-
-it("permet de filtrer les cinq continents présents", () => {
-  renderAtlas();
-
-  for (const continent of ["Europe", "Asie", "Amériques", "Océanie", "Afrique"]) {
-    expect(screen.getByRole("button", { name: continent })).toBeVisible();
-  }
-});
-
-it("ouvre le détail du pays sélectionné depuis la carte", async () => {
-  const user = userEvent.setup();
-  renderAtlas();
-
-  await user.click(
-    screen.getByRole("button", { name: "Sélectionner la France" }),
-  );
-
-  expect(screen.getByRole("heading", { name: "France" })).toBeVisible();
-  expect(screen.getByText("Île-de-France")).toBeVisible();
-});
-
-it("filtre les marqueurs selon la difficulté", async () => {
-  const user = userEvent.setup();
-  renderAtlas();
-
-  expect(screen.getByLabelText("Nombre de marqueurs")).toHaveTextContent("8");
-  await user.click(screen.getByRole("button", { name: "Expert" }));
-
-  expect(screen.getByLabelText("Nombre de marqueurs")).toHaveTextContent("6");
-});
-
-it("permet de zoomer sur un pays puis de revenir à la vue monde", async () => {
-  const user = userEvent.setup();
-  renderAtlas();
-
-  await user.click(
-    screen.getByRole("button", { name: "Sélectionner la France" }),
-  );
-  await user.click(screen.getByRole("button", { name: "Zoomer sur la France" }));
-
-  expect(screen.getByRole("button", { name: "Vue monde" })).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Vue monde" }));
-
-  expect(screen.queryByRole("button", { name: "Vue monde" })).not.toBeInTheDocument();
-  expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("monde");
-});
-
-it("sélectionne explicitement le premier marqueur visible si le pays courant est filtré", async () => {
-  const user = userEvent.setup();
-  renderAtlas();
-
-  await user.click(screen.getByRole("button", { name: "Sélectionner la France" }));
-  expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("FR");
-
-  await user.click(screen.getByRole("button", { name: "Europe" }));
-
-  expect(screen.getByLabelText("Pays sélectionné")).toHaveTextContent("US");
-  expect(screen.getByRole("heading", { name: "États-Unis" })).toBeVisible();
-});
-
-it("affiche un état vide quand aucun pays ne correspond aux filtres", async () => {
-  const user = userEvent.setup();
-  renderAtlas();
-
-  await user.click(screen.getByRole("button", { name: "Marquages routiers" }));
-  await user.click(screen.getByRole("button", { name: "Facile" }));
-  await user.click(screen.getByRole("button", { name: "Moyen" }));
-  await user.click(screen.getByRole("button", { name: "Europe" }));
-  await user.click(screen.getByRole("button", { name: "Asie" }));
-  await user.click(screen.getByRole("button", { name: "Océanie" }));
-  await user.click(screen.getByRole("button", { name: "Afrique" }));
-
-  expect(screen.getByRole("status", { name: "Aucun pays" })).toHaveTextContent(
-    "Aucun pays ne correspond aux filtres",
-  );
-  expect(screen.queryByRole("heading", { name: "France" })).not.toBeInTheDocument();
 });

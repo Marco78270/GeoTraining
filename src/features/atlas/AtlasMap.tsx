@@ -4,12 +4,16 @@ import type {
   Map as MapLibreMap,
   MapLayerMouseEvent,
 } from "maplibre-gl";
-import type { AtlasCountry } from "./atlasDemoData";
+import type { AtlasCountry } from "./atlasApi";
 
 type Viewport = "world" | "country";
+type AtlasMapCountry = Pick<
+  AtlasCountry,
+  "code" | "name" | "coordinates" | "difficulty"
+>;
 
 export type AtlasMapProps = {
-  markers: AtlasCountry[];
+  markers: AtlasMapCountry[];
   selectedCountryCode: string | null;
   viewport: Viewport;
   onCountrySelect(code: string): void;
@@ -289,7 +293,7 @@ export function AtlasMap({
   );
 }
 
-function updateMarkers(map: MapLibreMap, markers: AtlasCountry[]) {
+function updateMarkers(map: MapLibreMap, markers: AtlasMapCountry[]) {
   const source = map.getSource("atlas-markers") as GeoJSONSource | undefined;
   source?.setData({
     type: "FeatureCollection",
@@ -311,7 +315,7 @@ function updateMarkers(map: MapLibreMap, markers: AtlasCountry[]) {
 
 function updateSelection(
   map: MapLibreMap,
-  markers: AtlasCountry[],
+  markers: AtlasMapCountry[],
   selectedCountryCode: string | null,
   viewport: Viewport,
 ) {
