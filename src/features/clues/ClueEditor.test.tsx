@@ -177,3 +177,28 @@ it("publie après la dernière étape et conserve le formulaire en cas d'erreur"
     expect(screen.getByRole("button", { name: "Publier l’indice" })).toBeEnabled();
   });
 });
+
+it("désactive la couverture régionale lorsqu'un pays n'a aucune région", async () => {
+  const user = userEvent.setup();
+  const deps = dependencies();
+  deps.geographyClient.listCountries = vi.fn().mockResolvedValue([
+    {
+      code: "AQ",
+      name: "Antarctica",
+      geojson_path: "/geography/world.geojson",
+      created_at: "2026-06-11T00:00:00.000Z",
+      updated_at: "2026-06-11T00:00:00.000Z",
+    },
+  ]);
+  deps.geographyClient.listRegions = vi.fn().mockResolvedValue([]);
+  renderEditor(deps);
+
+  await reachLocationStep(user);
+  await screen.findByRole("option", { name: "Antarctica" });
+  await user.selectOptions(screen.getByLabelText("Pays"), "AQ");
+
+  expect(
+    await screen.findByText(/aucune division administrative disponible/i),
+  ).toBeVisible();
+  expect(screen.getByLabelText("Certaines régions")).toBeDisabled();
+});

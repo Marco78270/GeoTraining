@@ -10,6 +10,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "geography:generate": "node scripts/geography/normalize-geography.mjs",
+    "geography:sync": "node scripts/geography/sync-region-sources.mjs",
+    "geography:verify": "node scripts/geography/normalize-geography.mjs --verify",
     "lint": "eslint .",
     "test": "vitest run",
     "test:geography": "node --test scripts/geography/normalize-geography.test.mjs && vitest run src/features/geography",

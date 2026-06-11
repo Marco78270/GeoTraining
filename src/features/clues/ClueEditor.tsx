@@ -90,6 +90,7 @@ export function ClueEditor({
   const [countries, setCountries] = useState<Country[]>([]);
   const [countryCode, setCountryCode] = useState("");
   const [regions, setRegions] = useState<Region[]>([]);
+  const [regionsLoading, setRegionsLoading] = useState(false);
   const [coverage, setCoverage] = useState<ClueCoverage>("whole_country");
   const [selectedRegionIds, setSelectedRegionIds] = useState<Set<string>>(
     () => new Set(),
@@ -139,10 +140,19 @@ export function ClueEditor({
     if (!countryCode) return () => undefined;
     listRegions(countryCode, geographyClient)
       .then((rows) => {
-        if (current) setRegions(rows);
+        if (current) {
+          setRegions(rows);
+          if (rows.length === 0) {
+            setCoverage("whole_country");
+            setSelectedRegionIds(new Set());
+          }
+        }
       })
       .catch(() => {
         if (current) setLoadError("Impossible de charger les régions.");
+      })
+      .finally(() => {
+        if (current) setRegionsLoading(false);
       });
     return () => {
       current = false;
@@ -199,6 +209,7 @@ export function ClueEditor({
 
   function selectCountry(nextCountryCode: string) {
     setRegions([]);
+    setRegionsLoading(Boolean(nextCountryCode));
     setSelectedRegionIds(new Set());
     setCountryCode(nextCountryCode);
   }
@@ -363,12 +374,17 @@ export function ClueEditor({
                   type="radio"
                   name="coverage"
                   checked={coverage === "selected_regions"}
+                  disabled={
+                    Boolean(countryCode) &&
+                    !regionsLoading &&
+                    regions.length === 0
+                  }
                   onChange={() => setCoverage("selected_regions")}
                 />
                 Certaines régions
               </label>
             </fieldset>
-            {countryCode && regions.length === 0 ? (
+            {countryCode && !regionsLoading && regions.length === 0 ? (
               <p className="clue-inline-note">
                 Aucune division administrative disponible pour ce pays.
               </p>

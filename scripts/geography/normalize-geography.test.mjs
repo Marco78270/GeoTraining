@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  buildRegionSourceCatalog,
   buildGeographySeedSql,
   createRegionId,
   normalizeRegionCollection,
@@ -125,6 +126,66 @@ test("fails when a country cannot be mapped to ISO2", () => {
   );
 });
 
+test("builds an ADM1 source catalog for mapped world countries", () => {
+  const worldSource = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {
+          ADMIN: "France",
+          ISO_A2: "FR",
+          ISO_A3: "FRA",
+          ADM0_A3: "FRA",
+        },
+        geometry: polygon,
+      },
+      {
+        type: "Feature",
+        properties: {
+          ADMIN: "Antarctica",
+          ISO_A2: "AQ",
+          ISO_A3: "ATA",
+          ADM0_A3: "ATA",
+        },
+        geometry: polygon,
+      },
+    ],
+  };
+  const adm1Index = [
+    {
+      boundaryISO: "FRA",
+      boundaryName: "France",
+      simplifiedGeometryGeoJSON:
+        "https://github.com/wmgeolab/geoBoundaries/raw/9469f09/releaseData/gbOpen/FRA/ADM1/geoBoundaries-FRA-ADM1_simplified.geojson",
+    },
+  ];
+
+  const result = buildRegionSourceCatalog(worldSource, adm1Index);
+
+  assert.deepEqual(result.sources, [
+    {
+      countryCode: "FR",
+      sourceCountryCode: "FRA",
+      name: "geoBoundaries France ADM1 simplified",
+      url:
+        "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/9469f09592ced973a3448cf66b6100b741b64c0d/releaseData/gbOpen/FRA/ADM1/geoBoundaries-FRA-ADM1_simplified.geojson",
+      license: "CC BY 4.0",
+      cachePath:
+        "scripts/geography/cache/geoBoundaries-FRA-ADM1_simplified.geojson",
+      outputPath: "public/geography/regions/FR.geojson",
+    },
+  ]);
+  assert.deepEqual(result.unavailable, [
+    {
+      countryCode: "AQ",
+      sourceCountryCode: "ATA",
+      name: "Antarctica",
+      reason: "No geoBoundaries ADM1 source",
+    },
+  ]);
+});
+
 test("reduces coordinate precision and consecutive duplicate points", () => {
   const source = {
     type: "FeatureCollection",
@@ -233,6 +294,44 @@ test("keeps an explicit valid ISO 3166-2 region code", () => {
   const result = normalizeRegionCollection(source, "FR", "FRA");
 
   assert.equal(result.features[0].properties.id, "FR-IDF");
+});
+
+test("simplifies dense ADM1 rings while keeping a valid closed polygon", () => {
+  const source = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: {
+          shapeName: "Dense region",
+          shapeID: "TST-ADM1-1",
+          shapeGroup: "TST",
+          shapeType: "ADM1",
+        },
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [0.002, 0.0001],
+              [0.004, 0],
+              [1, 0],
+              [1, 1],
+              [0, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      },
+    ],
+  };
+
+  const result = normalizeRegionCollection(source, "TS", "TST");
+  const ring = result.features[0].geometry.coordinates[0];
+
+  assert.ok(ring.length < source.features[0].geometry.coordinates[0].length);
+  assert.deepEqual(ring[0], ring.at(-1));
+  assert.ok(ring.length >= 4);
 });
 
 test("generates deterministic SQL with escaped geography names", () => {

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "../..");
+const GEOBOUNDARIES_COMMIT = "9469f09592ced973a3448cf66b6100b741b64c0d";
 
 function assertFeatureCollection(collection, label) {
   if (
@@ -34,7 +35,86 @@ function positionsEqual(left, right) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function simplifyRing(ring) {
+function squaredDistanceToSegment(point, start, end) {
+  let x = start[0];
+  let y = start[1];
+  const dx = end[0] - x;
+  const dy = end[1] - y;
+
+  if (dx !== 0 || dy !== 0) {
+    const progress =
+      ((point[0] - x) * dx + (point[1] - y) * dy) / (dx * dx + dy * dy);
+    if (progress > 1) {
+      x = end[0];
+      y = end[1];
+    } else if (progress > 0) {
+      x += dx * progress;
+      y += dy * progress;
+    }
+  }
+
+  const offsetX = point[0] - x;
+  const offsetY = point[1] - y;
+  return offsetX * offsetX + offsetY * offsetY;
+}
+
+function simplifyOpenLine(points, toleranceSquared) {
+  if (points.length <= 2) {
+    return points;
+  }
+  let furthestIndex = 0;
+  let furthestDistance = toleranceSquared;
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const distance = squaredDistanceToSegment(
+      points[index],
+      points[0],
+      points.at(-1),
+    );
+    if (distance > furthestDistance) {
+      furthestDistance = distance;
+      furthestIndex = index;
+    }
+  }
+  if (furthestIndex === 0) {
+    return [points[0], points.at(-1)];
+  }
+  const left = simplifyOpenLine(points.slice(0, furthestIndex + 1), toleranceSquared);
+  const right = simplifyOpenLine(points.slice(furthestIndex), toleranceSquared);
+  return [...left.slice(0, -1), ...right];
+}
+
+function simplifyClosedRing(points, tolerance) {
+  const open = positionsEqual(points[0], points.at(-1))
+    ? points.slice(0, -1)
+    : points;
+  if (open.length <= 3 || tolerance <= 0) {
+    return [...open, [...open[0]]];
+  }
+  let splitIndex = 1;
+  let splitDistance = 0;
+  for (let index = 1; index < open.length; index += 1) {
+    const dx = open[index][0] - open[0][0];
+    const dy = open[index][1] - open[0][1];
+    const distance = dx * dx + dy * dy;
+    if (distance > splitDistance) {
+      splitDistance = distance;
+      splitIndex = index;
+    }
+  }
+  const toleranceSquared = tolerance * tolerance;
+  const first = simplifyOpenLine(
+    open.slice(0, splitIndex + 1),
+    toleranceSquared,
+  );
+  const second = simplifyOpenLine(
+    [...open.slice(splitIndex), open[0]],
+    toleranceSquared,
+  );
+  const simplified = [...first.slice(0, -1), ...second];
+  return simplified.length >= 4 ? simplified : [...open, [...open[0]]];
+}
+
+function simplifyRing(ring, tolerance = 0) {
   const positions = [];
   for (const position of ring.map(roundPosition)) {
     if (!positionsEqual(positions.at(-1) ?? [], position)) {
@@ -47,20 +127,24 @@ function simplifyRing(ring) {
   if (positions.length < 4) {
     return ring.map((position) => [...position]);
   }
-  return positions;
+  return simplifyClosedRing(positions, tolerance);
 }
 
-function simplifyGeometry(geometry) {
+function simplifyGeometry(geometry, tolerance = 0) {
   if (geometry?.type === "Polygon") {
     return {
       type: "Polygon",
-      coordinates: geometry.coordinates.map(simplifyRing),
+      coordinates: geometry.coordinates.map((ring) =>
+        simplifyRing(ring, tolerance),
+      ),
     };
   }
   if (geometry?.type === "MultiPolygon") {
     return {
       type: "MultiPolygon",
-      coordinates: geometry.coordinates.map((polygon) => polygon.map(simplifyRing)),
+      coordinates: geometry.coordinates.map((polygon) =>
+        polygon.map((ring) => simplifyRing(ring, tolerance)),
+      ),
     };
   }
   throw new Error(`Unsupported geometry type: ${geometry?.type ?? "missing"}`);
@@ -124,6 +208,80 @@ export function normalizeWorldCollection(
   };
 }
 
+export function buildRegionSourceCatalog(
+  worldCollection,
+  adm1Index,
+  iso3ToIso2Overrides = {},
+  options = {},
+) {
+  assertFeatureCollection(worldCollection, "Natural Earth source");
+  if (!Array.isArray(adm1Index)) {
+    throw new Error("geoBoundaries ADM1 index must be an array");
+  }
+
+  const excludedAdm0A3 = options.excludedAdm0A3 ?? new Set();
+  const indexedCountries = new Map(
+    adm1Index.map((entry) => [entry.boundaryISO, entry]),
+  );
+  const countries = new Map();
+
+  for (const feature of worldCollection.features) {
+    const properties = feature.properties ?? {};
+    if (excludedAdm0A3.has(properties.ADM0_A3)) {
+      continue;
+    }
+    const countryCode = /^[A-Z]{2}$/.test(properties.ISO_A2 ?? "")
+      ? properties.ISO_A2
+      : iso3ToIso2Overrides[properties.ADM0_A3];
+    if (!countryCode) {
+      continue;
+    }
+    const sourceCountryCode = /^[A-Z]{3}$/.test(properties.ISO_A3 ?? "")
+      ? properties.ISO_A3
+      : properties.ADM0_A3;
+    const candidate = {
+      countryCode,
+      sourceCountryCode,
+      name: properties.ADMIN ?? countryCode,
+    };
+    const existing = countries.get(countryCode);
+    if (!existing || indexedCountries.has(sourceCountryCode)) {
+      countries.set(countryCode, candidate);
+    }
+  }
+
+  const sources = [];
+  const unavailable = [];
+  for (const country of [...countries.values()].sort((left, right) =>
+    left.countryCode.localeCompare(right.countryCode),
+  )) {
+    const indexEntry = indexedCountries.get(country.sourceCountryCode);
+    if (!indexEntry) {
+      unavailable.push({
+        ...country,
+        reason: "No geoBoundaries ADM1 source",
+      });
+      continue;
+    }
+    const sourceFile =
+      `geoBoundaries-${country.sourceCountryCode}-ADM1_simplified.geojson`;
+    sources.push({
+      countryCode: country.countryCode,
+      sourceCountryCode: country.sourceCountryCode,
+      name: `geoBoundaries ${indexEntry.boundaryName} ADM1 simplified`,
+      url:
+        "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/" +
+        `${GEOBOUNDARIES_COMMIT}/releaseData/gbOpen/` +
+        `${country.sourceCountryCode}/ADM1/${sourceFile}`,
+      license: "CC BY 4.0",
+      cachePath: `scripts/geography/cache/${sourceFile}`,
+      outputPath: `public/geography/regions/${country.countryCode}.geojson`,
+    });
+  }
+
+  return { sources, unavailable };
+}
+
 export function createRegionId(countryCode, sourceId, name) {
   const digest = createHash("sha256")
     .update(`${countryCode}\0${sourceId}\0${name}`)
@@ -162,7 +320,7 @@ export function normalizeRegionCollection(collection, countryCode, sourceCountry
             name: properties.shapeName,
             sourceId: properties.shapeID,
           },
-          geometry: simplifyGeometry(feature.geometry),
+          geometry: simplifyGeometry(feature.geometry, 0.01),
         };
       })
       .sort((left, right) => left.properties.id.localeCompare(right.properties.id)),
@@ -310,6 +468,10 @@ async function generateRegions(sources) {
     const outputPath = path.join(repositoryRoot, source.outputPath);
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, `${JSON.stringify(normalized)}\n`, "utf8");
+    if (normalized.features.length === 0) {
+      throw new Error(`${source.countryCode} ADM1 output contains no regions`);
+    }
+    source.outputSha256 = await sha256(outputPath);
     outputs.push(normalized);
   }
   return outputs;
@@ -361,6 +523,11 @@ async function main() {
   );
   const count = await generateWorld(sources, isoOverrides);
   const regionCollections = await generateRegions(sources);
+  await writeFile(
+    path.join(scriptDirectory, "sources.json"),
+    `${JSON.stringify(sources, null, 2)}\n`,
+    "utf8",
+  );
   if (sqlOutput) {
     const world = JSON.parse(
       await readFile(
