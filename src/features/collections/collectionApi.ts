@@ -275,11 +275,10 @@ export function createSupabaseCollectionDataClient(
     },
 
     async insertCollection(input) {
-      const result = await supabase
-        .from("collections")
-        .insert(input)
-        .select()
-        .single();
+      const result = await supabase.rpc("create_collection", {
+        collection_name: input.name,
+        collection_description: input.description ?? null,
+      });
       return unwrap(result, "collection_create_failed");
     },
 

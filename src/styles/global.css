@@ -824,9 +824,10 @@ textarea {
 }
 
 .atlas-center {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-template-rows: auto minmax(0, 1fr) 6.9rem;
+  min-height: 0;
+  flex-direction: column;
   gap: 0.75rem;
   padding: 0.8rem;
 }
@@ -863,7 +864,8 @@ textarea {
 
 .atlas-map-panel {
   position: relative;
-  min-height: 0;
+  min-height: 24rem;
+  flex: 1 1 auto;
   overflow: hidden;
   border: 1px solid #263d53;
   border-radius: 0.75rem;
@@ -983,6 +985,8 @@ textarea {
 
 .atlas-stats {
   display: grid;
+  min-height: 6.9rem;
+  flex: 0 0 6.9rem;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
 }
@@ -1232,6 +1236,28 @@ textarea {
   margin-top: 0.7rem;
 }
 
+.atlas-clue-title {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+}
+
+.atlas-clue-image {
+  width: 100%;
+  max-height: 310px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #07182a;
+}
+
+.detail-thumbnails img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
 .detail-section {
   margin-top: 0.85rem;
 }
@@ -1395,8 +1421,12 @@ textarea {
   .atlas-center {
     order: -1;
     min-height: 38rem;
-    grid-template-rows: auto 27rem auto;
     padding: 0.65rem;
+  }
+
+  .atlas-map-panel {
+    min-height: 27rem;
+    flex-basis: 27rem;
   }
 
   .atlas-sidebar {
@@ -1408,6 +1438,8 @@ textarea {
   }
 
   .atlas-stats {
+    min-height: 0;
+    flex-basis: auto;
     grid-template-columns: 1fr;
   }
 

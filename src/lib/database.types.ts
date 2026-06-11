@@ -564,6 +564,20 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      create_collection: {
+        Args: {
+          collection_name: string;
+          collection_description?: string | null;
+        };
+        Returns: {
+          id: string;
+          owner_id: string;
+          name: string;
+          description: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
       is_collection_member: {
         Args: { target_collection_id: string };
         Returns: boolean;
