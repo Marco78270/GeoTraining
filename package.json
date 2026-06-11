@@ -1,0 +1,66 @@
+{
+  "name": "geotrainer-atlas",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "npm@11.8.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "description": "Carte interactive permettant de s'entrainer sur GeoGuessr",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "geography:generate": "node scripts/geography/normalize-geography.mjs",
+    "geography:sync": "node scripts/geography/sync-region-sources.mjs",
+    "geography:verify": "node scripts/geography/normalize-geography.mjs --verify",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:geography": "node --test scripts/geography/normalize-geography.test.mjs && vitest run src/features/geography",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Marco78270/GeoTraining.git"
+  },
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Marco78270/GeoTraining/issues"
+  },
+  "homepage": "https://github.com/Marco78270/GeoTraining#readme",
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@supabase/supabase-js": "^2.108.1",
+    "@tanstack/react-query": "^5.101.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.17.0",
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.78.0",
+    "react-router-dom": "^7.17.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.4.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
+    "supabase": "^2.105.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
+  }
+}
