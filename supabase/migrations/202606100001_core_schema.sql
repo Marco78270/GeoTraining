@@ -285,7 +285,8 @@ begin
       ''
     ),
     new.raw_user_meta_data ->> 'avatar_url'
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
@@ -293,6 +294,18 @@ $$;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+insert into public.profiles (id, display_name, avatar_url)
+select
+  id,
+  coalesce(
+    nullif(btrim(raw_user_meta_data ->> 'display_name'), ''),
+    split_part(coalesce(email, ''), '@', 1),
+    ''
+  ),
+  raw_user_meta_data ->> 'avatar_url'
+from auth.users
+on conflict (id) do nothing;
 
 create function public.add_collection_owner_membership()
 returns trigger
@@ -494,7 +507,7 @@ end;
 $$;
 
 create trigger clues_validate_geography
-before update of country_code or coverage on public.clues
+before update of country_code, coverage on public.clues
 for each row execute function public.validate_clue_geography();
 
 create function public.is_valid_clue_image_path(
@@ -764,8 +777,8 @@ create trigger training_answers_validate_collection
 before insert or update of session_id, user_id, clue_id on public.training_answers
 for each row execute function public.validate_training_answer_collection();
 
-revoke all on function public.handle_new_user() from public;
-revoke all on function public.add_collection_owner_membership() from public;
+revoke all on function public.handle_new_user() from public, anon, authenticated;
+revoke all on function public.add_collection_owner_membership() from public, anon, authenticated;
 revoke all on function public.protect_owner_membership() from public;
 revoke all on function public.validate_training_answer_collection() from public;
 revoke all on function public.has_stored_clue_image(uuid) from public;
