@@ -70,6 +70,14 @@ export function App({ collectionApi }: { collectionApi?: CollectionApi }) {
           }
         />
         <Route
+          path="/clues/:clueId/edit"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <ClueEditorPage collectionApi={collectionApi} />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
           path="/invitations/:token"
           element={<AcceptInvitationPage api={collectionApi} />}
         />

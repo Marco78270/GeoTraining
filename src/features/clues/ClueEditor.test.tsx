@@ -32,6 +32,7 @@ const collectionContext: ActiveCollectionContextValue = {
 function dependencies() {
   const clueApi = {
     create: vi.fn().mockResolvedValue({ id: "clue-1" }),
+    update: vi.fn().mockResolvedValue({ id: "clue-1" }),
   } as unknown as ClueApi;
   const collectionApi = {
     listCategories: vi.fn().mockResolvedValue([
@@ -60,7 +61,7 @@ function dependencies() {
       {
         id: "FR-IDF",
         country_code: "FR",
-        name: "Île-de-France",
+        name: "Ile-de-France",
         geojson_path: "/geography/regions/FR.geojson",
         created_at: "2026-06-11T00:00:00.000Z",
         updated_at: "2026-06-11T00:00:00.000Z",
@@ -78,10 +79,13 @@ function dependencies() {
   return { clueApi, collectionApi, geographyClient };
 }
 
-function renderEditor(deps = dependencies()) {
+function renderEditor(
+  deps = dependencies(),
+  props: Partial<Parameters<typeof ClueEditor>[0]> = {},
+) {
   render(
     <ActiveCollectionContext.Provider value={collectionContext}>
-      <ClueEditor {...deps} />
+      <ClueEditor {...deps} {...props} />
     </ActiveCollectionContext.Provider>,
   );
   return deps;
@@ -112,20 +116,20 @@ it("affiche cinq étapes et gère pays entier ou régions indépendantes", async
   expect(screen.getByRole("heading", { name: "3. Localisation" })).toBeVisible();
   await screen.findByRole("option", { name: "France" });
   await user.selectOptions(screen.getByLabelText("Pays"), "FR");
-  await screen.findByLabelText("Île-de-France");
+  await screen.findByLabelText("Ile-de-France");
   expect(geographyClient.listRegions).toHaveBeenCalledWith("FR");
 
   await user.click(screen.getByLabelText("Certaines régions"));
-  await user.click(screen.getByLabelText("Île-de-France"));
+  await user.click(screen.getByLabelText("Ile-de-France"));
   await user.click(screen.getByLabelText("Pays entier"));
 
-  expect(screen.getByLabelText("Île-de-France")).toBeChecked();
+  expect(screen.getByLabelText("Ile-de-France")).toBeChecked();
   expect(screen.getByLabelText("Occitanie")).toBeChecked();
-  expect(screen.getByLabelText("Île-de-France")).toBeDisabled();
+  expect(screen.getByLabelText("Ile-de-France")).toBeDisabled();
   expect(screen.getByLabelText("Occitanie")).toBeDisabled();
 
   await user.click(screen.getByLabelText("Certaines régions"));
-  expect(screen.getByLabelText("Île-de-France")).toBeChecked();
+  expect(screen.getByLabelText("Ile-de-France")).toBeChecked();
   expect(screen.getByLabelText("Occitanie")).not.toBeChecked();
 });
 
@@ -149,9 +153,15 @@ it("publie après la dernière étape et conserve le formulaire en cas d'erreur"
     "Octogone rouge\nBordure blanche",
   );
   await user.type(screen.getByLabelText("Notes"), "Présent sur les routes.");
+  await user.type(
+    screen.getByLabelText("Lien Google Maps"),
+    "https://www.google.com/maps/@48.8566,2.3522,3a,75y",
+  );
   await user.click(screen.getByRole("button", { name: "Continuer" }));
 
-  expect(screen.getByRole("heading", { name: "5. Difficulté et publication" })).toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "5. Difficulté et publication" }),
+  ).toBeVisible();
   await user.click(screen.getByLabelText("Moyen"));
   await user.click(screen.getByRole("button", { name: "Publier l’indice" }));
 
@@ -170,12 +180,65 @@ it("publie après la dernière étape et conserve le formulaire en cas d'erreur"
       title: "STOP français",
       characteristics: ["Octogone rouge", "Bordure blanche"],
       notes: "Présent sur les routes.",
+      googleMapsUrl: "https://www.google.com/maps/@48.8566,2.3522,3a,75y",
     }),
   );
 
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "Publier l’indice" })).toBeEnabled();
   });
+});
+
+it("préremplit un indice en mode édition et appelle update", async () => {
+  const user = userEvent.setup();
+  const deps = dependencies();
+  renderEditor(deps, {
+    mode: "edit",
+    initialClue: {
+      id: "clue-1",
+      collectionId: "collection-1",
+      categoryId: "category-stop",
+      countryCode: "FR",
+      coverage: "selected_regions",
+      regionIds: ["FR-IDF"],
+      difficulty: "medium",
+      title: "STOP français",
+      characteristics: ["Octogone rouge"],
+      notes: "Présent sur les routes.",
+      googleMapsUrl: "https://www.google.com/maps/@48.8566,2.3522,3a,75y",
+      existingImages: [
+        {
+          id: "stored-1",
+          storagePath: "collection-1/clue-1/stored-1.jpg",
+          altText: "STOP 1",
+          sortOrder: 0,
+        },
+      ],
+    },
+  });
+
+  expect(screen.getByText("STOP 1")).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  expect(screen.getByDisplayValue("STOP français")).toBeVisible();
+  expect(screen.getByDisplayValue("Présent sur les routes.")).toBeVisible();
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.click(screen.getByRole("button", { name: "Mettre à jour l’indice" }));
+
+  expect(deps.clueApi.update).toHaveBeenCalledWith(
+    expect.objectContaining({
+      clueId: "clue-1",
+      existingImages: [
+        expect.objectContaining({
+          id: "stored-1",
+          altText: "STOP 1",
+        }),
+      ],
+      removedImageIds: [],
+    }),
+  );
 });
 
 it("désactive la couverture régionale lorsqu'un pays n'a aucune région", async () => {

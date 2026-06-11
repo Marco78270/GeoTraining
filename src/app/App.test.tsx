@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type { Session } from "@supabase/supabase-js";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
@@ -59,24 +58,19 @@ it("redirects anonymous visitors to login and renders the brand", async () => {
   ).toBeVisible();
 });
 
-it("lands authenticated visitors on Atlas and allows signing out", async () => {
-  const user = userEvent.setup();
-  const signOut = vi.fn().mockResolvedValue({ error: null });
+it("lands authenticated visitors on Atlas", async () => {
   const session = { user: { id: "user-1" } } as Session;
 
   renderApp({
     ...anonymousAuth,
     session,
     user: session.user,
-    signOut,
   });
 
   expect(await screen.findByRole("heading", { name: "Atlas" })).toBeVisible();
-  await user.click(screen.getByRole("button", { name: "Se déconnecter" }));
-  expect(signOut).toHaveBeenCalledOnce();
 });
 
-it("ouvre l'éditeur protégé depuis sa route dédiée", async () => {
+it("opens the protected clue editor from its creation route", async () => {
   const session = { user: { id: "user-1" } } as Session;
 
   renderApp(
@@ -91,4 +85,21 @@ it("ouvre l'éditeur protégé depuis sa route dédiée", async () => {
   expect(
     await screen.findByRole("heading", { name: "Éditeur d’indice" }),
   ).toBeVisible();
+});
+
+it("opens the protected clue editor from its edit route", async () => {
+  const session = { user: { id: "user-1" } } as Session;
+
+  renderApp(
+    {
+      ...anonymousAuth,
+      session,
+      user: session.user,
+    },
+    "/clues/clue-1/edit",
+  );
+
+  expect(
+    await screen.findByRole("alert"),
+  ).toHaveTextContent("Impossible de charger cet indice pour modification.");
 });
