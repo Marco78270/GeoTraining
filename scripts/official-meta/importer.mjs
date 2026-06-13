@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,8 @@ const DIFFICULTIES = new Set(["easy", "medium", "expert"]);
 const RETRYABLE_STATUSES = new Set([408, 425, 429]);
 const IMPORT_USER_AGENT =
   "GeoTrainerAtlas/1.0 (https://github.com/Marco78270/GeoTraining)";
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_REDIRECTS = 5;
 
 export function validateEntry(entry) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -80,6 +83,7 @@ export function validateEntry(entry) {
       throw new Error(`${field} doit etre une URL HTTP(S) valide.`);
     }
   }
+  validateRemoteImageUrl(entry.imageUrl);
 
   return {
     ...entry,
@@ -202,6 +206,45 @@ export function buildImagePath(collectionId, clueId, imageId, extension) {
   return `${collectionId}/${clueId}/${imageId}.${extension}`;
 }
 
+export function buildImageId(clueId, buffer) {
+  const digest = createHash("sha256")
+    .update(clueId)
+    .update("\0")
+    .update(buffer)
+    .digest()
+    .subarray(0, 16);
+  digest[6] = (digest[6] & 0x0f) | 0x50;
+  digest[8] = (digest[8] & 0x3f) | 0x80;
+  const hex = digest.toString("hex");
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+    hex.slice(16, 20),
+    hex.slice(20),
+  ].join("-");
+}
+
+export function validateRemoteImageUrl(value) {
+  const parsed = new URL(value);
+  if (parsed.protocol !== "https:") {
+    throw new Error("imageUrl doit utiliser HTTPS.");
+  }
+  const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/gu, "");
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".internal") ||
+    hostname === "host.docker.internal" ||
+    hostname === "gateway.docker.internal" ||
+    isPrivateIpAddress(hostname)
+  ) {
+    throw new Error(`Adresse image interdite: ${hostname}.`);
+  }
+  return parsed;
+}
+
 export async function fetchImage(
   url,
   fetchImpl = fetch,
@@ -209,6 +252,7 @@ export async function fetchImage(
     attempts = 6,
     baseDelayMs = 3000,
     requestSpacingMs = 1500,
+    timeoutMs = 30000,
     sleepImpl = sleep,
   } = {},
 ) {
@@ -216,39 +260,125 @@ export async function fetchImage(
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const fetched = await fetchFollowingSafeRedirects(
+        buildDownloadUrl(url),
+        fetchImpl,
+        timeoutMs,
+      );
+      try {
+        const { response } = fetched;
+        if (!response.ok) {
+          const retryable =
+            RETRYABLE_STATUSES.has(response.status) || response.status >= 500;
+          if (!retryable || attempt === attempts) {
+            throw new PermanentFetchError(
+              `Image indisponible (${response.status}) pour ${url}.`,
+            );
+          }
+          lastError = new Error(
+            `Tentative ${attempt}/${attempts} en echec (${response.status}) pour ${url}.`,
+          );
+          await sleepImpl(baseDelayMs * 2 ** (attempt - 1));
+          continue;
+        }
+
+        const declaredLength = Number(response.headers.get("content-length"));
+        if (
+          Number.isFinite(declaredLength) &&
+          declaredLength > MAX_IMAGE_BYTES
+        ) {
+          throw new PermanentFetchError(
+            "Image refusee: taille superieure a 10 MiB.",
+          );
+        }
+        const buffer = await readResponseBuffer(response);
+        return { buffer, ...sniffImageFormat(buffer) };
+      } finally {
+        fetched.finish();
+      }
+    } catch (error) {
+      if (error instanceof PermanentFetchError) throw error;
+      lastError = error;
+      if (attempt === attempts) break;
+      await sleepImpl(baseDelayMs * 2 ** (attempt - 1));
+    }
+  }
+
+  throw lastError ?? new Error(`Impossible de charger ${url}.`);
+}
+
+async function fetchFollowingSafeRedirects(url, fetchImpl, timeoutMs) {
+  let currentUrl = validateRemoteImageUrl(url);
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new Error(`Image download timeout after ${timeoutMs}ms.`)),
+      timeoutMs,
+    );
     let response;
     try {
-      response = await fetchImpl(buildDownloadUrl(url), {
+      response = await fetchImpl(currentUrl.toString(), {
+        redirect: "manual",
+        signal: controller.signal,
         headers: {
           Accept: "image/webp,image/png,image/jpeg,image/svg+xml",
           "User-Agent": IMPORT_USER_AGENT,
         },
       });
     } catch (error) {
-      lastError = error;
-      if (attempt === attempts) break;
-      await sleepImpl(baseDelayMs * 2 ** (attempt - 1));
-      continue;
+      clearTimeout(timer);
+      throw error;
     }
-
-    if (response.ok) {
-      const buffer = Buffer.from(await response.arrayBuffer());
-      return { buffer, ...sniffImageFormat(buffer) };
+    if (response.status < 300 || response.status >= 400) {
+      return {
+        response,
+        finish: () => clearTimeout(timer),
+      };
     }
-
-    const retryable =
-      RETRYABLE_STATUSES.has(response.status) || response.status >= 500;
-    if (!retryable || attempt === attempts) {
-      throw new Error(`Image indisponible (${response.status}) pour ${url}.`);
+    clearTimeout(timer);
+    const location = response.headers.get("location");
+    if (!location) {
+      throw new PermanentFetchError("Redirection image sans en-tete Location.");
     }
-
-    lastError = new Error(
-      `Tentative ${attempt}/${attempts} en echec (${response.status}) pour ${url}.`,
+    currentUrl = validateRemoteImageUrl(
+      new URL(location, currentUrl).toString(),
     );
-    await sleepImpl(baseDelayMs * 2 ** (attempt - 1));
+  }
+  throw new PermanentFetchError("Trop de redirections pour l'image.");
+}
+
+async function readResponseBuffer(response) {
+  if (!response.body?.getReader) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > MAX_IMAGE_BYTES) {
+      throw new PermanentFetchError(
+        "Image refusee: taille superieure a 10 MiB.",
+      );
+    }
+    return buffer;
   }
 
-  throw lastError ?? new Error(`Impossible de charger ${url}.`);
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_IMAGE_BYTES) {
+        await reader.cancel("image too large");
+        throw new PermanentFetchError(
+          "Image refusee: taille superieure a 10 MiB.",
+        );
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, total);
 }
 
 export async function runOfficialImport({
@@ -297,16 +427,20 @@ export async function runOfficialImport({
     imagesSkipped: 0,
     failed: 0,
     failures: [],
+    warnings: [],
   };
 
   for (const entry of entries) {
+    let snapshot = null;
+    let mutationStarted = false;
+    let uploadedPath = null;
     try {
       await resolveGeography(supabase, entry);
-      const existing = await loadExistingClue(supabase, entry.id);
-      const primaryImage = findPrimaryImage(existing?.clue_images);
+      snapshot = await loadExistingSnapshot(supabase, entry.id);
+      const primaryImage = findPrimaryImage(snapshot?.images);
 
       if (missingImagesOnly && primaryImage) {
-        if (existing) summary.updated += 1;
+        if (snapshot) summary.updated += 1;
         else summary.created += 1;
         summary.imagesSkipped += 1;
         continue;
@@ -319,18 +453,30 @@ export async function runOfficialImport({
       assertImportableImage(image);
 
       if (dryRun) {
-        if (existing) summary.updated += 1;
+        if (snapshot) summary.updated += 1;
         else summary.created += 1;
         summary.imagesImported += 1;
         continue;
       }
 
+      const imageId = buildImageId(entry.id, image.buffer);
       const draftPayload = buildCluePayload(
         entry,
         category.id,
         authorId,
         "draft",
       );
+      mutationStarted = true;
+      if (snapshot) {
+        await expectNoError(
+          supabase.from("clues").update({ status: "draft" }).eq("id", entry.id),
+          "passage en brouillon",
+        );
+        await expectNoError(
+          supabase.from("clue_regions").delete().eq("clue_id", entry.id),
+          "suppression des anciennes regions",
+        );
+      }
       await expectNoError(
         supabase.from("clues").upsert(draftPayload),
         "upsert du brouillon",
@@ -340,7 +486,7 @@ export async function runOfficialImport({
       const storagePath = buildImagePath(
         OFFICIAL_COLLECTION_ID,
         entry.id,
-        entry.id,
+        imageId,
         image.extension,
       );
       const uploadResult = await supabase.storage
@@ -352,37 +498,20 @@ export async function runOfficialImport({
       if (uploadResult.error) {
         throw new Error(`Echec upload image: ${formatError(uploadResult.error)}`);
       }
+      uploadedPath = storagePath;
 
-      try {
-        await expectNoError(
-          supabase.from("clue_images").upsert(
-            {
-              id: entry.id,
-              clue_id: entry.id,
-              storage_path: storagePath,
-              alt_text: entry.imageAltText.trim(),
-              sort_order: 0,
-            },
-            { onConflict: "clue_id,sort_order" },
-          ),
-          "upsert des metadonnees image",
-        );
-      } catch (error) {
-        const cleanupResult = await supabase.storage
-          .from("clue-images")
-          .remove([storagePath]);
-        if (cleanupResult.error) {
-          throw new Error(
-            `${formatError(error)}; nettoyage de l'image impossible: ${formatError(cleanupResult.error)}`,
-          );
-        }
-        throw error;
-      }
-      await deleteAdditionalImages(supabase, entry.id);
-      await removeReplacedStorageObject(
-        supabase,
-        primaryImage?.storage_path,
-        storagePath,
+      await expectNoError(
+        supabase.from("clue_images").upsert(
+          {
+            id: imageId,
+            clue_id: entry.id,
+            storage_path: storagePath,
+            alt_text: entry.imageAltText.trim(),
+            sort_order: 0,
+          },
+          { onConflict: "clue_id,sort_order" },
+        ),
+        "upsert des metadonnees image",
       );
 
       await expectNoError(
@@ -393,16 +522,38 @@ export async function runOfficialImport({
         "publication de l'indice",
       );
 
-      if (existing) summary.updated += 1;
+      if (snapshot) summary.updated += 1;
       else summary.created += 1;
       summary.imagesImported += 1;
+      await cleanupAfterPublication({
+        supabase,
+        entry,
+        snapshot,
+        currentPath: storagePath,
+        warnings: summary.warnings,
+      });
     } catch (error) {
+      let finalError = error;
+      if (mutationStarted) {
+        try {
+          await rollbackImport({
+            supabase,
+            clueId: entry.id,
+            snapshot,
+            uploadedPath,
+          });
+        } catch (rollbackError) {
+          finalError = new Error(
+            `${formatError(error)}; restauration impossible: ${formatError(rollbackError)}`,
+          );
+        }
+      }
       summary.failed += 1;
       summary.failures.push({
         clueId: entry.id,
         countryCode: entry.countryCode,
         title: entry.title,
-        message: formatError(error),
+        message: formatError(finalError),
       });
     }
   }
@@ -483,16 +634,33 @@ async function resolveGeography(supabase, entry) {
   }
 }
 
-async function loadExistingClue(supabase, clueId) {
+async function loadExistingSnapshot(supabase, clueId) {
   const result = await supabase
     .from("clues")
-    .select("id, clue_images(id, storage_path, sort_order)")
+    .select(
+      "id, collection_id, category_id, country_code, coverage, difficulty, status, title, characteristics, notes, source_name, source_url, license_name, license_url, attribution_text, author_id, clue_images(id, clue_id, storage_path, alt_text, sort_order)",
+    )
     .eq("id", clueId)
     .maybeSingle();
   if (result.error) {
     throw new Error(`Lecture de l'indice impossible: ${formatError(result.error)}`);
   }
-  return result.data;
+  if (!result.data) return null;
+  const { clue_images: images = [], ...clue } = result.data;
+  const regionResult = await supabase
+    .from("clue_regions")
+    .select("region_id")
+    .eq("clue_id", clueId);
+  if (regionResult.error) {
+    throw new Error(
+      `Lecture des regions existantes impossible: ${formatError(regionResult.error)}`,
+    );
+  }
+  return {
+    clue: structuredClone(clue),
+    regionIds: (regionResult.data ?? []).map((row) => row.region_id),
+    images: structuredClone(images),
+  };
 }
 
 async function replaceRegions(supabase, clueId, regionIds) {
@@ -512,32 +680,134 @@ async function replaceRegions(supabase, clueId, regionIds) {
   );
 }
 
-async function deleteAdditionalImages(supabase, clueId) {
-  await expectNoError(
-    supabase
-      .from("clue_images")
-      .delete()
-      .eq("clue_id", clueId)
-      .neq("sort_order", 0),
-    "suppression des images additionnelles",
-  );
-}
-
-async function removeReplacedStorageObject(supabase, previousPath, nextPath) {
-  if (!previousPath || previousPath === nextPath) return;
-  const result = await supabase.storage
-    .from("clue-images")
-    .remove([previousPath]);
-  if (result.error) {
-    throw new Error(
-      `Suppression de l'ancienne image impossible: ${formatError(result.error)}`,
-    );
-  }
-}
-
 function findPrimaryImage(images) {
   if (!Array.isArray(images)) return null;
   return images.find((image) => image.sort_order === 0) ?? null;
+}
+
+async function rollbackImport({
+  supabase,
+  clueId,
+  snapshot,
+  uploadedPath,
+}) {
+  const rollbackErrors = [];
+  if (snapshot) {
+    await collectRollbackError(rollbackErrors, async () => {
+      await expectNoError(
+        supabase.from("clues").update({ status: "draft" }).eq("id", clueId),
+        "remise en brouillon pour restauration",
+      );
+    });
+    await collectRollbackError(rollbackErrors, async () => {
+      await replaceRegions(supabase, clueId, snapshot.regionIds);
+    });
+    await collectRollbackError(rollbackErrors, async () => {
+      await expectNoError(
+        supabase.from("clue_images").delete().eq("clue_id", clueId),
+        "suppression des metadonnees image temporaires",
+      );
+      if (snapshot.images.length > 0) {
+        await expectNoError(
+          supabase.from("clue_images").insert(snapshot.images),
+          "restauration des metadonnees image",
+        );
+      }
+    });
+    await collectRollbackError(rollbackErrors, async () => {
+      const { id: _id, ...restoredClue } = snapshot.clue;
+      await expectNoError(
+        supabase.from("clues").update(restoredClue).eq("id", clueId),
+        "restauration de l'indice",
+      );
+    });
+  } else {
+    await collectRollbackError(rollbackErrors, async () => {
+      await expectNoError(
+        supabase.from("clues").delete().eq("id", clueId),
+        "suppression du nouvel indice incomplet",
+      );
+    });
+  }
+
+  const previousPaths = new Set(
+    snapshot?.images.map((image) => image.storage_path) ?? [],
+  );
+  if (uploadedPath && !previousPaths.has(uploadedPath)) {
+    await collectRollbackError(rollbackErrors, async () => {
+      const result = await supabase.storage
+        .from("clue-images")
+        .remove([uploadedPath]);
+      if (result.error) throw result.error;
+    });
+  }
+
+  if (rollbackErrors.length > 0) {
+    throw new Error(rollbackErrors.join("; "));
+  }
+}
+
+async function cleanupAfterPublication({
+  supabase,
+  entry,
+  snapshot,
+  currentPath,
+  warnings,
+}) {
+  if (!snapshot) return;
+  const oldPrimary = findPrimaryImage(snapshot.images);
+  if (oldPrimary && oldPrimary.storage_path !== currentPath) {
+    await recordCleanupWarning(warnings, entry, async () => {
+      const result = await supabase.storage
+        .from("clue-images")
+        .remove([oldPrimary.storage_path]);
+      if (result.error) throw result.error;
+    }, `ancienne image primaire ${oldPrimary.storage_path}`);
+  }
+
+  for (const image of snapshot.images.filter((item) => item.sort_order !== 0)) {
+    const metadataDeleted = await recordCleanupWarning(
+      warnings,
+      entry,
+      async () => {
+        await expectNoError(
+          supabase.from("clue_images").delete().eq("id", image.id),
+          `suppression metadata ${image.id}`,
+        );
+      },
+      `metadata image additionnelle ${image.storage_path}`,
+    );
+    if (!metadataDeleted) continue;
+    await recordCleanupWarning(warnings, entry, async () => {
+      const result = await supabase.storage
+        .from("clue-images")
+        .remove([image.storage_path]);
+      if (result.error) throw result.error;
+    }, `objet image additionnelle ${image.storage_path}`);
+  }
+}
+
+async function collectRollbackError(errors, operation) {
+  try {
+    await operation();
+  } catch (error) {
+    errors.push(formatError(error));
+  }
+}
+
+async function recordCleanupWarning(warnings, entry, operation, target) {
+  try {
+    await operation();
+    return true;
+  } catch (error) {
+    warnings.push({
+      clueId: entry.id,
+      countryCode: entry.countryCode,
+      target,
+      message: formatError(error),
+    });
+    return false;
+  }
 }
 
 function assertImportableImage(image) {
@@ -584,4 +854,39 @@ function formatError(error) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class PermanentFetchError extends Error {}
+
+function isPrivateIpAddress(hostname) {
+  const ipv4 = hostname.split(".").map(Number);
+  if (
+    ipv4.length === 4 &&
+    ipv4.every(
+      (part) => Number.isInteger(part) && part >= 0 && part <= 255,
+    )
+  ) {
+    const [first, second] = ipv4;
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      first >= 224
+    );
+  }
+
+  const normalized = hostname.toLowerCase();
+  if (!normalized.includes(":")) return false;
+  return (
+    normalized === "::" ||
+    normalized === "::1" ||
+    normalized.startsWith("::ffff:") ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    /^fe[89ab]/u.test(normalized)
+  );
 }

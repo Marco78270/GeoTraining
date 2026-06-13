@@ -6,10 +6,12 @@ import test from "node:test";
 import {
   buildCluePayload,
   buildDownloadUrl,
+  buildImageId,
   buildImagePath,
   fetchImage,
   runOfficialImport,
   sniffImageFormat,
+  validateRemoteImageUrl,
   validateDataset,
   validateEntry,
 } from "./importer.mjs";
@@ -109,6 +111,40 @@ test("builds deterministic payloads and image paths", () => {
   );
 });
 
+test("derives a stable version-5-compatible image UUID from clue and content", () => {
+  const buffer = Buffer.from([0xff, 0xd8, 0xff, 0x01]);
+  const first = buildImageId(validEntry.id, buffer);
+  const same = buildImageId(validEntry.id, buffer);
+  const changed = buildImageId(
+    validEntry.id,
+    Buffer.from([0xff, 0xd8, 0xff, 0x02]),
+  );
+
+  assert.equal(first, same);
+  assert.notEqual(first, changed);
+  assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});
+
+test("rejects unsafe and non-HTTPS image URLs", () => {
+  for (const url of [
+    "http://example.com/image.jpg",
+    "https://localhost/image.jpg",
+    "https://127.0.0.1/image.jpg",
+    "https://10.0.0.1/image.jpg",
+    "https://169.254.1.2/image.jpg",
+    "https://[::1]/image.jpg",
+    "https://[::ffff:127.0.0.1]/image.jpg",
+    "https://host.docker.internal/image.jpg",
+    "https://metadata.google.internal/image.jpg",
+  ]) {
+    assert.throws(() => validateRemoteImageUrl(url), /interdite|HTTPS/i);
+  }
+  assert.equal(
+    validateRemoteImageUrl("https://fcdn.example.com/image.jpg").hostname,
+    "fcdn.example.com",
+  );
+});
+
 test("adds a Wikimedia thumbnail width without changing other URLs", () => {
   assert.match(buildDownloadUrl(validEntry.imageUrl), /width=1200/);
   assert.equal(
@@ -174,6 +210,78 @@ test("does not retry permanent image errors", async () => {
     /404/,
   );
   assert.equal(attempts, 1);
+});
+
+test("rejects redirects to unsafe image URLs", async () => {
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { Location: "https://127.0.0.1/private.jpg" },
+        }),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        sleepImpl: async () => {},
+      },
+    ),
+    /interdite/i,
+  );
+});
+
+test("rejects images larger than ten MiB from headers or body", async () => {
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff]), {
+          status: 200,
+          headers: { "Content-Length": String(10 * 1024 * 1024 + 1) },
+        }),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        sleepImpl: async () => {},
+      },
+    ),
+    /10 MiB/i,
+  );
+
+  const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 0);
+  oversized[0] = 0xff;
+  oversized[1] = 0xd8;
+  oversized[2] = 0xff;
+  await assert.rejects(
+    fetchImage(validEntry.imageUrl, async () => new Response(oversized), {
+      attempts: 1,
+      requestSpacingMs: 0,
+      sleepImpl: async () => {},
+    }),
+    /10 MiB/i,
+  );
+});
+
+test("aborts image downloads after the configured timeout", async () => {
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async (_url, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener("abort", () => {
+            reject(options.signal.reason);
+          });
+        }),
+      {
+        attempts: 1,
+        timeoutMs: 5,
+        requestSpacingMs: 0,
+        sleepImpl: async () => {},
+      },
+    ),
+    /timeout|timed out|aborted/i,
+  );
 });
 
 test("dry-run reads geography but performs no writes", async () => {
@@ -307,11 +415,15 @@ test("publishes only after image and region reconciliation succeeds", async () =
       fake.writes.indexOf("storage:upload") <
         fake.writes.indexOf("clues:update:published"),
     );
+    const expectedImageId = buildImageId(
+      validEntry.id,
+      Buffer.from([0xff, 0xd8, 0xff]),
+    );
     assert.equal(
       fake.uploadedPaths[0],
-      `${COLLECTION_ID}/${validEntry.id}/${validEntry.id}.jpg`,
+      `${COLLECTION_ID}/${validEntry.id}/${expectedImageId}.jpg`,
     );
-    assert.equal(fake.clueImageUpserts[0].id, validEntry.id);
+    assert.equal(fake.clueImageUpserts[0].id, expectedImageId);
   } finally {
     await fixture.cleanup();
   }
@@ -376,10 +488,285 @@ test("removes the uploaded object when clue image metadata fails", async () => {
     assert.match(summary.failures[0].message, /metadata refused/);
     assert.ok(fake.writes.includes("storage:upload"));
     assert.ok(fake.writes.includes("storage:remove"));
+    const expectedImageId = buildImageId(
+      validEntry.id,
+      Buffer.from([0xff, 0xd8, 0xff]),
+    );
     assert.deepEqual(fake.removedPaths, [
-      `${COLLECTION_ID}/${validEntry.id}/${validEntry.id}.jpg`,
+      `${COLLECTION_ID}/${validEntry.id}/${expectedImageId}.jpg`,
     ]);
     assert.deepEqual(fake.clueStatuses, ["draft"]);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("rolls back a published clue after metadata failure without deleting its valid image", async () => {
+  const fixture = await createFixture({
+    ...validEntry,
+    regionIds: ["FR-IDF"],
+    title: "Nouveau titre",
+  });
+  const oldPrimaryPath =
+    `${COLLECTION_ID}/${validEntry.id}/44444444-4444-4444-8444-444444444444.jpg`;
+  const oldAdditionalPath =
+    `${COLLECTION_ID}/${validEntry.id}/55555555-5555-4555-8555-555555555555.png`;
+  const fake = createStatefulSupabase({
+    clue: {
+      ...buildStoredClue({
+        status: "published",
+        title: "Ancien titre",
+        coverage: "selected_regions",
+      }),
+    },
+    regions: ["FR-ARA"],
+    images: [
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        clue_id: validEntry.id,
+        storage_path: oldPrimaryPath,
+        alt_text: "Ancienne image",
+        sort_order: 0,
+      },
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        clue_id: validEntry.id,
+        storage_path: oldAdditionalPath,
+        alt_text: "Image additionnelle",
+        sort_order: 1,
+      },
+    ],
+    storagePaths: [oldPrimaryPath, oldAdditionalPath],
+    failPrimaryMetadataOnce: true,
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff, 0x42]), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    assert.equal(summary.failed, 1);
+    assert.equal(fake.state.clue.status, "published");
+    assert.equal(fake.state.clue.title, "Ancien titre");
+    assert.deepEqual([...fake.state.regions], ["FR-ARA"]);
+    assert.deepEqual(fake.state.images, [
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        clue_id: validEntry.id,
+        storage_path: oldPrimaryPath,
+        alt_text: "Ancienne image",
+        sort_order: 0,
+      },
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        clue_id: validEntry.id,
+        storage_path: oldAdditionalPath,
+        alt_text: "Image additionnelle",
+        sort_order: 1,
+      },
+    ]);
+    assert.ok(fake.state.storagePaths.has(oldPrimaryPath));
+    assert.ok(fake.state.storagePaths.has(oldAdditionalPath));
+    assert.equal(fake.state.storagePaths.size, 2);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("rolls back after publication failure even after primary metadata changed", async () => {
+  const fixture = await createFixture();
+  const oldPath =
+    `${COLLECTION_ID}/${validEntry.id}/99999999-9999-4999-8999-999999999999.jpg`;
+  const fake = createStatefulSupabase({
+    clue: buildStoredClue({ status: "published", title: "Original" }),
+    images: [
+      {
+        id: "99999999-9999-4999-8999-999999999999",
+        clue_id: validEntry.id,
+        storage_path: oldPath,
+        alt_text: "Original",
+        sort_order: 0,
+      },
+    ],
+    storagePaths: [oldPath],
+    failPublicationOnce: true,
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff, 0x55]), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    assert.equal(summary.failed, 1);
+    assert.equal(fake.state.clue.status, "published");
+    assert.equal(fake.state.clue.title, "Original");
+    assert.equal(fake.state.images.length, 1);
+    assert.equal(fake.state.images[0].storage_path, oldPath);
+    assert.deepEqual([...fake.state.storagePaths], [oldPath]);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("reports post-publication cleanup failures as warnings", async () => {
+  const fixture = await createFixture();
+  const oldPrimaryPath =
+    `${COLLECTION_ID}/${validEntry.id}/66666666-6666-4666-8666-666666666666.jpg`;
+  const additionalPath =
+    `${COLLECTION_ID}/${validEntry.id}/77777777-7777-4777-8777-777777777777.webp`;
+  const fake = createStatefulSupabase({
+    clue: buildStoredClue({ status: "published" }),
+    images: [
+      {
+        id: "66666666-6666-4666-8666-666666666666",
+        clue_id: validEntry.id,
+        storage_path: oldPrimaryPath,
+        alt_text: "Old",
+        sort_order: 0,
+      },
+      {
+        id: "77777777-7777-4777-8777-777777777777",
+        clue_id: validEntry.id,
+        storage_path: additionalPath,
+        alt_text: "Extra",
+        sort_order: 1,
+      },
+    ],
+    storagePaths: [oldPrimaryPath, additionalPath],
+    storageRemoveFailures: [oldPrimaryPath, additionalPath],
+  });
+
+  try {
+    const png = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () => new Response(png, { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    const newImageId = buildImageId(validEntry.id, png);
+    assert.equal(summary.failed, 0);
+    assert.equal(summary.updated, 1);
+    assert.equal(summary.warnings.length, 2);
+    assert.equal(fake.state.clue.status, "published");
+    assert.equal(fake.state.images.length, 1);
+    assert.equal(fake.state.images[0].id, newImageId);
+    assert.equal(
+      fake.state.images[0].storage_path,
+      `${COLLECTION_ID}/${validEntry.id}/${newImageId}.png`,
+    );
+    assert.ok(fake.state.storagePaths.has(oldPrimaryPath));
+    assert.ok(fake.state.storagePaths.has(additionalPath));
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("reimports identical content idempotently with one primary object", async () => {
+  const fixture = await createFixture();
+  const fake = createStatefulSupabase();
+  const image = Buffer.from([0xff, 0xd8, 0xff, 0x33]);
+  const importOptions = {
+    category: { id: CATEGORY_ID, name: "Marquages au sol" },
+    datasetPath: fixture.datasetPath,
+    summaryFileName: "summary.json",
+    authorEnvName: "SUPABASE_META_AUTHOR_ID",
+    authorId: AUTHOR_ID,
+    supabase: fake.client,
+    outputDir: fixture.directory,
+    fetchImpl: async () => new Response(image, { status: 200 }),
+    requestSpacingMs: 0,
+    retryBaseDelayMs: 0,
+  };
+
+  try {
+    const first = await runOfficialImport(importOptions);
+    const second = await runOfficialImport(importOptions);
+    const imageId = buildImageId(validEntry.id, image);
+    const expectedPath =
+      `${COLLECTION_ID}/${validEntry.id}/${imageId}.jpg`;
+
+    assert.equal(first.created, 1);
+    assert.equal(second.updated, 1);
+    assert.equal(second.failed, 0);
+    assert.equal(fake.state.images.length, 1);
+    assert.equal(fake.state.images[0].id, imageId);
+    assert.deepEqual([...fake.state.storagePaths], [expectedPath]);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("can replace regional coverage with whole-country coverage", async () => {
+  const fixture = await createFixture(validEntry);
+  const oldPath =
+    `${COLLECTION_ID}/${validEntry.id}/88888888-8888-4888-8888-888888888888.jpg`;
+  const fake = createStatefulSupabase({
+    clue: buildStoredClue({
+      coverage: "selected_regions",
+      status: "published",
+    }),
+    regions: ["FR-IDF"],
+    images: [
+      {
+        id: "88888888-8888-4888-8888-888888888888",
+        clue_id: validEntry.id,
+        storage_path: oldPath,
+        alt_text: "Old",
+        sort_order: 0,
+      },
+    ],
+    storagePaths: [oldPath],
+    enforceGeographyConstraint: true,
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff, 0x44]), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    assert.equal(summary.failed, 0);
+    assert.equal(fake.state.clue.coverage, "whole_country");
+    assert.deepEqual([...fake.state.regions], []);
   } finally {
     await fixture.cleanup();
   }
@@ -603,10 +990,27 @@ function createFakeSupabase(options = {}) {
               },
             };
           },
+          delete() {
+            return {
+              eq: async () => {
+                writes.push("clues:delete");
+                state.existingClue = null;
+                return { error: null };
+              },
+            };
+          },
         };
       }
       if (table === "clue_regions") {
-        return mutationQuery(table, writes);
+        return {
+          ...mutationQuery(table, writes),
+          select() {
+            reads.push(table);
+            return {
+              eq: async () => ({ data: [], error: null }),
+            };
+          },
+        };
       }
       if (table === "clue_images") {
         return mutationQuery(table, writes, {
@@ -700,4 +1104,234 @@ function mutationQuery(table, writes, options = {}) {
       return { error: options.upsertError ?? null };
     },
   };
+}
+
+function buildStoredClue(overrides = {}) {
+  return {
+    id: validEntry.id,
+    collection_id: COLLECTION_ID,
+    category_id: CATEGORY_ID,
+    country_code: validEntry.countryCode,
+    coverage: "whole_country",
+    difficulty: validEntry.difficulty,
+    status: "published",
+    title: validEntry.title,
+    characteristics: [...validEntry.characteristics],
+    notes: validEntry.notes,
+    source_name: validEntry.sourceName,
+    source_url: validEntry.sourceUrl,
+    license_name: validEntry.licenseName,
+    license_url: validEntry.licenseUrl,
+    attribution_text: validEntry.attributionText,
+    author_id: AUTHOR_ID,
+    ...overrides,
+  };
+}
+
+function createStatefulSupabase(options = {}) {
+  const state = {
+    clue: options.clue ? structuredClone(options.clue) : null,
+    regions: new Set(options.regions ?? []),
+    images: structuredClone(options.images ?? []),
+    storagePaths: new Set(options.storagePaths ?? []),
+  };
+  let failPrimaryMetadataOnce = options.failPrimaryMetadataOnce ?? false;
+  let failPublicationOnce = options.failPublicationOnce ?? false;
+  const storageRemoveFailures = new Set(options.storageRemoveFailures ?? []);
+
+  const client = {
+    from(table) {
+      if (["collections", "categories", "countries", "regions"].includes(table)) {
+        return geographyQuery(table);
+      }
+      if (table === "clues") return cluesQuery();
+      if (table === "clue_regions") return clueRegionsQuery();
+      if (table === "clue_images") return clueImagesQuery();
+      throw new Error(`Unexpected table ${table}`);
+    },
+    storage: {
+      from() {
+        return {
+          upload: async (storagePath) => {
+            state.storagePaths.add(storagePath);
+            return { error: null };
+          },
+          remove: async (paths) => {
+            const failed = paths.find((item) => storageRemoveFailures.has(item));
+            if (failed) return { error: { message: `cleanup failed: ${failed}` } };
+            for (const item of paths) state.storagePaths.delete(item);
+            return { error: null };
+          },
+        };
+      },
+    },
+  };
+
+  function geographyQuery(table) {
+    const rows = {
+      collections: [{ id: COLLECTION_ID }],
+      categories: [{ id: CATEGORY_ID }],
+      countries: [{ code: "FR" }],
+      regions: [
+        { id: "FR-IDF", country_code: "FR" },
+        { id: "FR-ARA", country_code: "FR" },
+      ],
+    }[table];
+    return {
+      select() {
+        return {
+          eq(_column, value) {
+            return {
+              maybeSingle: async () => ({
+                data:
+                  rows.find((row) => row.id === value || row.code === value) ??
+                  null,
+                error: null,
+              }),
+            };
+          },
+          in(_column, values) {
+            return Promise.resolve({
+              data: rows.filter((row) => values.includes(row.id)),
+              error: null,
+            });
+          },
+        };
+      },
+    };
+  }
+
+  function cluesQuery() {
+    return {
+      select() {
+        return {
+          eq() {
+            return {
+              maybeSingle: async () => ({
+                data: state.clue
+                  ? {
+                      ...structuredClone(state.clue),
+                      clue_images: structuredClone(state.images),
+                    }
+                  : null,
+                error: null,
+              }),
+            };
+          },
+        };
+      },
+      upsert: async (payload) => {
+        if (
+          options.enforceGeographyConstraint &&
+          payload.coverage === "whole_country" &&
+          state.regions.size > 0
+        ) {
+          return {
+            error: {
+              message: "whole-country clues cannot have selected regions",
+            },
+          };
+        }
+        state.clue = structuredClone(payload);
+        return { error: null };
+      },
+      update(payload) {
+        return {
+          eq: async () => {
+            if (payload.status === "published" && failPublicationOnce) {
+              failPublicationOnce = false;
+              return { error: { message: "publication refused" } };
+            }
+            state.clue = { ...state.clue, ...structuredClone(payload) };
+            return { error: null };
+          },
+        };
+      },
+      delete() {
+        return {
+          eq: async () => {
+            state.clue = null;
+            state.regions.clear();
+            state.images = [];
+            return { error: null };
+          },
+        };
+      },
+    };
+  }
+
+  function clueRegionsQuery() {
+    return {
+      select() {
+        return {
+          eq: async () => ({
+            data: [...state.regions].map((region_id) => ({ region_id })),
+            error: null,
+          }),
+        };
+      },
+      delete() {
+        return {
+          eq: async () => {
+            state.regions.clear();
+            return { error: null };
+          },
+        };
+      },
+      insert: async (rows) => {
+        for (const row of rows) state.regions.add(row.region_id);
+        return { error: null };
+      },
+    };
+  }
+
+  function clueImagesQuery() {
+    return {
+      upsert: async (payload) => {
+        if (failPrimaryMetadataOnce) {
+          failPrimaryMetadataOnce = false;
+          return { error: { message: "metadata refused" } };
+        }
+        state.images = [
+          ...state.images.filter((image) => image.sort_order !== payload.sort_order),
+          structuredClone(payload),
+        ].sort((left, right) => left.sort_order - right.sort_order);
+        return { error: null };
+      },
+      insert: async (rows) => {
+        state.images.push(...structuredClone(Array.isArray(rows) ? rows : [rows]));
+        state.images.sort((left, right) => left.sort_order - right.sort_order);
+        return { error: null };
+      },
+      delete() {
+        let clueId = null;
+        const chain = {
+          eq(column, value) {
+            if (column === "clue_id") clueId = value;
+            if (column === "id") {
+              state.images = state.images.filter((image) => image.id !== value);
+              return Promise.resolve({ error: null });
+            }
+            return chain;
+          },
+          neq(column, value) {
+            state.images = state.images.filter(
+              (image) =>
+                image.clue_id !== clueId || image[column] === value,
+            );
+            return Promise.resolve({ error: null });
+          },
+          then(resolve) {
+            state.images = state.images.filter(
+              (image) => image.clue_id !== clueId,
+            );
+            return Promise.resolve({ error: null }).then(resolve);
+          },
+        };
+        return chain;
+      },
+    };
+  }
+
+  return { client, state };
 }
