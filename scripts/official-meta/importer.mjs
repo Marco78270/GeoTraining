@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { lookup as dnsLookup } from "node:dns/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +17,10 @@ const IMPORT_USER_AGENT =
   "GeoTrainerAtlas/1.0 (https://github.com/Marco78270/GeoTraining)";
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
+const DEFAULT_ALLOWED_IMAGE_HOSTS = new Set([
+  "commons.wikimedia.org",
+  "upload.wikimedia.org",
+]);
 
 export function validateEntry(entry) {
   if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
@@ -253,6 +258,8 @@ export async function fetchImage(
     baseDelayMs = 3000,
     requestSpacingMs = 1500,
     timeoutMs = 30000,
+    allowedImageHosts = DEFAULT_ALLOWED_IMAGE_HOSTS,
+    lookupImpl = dnsLookup,
     sleepImpl = sleep,
   } = {},
 ) {
@@ -265,6 +272,8 @@ export async function fetchImage(
         buildDownloadUrl(url),
         fetchImpl,
         timeoutMs,
+        allowedImageHosts,
+        lookupImpl,
       );
       try {
         const { response } = fetched;
@@ -308,8 +317,18 @@ export async function fetchImage(
   throw lastError ?? new Error(`Impossible de charger ${url}.`);
 }
 
-async function fetchFollowingSafeRedirects(url, fetchImpl, timeoutMs) {
-  let currentUrl = validateRemoteImageUrl(url);
+async function fetchFollowingSafeRedirects(
+  url,
+  fetchImpl,
+  timeoutMs,
+  allowedImageHosts,
+  lookupImpl,
+) {
+  let currentUrl = await validateResolvedImageUrl(
+    url,
+    allowedImageHosts,
+    lookupImpl,
+  );
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     const controller = new AbortController();
     const timer = setTimeout(
@@ -341,11 +360,46 @@ async function fetchFollowingSafeRedirects(url, fetchImpl, timeoutMs) {
     if (!location) {
       throw new PermanentFetchError("Redirection image sans en-tete Location.");
     }
-    currentUrl = validateRemoteImageUrl(
+    currentUrl = await validateResolvedImageUrl(
       new URL(location, currentUrl).toString(),
+      allowedImageHosts,
+      lookupImpl,
     );
   }
   throw new PermanentFetchError("Trop de redirections pour l'image.");
+}
+
+async function validateResolvedImageUrl(
+  value,
+  allowedImageHosts,
+  lookupImpl,
+) {
+  const parsed = validateRemoteImageUrl(value);
+  const allowedHosts = new Set(
+    [...allowedImageHosts].map((hostname) => hostname.toLowerCase()),
+  );
+  if (!allowedHosts.has(parsed.hostname.toLowerCase())) {
+    throw new PermanentFetchError(
+      `Hote image non autorise: ${parsed.hostname}.`,
+    );
+  }
+
+  // fetch cannot pin a resolved IP. The trusted-domain allowlist is the
+  // rebinding barrier; resolving every hop is defense in depth.
+  const addresses = await lookupImpl(parsed.hostname, {
+    all: true,
+    verbatim: true,
+  });
+  if (
+    !Array.isArray(addresses) ||
+    addresses.length === 0 ||
+    addresses.some(({ address }) => isPrivateIpAddress(address))
+  ) {
+    throw new PermanentFetchError(
+      `Resolution DNS interdite pour ${parsed.hostname}.`,
+    );
+  }
+  return parsed;
 }
 
 async function readResponseBuffer(response) {
@@ -394,6 +448,8 @@ export async function runOfficialImport({
   fetchImpl = fetch,
   requestSpacingMs = 1500,
   retryBaseDelayMs = 3000,
+  allowedImageHosts = DEFAULT_ALLOWED_IMAGE_HOSTS,
+  lookupImpl = dnsLookup,
 }) {
   if (!supabase) {
     throw new Error("Le client Supabase est requis.");
@@ -449,6 +505,8 @@ export async function runOfficialImport({
       const image = await fetchImage(entry.imageUrl, fetchImpl, {
         baseDelayMs: retryBaseDelayMs,
         requestSpacingMs,
+        allowedImageHosts,
+        lookupImpl,
       });
       assertImportableImage(image);
 
@@ -693,14 +751,39 @@ async function rollbackImport({
 }) {
   const rollbackErrors = [];
   if (snapshot) {
+    const originalStatus = snapshot.clue.status;
     await collectRollbackError(rollbackErrors, async () => {
       await expectNoError(
-        supabase.from("clues").update({ status: "draft" }).eq("id", clueId),
-        "remise en brouillon pour restauration",
+        supabase.from("clue_regions").delete().eq("clue_id", clueId),
+        "suppression des regions temporaires",
       );
     });
     await collectRollbackError(rollbackErrors, async () => {
-      await replaceRegions(supabase, clueId, snapshot.regionIds);
+      const {
+        id: _id,
+        status: _status,
+        ...originalClueFields
+      } = snapshot.clue;
+      await expectNoError(
+        supabase
+          .from("clues")
+          .update({ ...originalClueFields, status: "draft" })
+          .eq("id", clueId),
+        "restauration de l'indice en brouillon",
+      );
+    });
+    await collectRollbackError(rollbackErrors, async () => {
+      if (snapshot.regionIds.length > 0) {
+        await expectNoError(
+          supabase.from("clue_regions").insert(
+            snapshot.regionIds.map((regionId) => ({
+              clue_id: clueId,
+              region_id: regionId,
+            })),
+          ),
+          "restauration des regions",
+        );
+      }
     });
     await collectRollbackError(rollbackErrors, async () => {
       await expectNoError(
@@ -715,10 +798,12 @@ async function rollbackImport({
       }
     });
     await collectRollbackError(rollbackErrors, async () => {
-      const { id: _id, ...restoredClue } = snapshot.clue;
       await expectNoError(
-        supabase.from("clues").update(restoredClue).eq("id", clueId),
-        "restauration de l'indice",
+        supabase
+          .from("clues")
+          .update({ status: originalStatus })
+          .eq("id", clueId),
+        "restauration du statut de l'indice",
       );
     });
   } else {

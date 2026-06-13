@@ -19,6 +19,9 @@ import {
 const COLLECTION_ID = "f0000000-0000-0000-0000-000000000001";
 const CATEGORY_ID = "f1000000-0000-0000-0000-000000000004";
 const AUTHOR_ID = "22222222-2222-4222-8222-222222222222";
+const publicLookup = async () => [
+  { address: "198.51.100.10", family: 4 },
+];
 
 const validEntry = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -183,6 +186,7 @@ test("retries transient image statuses and returns sniffed data", async () => {
     attempts: 3,
     baseDelayMs: 0,
     requestSpacingMs: 0,
+    lookupImpl: publicLookup,
     sleepImpl: async () => {},
   });
 
@@ -204,6 +208,7 @@ test("does not retry permanent image errors", async () => {
         attempts: 3,
         baseDelayMs: 0,
         requestSpacingMs: 0,
+        lookupImpl: publicLookup,
         sleepImpl: async () => {},
       },
     ),
@@ -224,11 +229,83 @@ test("rejects redirects to unsafe image URLs", async () => {
       {
         attempts: 1,
         requestSpacingMs: 0,
+        lookupImpl: publicLookup,
         sleepImpl: async () => {},
       },
     ),
     /interdite/i,
   );
+});
+
+test("rejects image hosts outside the strict allowlist before DNS lookup", async () => {
+  let lookupCalls = 0;
+  await assert.rejects(
+    fetchImage(
+      "https://images.example.com/photo.jpg",
+      async () => new Response(Buffer.from([0xff, 0xd8, 0xff])),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        lookupImpl: async () => {
+          lookupCalls += 1;
+          return publicLookup();
+        },
+        sleepImpl: async () => {},
+      },
+    ),
+    /hote.*autorise/i,
+  );
+  assert.equal(lookupCalls, 0);
+});
+
+test("rejects allowed image hosts resolving to private addresses", async () => {
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async () => new Response(Buffer.from([0xff, 0xd8, 0xff])),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        lookupImpl: async () => [{ address: "10.0.0.5", family: 4 }],
+        sleepImpl: async () => {},
+      },
+    ),
+    /DNS.*interdite/i,
+  );
+});
+
+test("rejects redirects to hosts outside the image allowlist", async () => {
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { Location: "https://images.example.com/photo.jpg" },
+        }),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        lookupImpl: publicLookup,
+        sleepImpl: async () => {},
+      },
+    ),
+    /hote.*autorise/i,
+  );
+});
+
+test("accepts Wikimedia hosts resolving to public addresses", async () => {
+  const result = await fetchImage(
+    "https://upload.wikimedia.org/photo.jpg",
+    async () => new Response(Buffer.from([0xff, 0xd8, 0xff])),
+    {
+      attempts: 1,
+      requestSpacingMs: 0,
+      lookupImpl: publicLookup,
+      sleepImpl: async () => {},
+    },
+  );
+  assert.equal(result.extension, "jpg");
 });
 
 test("rejects images larger than ten MiB from headers or body", async () => {
@@ -243,6 +320,7 @@ test("rejects images larger than ten MiB from headers or body", async () => {
       {
         attempts: 1,
         requestSpacingMs: 0,
+        lookupImpl: publicLookup,
         sleepImpl: async () => {},
       },
     ),
@@ -257,6 +335,7 @@ test("rejects images larger than ten MiB from headers or body", async () => {
     fetchImage(validEntry.imageUrl, async () => new Response(oversized), {
       attempts: 1,
       requestSpacingMs: 0,
+      lookupImpl: publicLookup,
       sleepImpl: async () => {},
     }),
     /10 MiB/i,
@@ -277,6 +356,7 @@ test("aborts image downloads after the configured timeout", async () => {
         attempts: 1,
         timeoutMs: 5,
         requestSpacingMs: 0,
+        lookupImpl: publicLookup,
         sleepImpl: async () => {},
       },
     ),
@@ -306,6 +386,7 @@ test("dry-run reads geography but performs no writes", async () => {
       },
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.created, 1);
@@ -339,6 +420,7 @@ test("dry-run rejects SVG images without writing", async () => {
         new Response(Buffer.from("<svg></svg>"), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.failed, 1);
@@ -398,6 +480,7 @@ test("publishes only after image and region reconciliation succeeds", async () =
         new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.created, 1);
@@ -450,6 +533,7 @@ test("reports image upload failures and leaves the clue unpublished", async () =
         new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.failed, 1);
@@ -482,6 +566,7 @@ test("removes the uploaded object when clue image metadata fails", async () => {
         new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.failed, 1);
@@ -553,6 +638,7 @@ test("rolls back a published clue after metadata failure without deleting its va
         new Response(Buffer.from([0xff, 0xd8, 0xff, 0x42]), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.failed, 1);
@@ -615,6 +701,7 @@ test("rolls back after publication failure even after primary metadata changed",
         new Response(Buffer.from([0xff, 0xd8, 0xff, 0x55]), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.failed, 1);
@@ -671,6 +758,7 @@ test("reports post-publication cleanup failures as warnings", async () => {
       fetchImpl: async () => new Response(png, { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     const newImageId = buildImageId(validEntry.id, png);
@@ -706,6 +794,7 @@ test("reimports identical content idempotently with one primary object", async (
     fetchImpl: async () => new Response(image, { status: 200 }),
     requestSpacingMs: 0,
     retryBaseDelayMs: 0,
+    lookupImpl: publicLookup,
   };
 
   try {
@@ -762,11 +851,66 @@ test("can replace regional coverage with whole-country coverage", async () => {
         new Response(Buffer.from([0xff, 0xd8, 0xff, 0x44]), { status: 200 }),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.failed, 0);
     assert.equal(fake.state.clue.coverage, "whole_country");
     assert.deepEqual([...fake.state.regions], []);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("restores selected-region coverage after a failed whole-country import", async () => {
+  const fixture = await createFixture(validEntry);
+  const oldPath =
+    `${COLLECTION_ID}/${validEntry.id}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg`;
+  const fake = createStatefulSupabase({
+    clue: buildStoredClue({
+      coverage: "selected_regions",
+      status: "published",
+      title: "Regional original",
+    }),
+    regions: ["FR-IDF"],
+    images: [
+      {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        clue_id: validEntry.id,
+        storage_path: oldPath,
+        alt_text: "Regional original",
+        sort_order: 0,
+      },
+    ],
+    storagePaths: [oldPath],
+    enforceGeographyConstraint: true,
+    failPublicationOnce: true,
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff, 0x66]), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
+    });
+
+    assert.equal(summary.failed, 1);
+    assert.equal(fake.state.clue.status, "published");
+    assert.equal(fake.state.clue.coverage, "selected_regions");
+    assert.equal(fake.state.clue.title, "Regional original");
+    assert.deepEqual([...fake.state.regions], ["FR-IDF"]);
+    assert.equal(fake.state.images.length, 1);
+    assert.equal(fake.state.images[0].storage_path, oldPath);
+    assert.deepEqual([...fake.state.storagePaths], [oldPath]);
   } finally {
     await fixture.cleanup();
   }
@@ -907,6 +1051,7 @@ test("missing-images-only does not treat a non-primary image as primary", async 
       },
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
     });
 
     assert.equal(summary.imagesImported, 1);
@@ -1238,6 +1383,18 @@ function createStatefulSupabase(options = {}) {
       update(payload) {
         return {
           eq: async () => {
+            if (
+              options.enforceGeographyConstraint &&
+              payload.coverage === "selected_regions" &&
+              state.clue?.coverage === "whole_country" &&
+              state.regions.size > 0
+            ) {
+              return {
+                error: {
+                  message: "whole-country clues cannot have selected regions",
+                },
+              };
+            }
             if (payload.status === "published" && failPublicationOnce) {
               failPublicationOnce = false;
               return { error: { message: "publication refused" } };
@@ -1279,6 +1436,16 @@ function createStatefulSupabase(options = {}) {
         };
       },
       insert: async (rows) => {
+        if (
+          options.enforceGeographyConstraint &&
+          state.clue?.coverage !== "selected_regions"
+        ) {
+          return {
+            error: {
+              message: "whole-country clues cannot have selected regions",
+            },
+          };
+        }
         for (const row of rows) state.regions.add(row.region_id);
         return { error: null };
       },
