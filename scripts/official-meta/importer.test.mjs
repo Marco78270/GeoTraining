@@ -294,6 +294,84 @@ test("rejects redirects to hosts outside the image allowlist", async () => {
   );
 });
 
+test("cancels redirect response bodies before following Location", async () => {
+  let cancelled = 0;
+  let calls = 0;
+  const result = await fetchImage(
+    validEntry.imageUrl,
+    async () => {
+      calls += 1;
+      if (calls === 1) {
+        return responseWithCancelSpy({
+          status: 302,
+          headers: { Location: "https://upload.wikimedia.org/photo.jpg" },
+          onCancel: () => {
+            cancelled += 1;
+          },
+        });
+      }
+      return new Response(Buffer.from([0xff, 0xd8, 0xff]));
+    },
+    {
+      attempts: 1,
+      requestSpacingMs: 0,
+      lookupImpl: publicLookup,
+      sleepImpl: async () => {},
+    },
+  );
+  assert.equal(result.extension, "jpg");
+  assert.equal(cancelled, 1);
+});
+
+test("cancels retry and permanent HTTP error bodies", async () => {
+  let retryCancelled = 0;
+  let errorCancelled = 0;
+  let attempts = 0;
+  await fetchImage(
+    validEntry.imageUrl,
+    async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        return responseWithCancelSpy({
+          status: 503,
+          onCancel: () => {
+            retryCancelled += 1;
+          },
+        });
+      }
+      return new Response(Buffer.from([0xff, 0xd8, 0xff]));
+    },
+    {
+      attempts: 2,
+      baseDelayMs: 0,
+      requestSpacingMs: 0,
+      lookupImpl: publicLookup,
+      sleepImpl: async () => {},
+    },
+  );
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async () =>
+        responseWithCancelSpy({
+          status: 404,
+          onCancel: () => {
+            errorCancelled += 1;
+          },
+        }),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        lookupImpl: publicLookup,
+        sleepImpl: async () => {},
+      },
+    ),
+    /404/,
+  );
+  assert.equal(retryCancelled, 1);
+  assert.equal(errorCancelled, 1);
+});
+
 test("accepts Wikimedia hosts resolving to public addresses", async () => {
   const result = await fetchImage(
     "https://upload.wikimedia.org/photo.jpg",
@@ -916,6 +994,54 @@ test("restores selected-region coverage after a failed whole-country import", as
   }
 });
 
+test("does not republish when a critical rollback step fails", async () => {
+  const fixture = await createFixture(validEntry);
+  const oldPath =
+    `${COLLECTION_ID}/${validEntry.id}/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb.jpg`;
+  const fake = createStatefulSupabase({
+    clue: buildStoredClue({
+      coverage: "selected_regions",
+      status: "published",
+    }),
+    regions: ["FR-IDF"],
+    images: [
+      {
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        clue_id: validEntry.id,
+        storage_path: oldPath,
+        alt_text: "Old",
+        sort_order: 0,
+      },
+    ],
+    storagePaths: [oldPath],
+    failPublicationOnce: true,
+    failRegionRestoreOnce: true,
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff, 0x77])),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
+    });
+    assert.equal(summary.failed, 1);
+    assert.match(summary.failures[0].message, /restauration impossible/i);
+    assert.equal(fake.state.clue.status, "draft");
+    assert.equal(fake.publishedUpdateCount, 1);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test("rejects unresolved regions before any write", async () => {
   const fixture = await createFixture({
     ...validEntry,
@@ -1070,6 +1196,20 @@ async function createFixture(entry = validEntry) {
     directory,
     datasetPath,
     cleanup: () => rm(directory, { recursive: true, force: true }),
+  };
+}
+
+function responseWithCancelSpy({ status, headers, onCancel }) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers(headers),
+    body: {
+      cancel: async () => {
+        onCancel();
+      },
+    },
+    arrayBuffer: async () => new ArrayBuffer(0),
   };
 }
 
@@ -1282,6 +1422,8 @@ function createStatefulSupabase(options = {}) {
   };
   let failPrimaryMetadataOnce = options.failPrimaryMetadataOnce ?? false;
   let failPublicationOnce = options.failPublicationOnce ?? false;
+  let failRegionRestoreOnce = options.failRegionRestoreOnce ?? false;
+  let publishedUpdateCount = 0;
   const storageRemoveFailures = new Set(options.storageRemoveFailures ?? []);
 
   const client = {
@@ -1396,9 +1538,11 @@ function createStatefulSupabase(options = {}) {
               };
             }
             if (payload.status === "published" && failPublicationOnce) {
+              publishedUpdateCount += 1;
               failPublicationOnce = false;
               return { error: { message: "publication refused" } };
             }
+            if (payload.status === "published") publishedUpdateCount += 1;
             state.clue = { ...state.clue, ...structuredClone(payload) };
             return { error: null };
           },
@@ -1436,6 +1580,10 @@ function createStatefulSupabase(options = {}) {
         };
       },
       insert: async (rows) => {
+        if (failRegionRestoreOnce) {
+          failRegionRestoreOnce = false;
+          return { error: { message: "region restore refused" } };
+        }
         if (
           options.enforceGeographyConstraint &&
           state.clue?.coverage !== "selected_regions"
@@ -1500,5 +1648,11 @@ function createStatefulSupabase(options = {}) {
     };
   }
 
-  return { client, state };
+  return {
+    client,
+    state,
+    get publishedUpdateCount() {
+      return publishedUpdateCount;
+    },
+  };
 }

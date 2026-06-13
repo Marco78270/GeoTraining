@@ -278,6 +278,7 @@ export async function fetchImage(
       try {
         const { response } = fetched;
         if (!response.ok) {
+          await releaseResponseBody(response);
           const retryable =
             RETRYABLE_STATUSES.has(response.status) || response.status >= 500;
           if (!retryable || attempt === attempts) {
@@ -356,6 +357,7 @@ async function fetchFollowingSafeRedirects(
       };
     }
     clearTimeout(timer);
+    await releaseResponseBody(response);
     const location = response.headers.get("location");
     if (!location) {
       throw new PermanentFetchError("Redirection image sans en-tete Location.");
@@ -367,6 +369,21 @@ async function fetchFollowingSafeRedirects(
     );
   }
   throw new PermanentFetchError("Trop de redirections pour l'image.");
+}
+
+async function releaseResponseBody(response) {
+  if (!response.body) return;
+  try {
+    await response.body.cancel();
+    return;
+  } catch {
+    // Some response mocks/implementations cannot cancel an already-consumed body.
+  }
+  try {
+    await response.arrayBuffer();
+  } catch {
+    // Releasing the connection is best effort; preserve the original HTTP error.
+  }
 }
 
 async function validateResolvedImageUrl(
@@ -752,11 +769,14 @@ async function rollbackImport({
   const rollbackErrors = [];
   if (snapshot) {
     const originalStatus = snapshot.clue.status;
+    let criticalRestoreSucceeded = true;
     await collectRollbackError(rollbackErrors, async () => {
       await expectNoError(
         supabase.from("clue_regions").delete().eq("clue_id", clueId),
         "suppression des regions temporaires",
       );
+    }, () => {
+      criticalRestoreSucceeded = false;
     });
     await collectRollbackError(rollbackErrors, async () => {
       const {
@@ -771,6 +791,8 @@ async function rollbackImport({
           .eq("id", clueId),
         "restauration de l'indice en brouillon",
       );
+    }, () => {
+      criticalRestoreSucceeded = false;
     });
     await collectRollbackError(rollbackErrors, async () => {
       if (snapshot.regionIds.length > 0) {
@@ -784,6 +806,8 @@ async function rollbackImport({
           "restauration des regions",
         );
       }
+    }, () => {
+      criticalRestoreSucceeded = false;
     });
     await collectRollbackError(rollbackErrors, async () => {
       await expectNoError(
@@ -796,16 +820,20 @@ async function rollbackImport({
           "restauration des metadonnees image",
         );
       }
+    }, () => {
+      criticalRestoreSucceeded = false;
     });
-    await collectRollbackError(rollbackErrors, async () => {
-      await expectNoError(
-        supabase
-          .from("clues")
-          .update({ status: originalStatus })
-          .eq("id", clueId),
-        "restauration du statut de l'indice",
-      );
-    });
+    if (criticalRestoreSucceeded) {
+      await collectRollbackError(rollbackErrors, async () => {
+        await expectNoError(
+          supabase
+            .from("clues")
+            .update({ status: originalStatus })
+            .eq("id", clueId),
+          "restauration du statut de l'indice",
+        );
+      });
+    }
   } else {
     await collectRollbackError(rollbackErrors, async () => {
       await expectNoError(
@@ -872,11 +900,12 @@ async function cleanupAfterPublication({
   }
 }
 
-async function collectRollbackError(errors, operation) {
+async function collectRollbackError(errors, operation, onError) {
   try {
     await operation();
   } catch (error) {
     errors.push(formatError(error));
+    onError?.();
   }
 }
 
