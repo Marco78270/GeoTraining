@@ -104,8 +104,8 @@ test("builds deterministic payloads and image paths", () => {
     },
   );
   assert.equal(
-    buildImagePath(COLLECTION_ID, validEntry.id, "jpg"),
-    `${COLLECTION_ID}/${validEntry.id}/primary.jpg`,
+    buildImagePath(COLLECTION_ID, validEntry.id, validEntry.id, "jpg"),
+    `${COLLECTION_ID}/${validEntry.id}/${validEntry.id}.jpg`,
   );
 });
 
@@ -179,6 +179,7 @@ test("does not retry permanent image errors", async () => {
 test("dry-run reads geography but performs no writes", async () => {
   const fixture = await createFixture();
   const fake = createFakeSupabase();
+  let imageDownloads = 0;
 
   try {
     const summary = await runOfficialImport({
@@ -192,16 +193,49 @@ test("dry-run reads geography but performs no writes", async () => {
       supabase: fake.client,
       outputDir: fixture.directory,
       fetchImpl: async () => {
-        throw new Error("dry-run must not download images");
+        imageDownloads += 1;
+        return new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 });
       },
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
     });
 
     assert.equal(summary.created, 1);
     assert.equal(summary.failed, 0);
     assert.equal(fake.writes.length, 0);
+    assert.equal(imageDownloads, 1);
     assert.ok(fake.reads.includes("countries"));
     assert.ok(fake.reads.includes("collections"));
     assert.ok(fake.reads.includes("categories"));
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("dry-run rejects SVG images without writing", async () => {
+  const fixture = await createFixture();
+  const fake = createFakeSupabase();
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      dryRun: true,
+      missingImagesOnly: false,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from("<svg></svg>"), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    assert.equal(summary.failed, 1);
+    assert.match(summary.failures[0].message, /SVG.*non supporte/i);
+    assert.equal(fake.writes.length, 0);
   } finally {
     await fixture.cleanup();
   }
@@ -238,7 +272,7 @@ test("publishes only after image and region reconciliation succeeds", async () =
     regionIds: ["FR-IDF"],
   });
   const fake = createFakeSupabase({
-    regions: [{ id: "FR-IDF" }],
+    regions: [{ id: "FR-IDF", country_code: "FR" }],
   });
 
   try {
@@ -273,6 +307,11 @@ test("publishes only after image and region reconciliation succeeds", async () =
       fake.writes.indexOf("storage:upload") <
         fake.writes.indexOf("clues:update:published"),
     );
+    assert.equal(
+      fake.uploadedPaths[0],
+      `${COLLECTION_ID}/${validEntry.id}/${validEntry.id}.jpg`,
+    );
+    assert.equal(fake.clueImageUpserts[0].id, validEntry.id);
   } finally {
     await fixture.cleanup();
   }
@@ -310,13 +349,49 @@ test("reports image upload failures and leaves the clue unpublished", async () =
   }
 });
 
+test("removes the uploaded object when clue image metadata fails", async () => {
+  const fixture = await createFixture();
+  const fake = createFakeSupabase({
+    clueImageUpsertError: { message: "metadata refused" },
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      dryRun: false,
+      missingImagesOnly: false,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    assert.equal(summary.failed, 1);
+    assert.match(summary.failures[0].message, /metadata refused/);
+    assert.ok(fake.writes.includes("storage:upload"));
+    assert.ok(fake.writes.includes("storage:remove"));
+    assert.deepEqual(fake.removedPaths, [
+      `${COLLECTION_ID}/${validEntry.id}/${validEntry.id}.jpg`,
+    ]);
+    assert.deepEqual(fake.clueStatuses, ["draft"]);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test("rejects unresolved regions before any write", async () => {
   const fixture = await createFixture({
     ...validEntry,
     regionIds: ["FR-IDF", "FR-ARA"],
   });
   const fake = createFakeSupabase({
-    regions: [{ id: "FR-IDF" }],
+    regions: [{ id: "FR-IDF", country_code: "FR" }],
   });
 
   try {
@@ -337,6 +412,36 @@ test("rejects unresolved regions before any write", async () => {
 
     assert.equal(summary.failed, 1);
     assert.match(summary.failures[0].message, /FR-ARA/);
+    assert.equal(fake.writes.length, 0);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("rejects regions belonging to another country before any write", async () => {
+  const fixture = await createFixture({
+    ...validEntry,
+    regionIds: ["FR-IDF"],
+  });
+  const fake = createFakeSupabase({
+    regions: [{ id: "FR-IDF", country_code: "DE" }],
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      dryRun: false,
+      missingImagesOnly: false,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+    });
+
+    assert.equal(summary.failed, 1);
+    assert.match(summary.failures[0].message, /FR.*FR-IDF/);
     assert.equal(fake.writes.length, 0);
   } finally {
     await fixture.cleanup();
@@ -382,6 +487,49 @@ test("missing-images-only skips entries that already have a primary image", asyn
   }
 });
 
+test("missing-images-only does not treat a non-primary image as primary", async () => {
+  const fixture = await createFixture();
+  const fake = createFakeSupabase({
+    existingClue: {
+      id: validEntry.id,
+      clue_images: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          storage_path: `${COLLECTION_ID}/${validEntry.id}/33333333-3333-4333-8333-333333333333.jpg`,
+          sort_order: 1,
+        },
+      ],
+    },
+  });
+  let downloads = 0;
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      dryRun: true,
+      missingImagesOnly: true,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () => {
+        downloads += 1;
+        return new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 });
+      },
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+    });
+
+    assert.equal(summary.imagesImported, 1);
+    assert.equal(summary.imagesSkipped, 0);
+    assert.equal(downloads, 1);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 async function createFixture(entry = validEntry) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "official-meta-"));
   const datasetPath = path.join(directory, "dataset.json");
@@ -397,6 +545,9 @@ function createFakeSupabase(options = {}) {
   const writes = [];
   const reads = [];
   const clueStatuses = [];
+  const clueImageUpserts = [];
+  const uploadedPaths = [];
+  const removedPaths = [];
   const state = {
     existingClue: options.existingClue ?? null,
     regions: options.regions ?? [],
@@ -458,19 +609,24 @@ function createFakeSupabase(options = {}) {
         return mutationQuery(table, writes);
       }
       if (table === "clue_images") {
-        return mutationQuery(table, writes);
+        return mutationQuery(table, writes, {
+          upsertError: options.clueImageUpsertError,
+          upserts: clueImageUpserts,
+        });
       }
       throw new Error(`Unexpected table ${table}`);
     },
     storage: {
       from() {
         return {
-          upload: async () => {
+          upload: async (storagePath) => {
             writes.push("storage:upload");
+            uploadedPaths.push(storagePath);
             return { error: options.uploadError ?? null };
           },
-          remove: async () => {
+          remove: async (storagePaths) => {
             writes.push("storage:remove");
+            removedPaths.push(...storagePaths);
             return { error: null };
           },
         };
@@ -505,10 +661,18 @@ function createFakeSupabase(options = {}) {
     };
   }
 
-  return { client, writes, reads, clueStatuses };
+  return {
+    client,
+    writes,
+    reads,
+    clueStatuses,
+    clueImageUpserts,
+    uploadedPaths,
+    removedPaths,
+  };
 }
 
-function mutationQuery(table, writes) {
+function mutationQuery(table, writes, options = {}) {
   const filteredDelete = {
     eq: async () => {
       writes.push(`${table}:delete`);
@@ -530,9 +694,10 @@ function mutationQuery(table, writes) {
       writes.push(`${table}:insert`);
       return { error: null };
     },
-    upsert: async () => {
+    upsert: async (payload) => {
       writes.push(`${table}:upsert`);
-      return { error: null };
+      options.upserts?.push(payload);
+      return { error: options.upsertError ?? null };
     },
   };
 }

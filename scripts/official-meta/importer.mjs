@@ -198,8 +198,8 @@ export function buildDownloadUrl(url) {
   return parsed.toString();
 }
 
-export function buildImagePath(collectionId, clueId, extension) {
-  return `${collectionId}/${clueId}/primary.${extension}`;
+export function buildImagePath(collectionId, clueId, imageId, extension) {
+  return `${collectionId}/${clueId}/${imageId}.${extension}`;
 }
 
 export async function fetchImage(
@@ -305,16 +305,9 @@ export async function runOfficialImport({
       const existing = await loadExistingClue(supabase, entry.id);
       const primaryImage = findPrimaryImage(existing?.clue_images);
 
-      if (dryRun) {
+      if (missingImagesOnly && primaryImage) {
         if (existing) summary.updated += 1;
         else summary.created += 1;
-        if (missingImagesOnly && primaryImage) summary.imagesSkipped += 1;
-        else summary.imagesImported += 1;
-        continue;
-      }
-
-      if (missingImagesOnly && primaryImage) {
-        summary.updated += 1;
         summary.imagesSkipped += 1;
         continue;
       }
@@ -323,6 +316,15 @@ export async function runOfficialImport({
         baseDelayMs: retryBaseDelayMs,
         requestSpacingMs,
       });
+      assertImportableImage(image);
+
+      if (dryRun) {
+        if (existing) summary.updated += 1;
+        else summary.created += 1;
+        summary.imagesImported += 1;
+        continue;
+      }
+
       const draftPayload = buildCluePayload(
         entry,
         category.id,
@@ -338,6 +340,7 @@ export async function runOfficialImport({
       const storagePath = buildImagePath(
         OFFICIAL_COLLECTION_ID,
         entry.id,
+        entry.id,
         image.extension,
       );
       const uploadResult = await supabase.storage
@@ -350,19 +353,31 @@ export async function runOfficialImport({
         throw new Error(`Echec upload image: ${formatError(uploadResult.error)}`);
       }
 
-      await expectNoError(
-        supabase.from("clue_images").upsert(
-          {
-            id: entry.id,
-            clue_id: entry.id,
-            storage_path: storagePath,
-            alt_text: entry.imageAltText.trim(),
-            sort_order: 0,
-          },
-          { onConflict: "clue_id,sort_order" },
-        ),
-        "upsert des metadonnees image",
-      );
+      try {
+        await expectNoError(
+          supabase.from("clue_images").upsert(
+            {
+              id: entry.id,
+              clue_id: entry.id,
+              storage_path: storagePath,
+              alt_text: entry.imageAltText.trim(),
+              sort_order: 0,
+            },
+            { onConflict: "clue_id,sort_order" },
+          ),
+          "upsert des metadonnees image",
+        );
+      } catch (error) {
+        const cleanupResult = await supabase.storage
+          .from("clue-images")
+          .remove([storagePath]);
+        if (cleanupResult.error) {
+          throw new Error(
+            `${formatError(error)}; nettoyage de l'image impossible: ${formatError(cleanupResult.error)}`,
+          );
+        }
+        throw error;
+      }
       await deleteAdditionalImages(supabase, entry.id);
       await removeReplacedStorageObject(
         supabase,
@@ -444,7 +459,7 @@ async function resolveGeography(supabase, entry) {
   if (entry.regionIds.length === 0) return;
   const regionResult = await supabase
     .from("regions")
-    .select("id")
+    .select("id, country_code")
     .in("id", entry.regionIds);
   if (regionResult.error) {
     throw new Error(
@@ -455,6 +470,16 @@ async function resolveGeography(supabase, entry) {
   const missing = entry.regionIds.filter((id) => !returned.has(id));
   if (returned.size !== entry.regionIds.length || missing.length > 0) {
     throw new Error(`Regions introuvables: ${missing.join(", ") || "inconnues"}.`);
+  }
+  const wrongCountry = (regionResult.data ?? []).filter(
+    (region) => region.country_code !== entry.countryCode,
+  );
+  if (wrongCountry.length > 0) {
+    throw new Error(
+      `Regions hors du pays ${entry.countryCode}: ${wrongCountry
+        .map((region) => region.id)
+        .join(", ")}.`,
+    );
   }
 }
 
@@ -512,7 +537,15 @@ async function removeReplacedStorageObject(supabase, previousPath, nextPath) {
 
 function findPrimaryImage(images) {
   if (!Array.isArray(images)) return null;
-  return images.find((image) => image.sort_order === 0) ?? images[0] ?? null;
+  return images.find((image) => image.sort_order === 0) ?? null;
+}
+
+function assertImportableImage(image) {
+  if (image.extension === "svg" || image.contentType === "image/svg+xml") {
+    throw new Error(
+      "Le format SVG est reconnu mais non supporte par le bucket clue-images; utilisez JPEG, PNG ou WebP.",
+    );
+  }
 }
 
 async function expectNoError(query, operation) {
