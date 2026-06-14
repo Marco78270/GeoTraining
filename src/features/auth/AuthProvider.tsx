@@ -35,6 +35,9 @@ export type AuthClient = {
   signUp: (credentials: {
     email: string;
     password: string;
+    options?: {
+      emailRedirectTo?: string;
+    };
   }) => AuthActionResult;
   signOut: () => AuthActionResult;
 };
@@ -64,6 +67,14 @@ function resolveAuthClient(client?: AuthClient): {
           : "La configuration Supabase est invalide.",
     };
   }
+}
+
+function resolveEmailRedirectUrl() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return new URL("/login", window.location.origin).toString();
 }
 
 export function AuthProvider({
@@ -142,7 +153,14 @@ export function AuthProvider({
             resolved.client!.signInWithPassword({ email, password })
         : unconfiguredAction,
       signUp: resolved.client
-        ? (email, password) => resolved.client!.signUp({ email, password })
+        ? (email, password) =>
+            resolved.client!.signUp({
+              email,
+              password,
+              options: {
+                emailRedirectTo: resolveEmailRedirectUrl(),
+              },
+            })
         : unconfiguredAction,
       signOut: resolved.client
         ? () => resolved.client!.signOut()

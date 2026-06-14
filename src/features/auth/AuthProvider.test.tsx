@@ -142,3 +142,50 @@ it("stops loading and exposes a getSession rejection", async () => {
   unmount();
   expect(unsubscribe).toHaveBeenCalledOnce();
 });
+
+it("passes the current app origin as email redirect URL during sign up", async () => {
+  const user = userEvent.setup();
+  const client: AuthClient = {
+    getSession: vi.fn().mockResolvedValue({
+      data: { session: null },
+      error: null,
+    }),
+    onAuthStateChange: vi.fn(() => ({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    })),
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn().mockResolvedValue({ error: null }),
+    signOut: vi.fn(),
+  };
+
+  function SignUpProbe() {
+    const { signUp } = useAuth();
+
+    return (
+      <button
+        type="button"
+        onClick={() => void signUp("marco@example.com", "secret123")}
+      >
+        Créer
+      </button>
+    );
+  }
+
+  render(
+    <AuthProvider client={client}>
+      <SignUpProbe />
+    </AuthProvider>,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Créer" }));
+
+  await waitFor(() =>
+    expect(client.signUp).toHaveBeenCalledWith({
+      email: "marco@example.com",
+      password: "secret123",
+      options: {
+        emailRedirectTo: "http://localhost:3000/login",
+      },
+    }),
+  );
+});

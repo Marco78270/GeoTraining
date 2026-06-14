@@ -1,0 +1,262 @@
+[
+  {
+    "id": "10b58249-1f10-a91b-df36-8b439bba5129",
+    "countryCode": "AD",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Andorre",
+    "characteristics": [
+      "Format europeen compact",
+      "Style national distinct d'un petit Etat",
+      "Texte et mise en page utiles pour reconnaitre l'Andorre"
+    ],
+    "notes": "Indice officiel pour l'Andorre. La plaque est surtout utile pour confirmer un petit pays pyreneen dans un contexte europeen.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Andorra-front2014.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Andorra-front2014.jpg",
+    "attributionText": "Official Andorra-front2014.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Andorra-front2014.jpg",
+    "imageAltText": "Plaque d'immatriculation Andorre"
+  },
+  {
+    "id": "86d8649d-30d4-8b62-864b-f7f30756cd7f",
+    "countryCode": "AT",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Autriche",
+    "characteristics": [
+      "Format europeen long",
+      "Blason regional et code local frequents",
+      "Style utile pour reconnaitre l'Autriche"
+    ],
+    "notes": "Indice officiel pour l'Autriche. Le code local et le blason regional aident souvent a valider le pays.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Austria_2002_license_plate_-_Klagenfurt.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Austria_2002_license_plate_-_Klagenfurt.jpg",
+    "attributionText": "Official Austria 2002 license plate - Klagenfurt.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Austria_2002_license_plate_-_Klagenfurt.jpg",
+    "imageAltText": "Plaque d'immatriculation Autriche"
+  },
+  {
+    "id": "d5847c2b-39ba-464c-f43d-1ca41670097b",
+    "countryCode": "DK",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Danemark",
+    "characteristics": [
+      "Format europeen long",
+      "Combinaison alphanumerique sobre",
+      "Plaque utile pour distinguer le Danemark des autres pays nordiques"
+    ],
+    "notes": "Indice officiel pour le Danemark. Le rendu general reste proche du standard UE mais conserve une signature danoise utile.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Denmark_europlates.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Denmark_europlates.jpg",
+    "attributionText": "Official Denmark europlates.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Denmark_europlates.jpg",
+    "imageAltText": "Plaque d'immatriculation Danemark"
+  },
+  {
+    "id": "889df12f-e013-f176-9c53-6a8d433f2f6f",
+    "countryCode": "EE",
+    "coverage": "whole_country",
+    "difficulty": "expert",
+    "title": "Plaque - Estonie",
+    "characteristics": [
+      "Format europeen long",
+      "Style nordique assez discret",
+      "Plaque utile pour confirmer l'Estonie avec d'autres metas"
+    ],
+    "notes": "Indice officiel pour l'Estonie. La plaque est plus forte en confirmation qu'en indice unique pur.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Estonian_license_plate_1993-2004.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Estonian_license_plate_1993-2004.jpg",
+    "attributionText": "Official Estonian license plate 1993-2004.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Estonian_license_plate_1993-2004.jpg",
+    "imageAltText": "Plaque d'immatriculation Estonie"
+  },
+  {
+    "id": "a7ffdaee-ca08-a970-5395-8b10519a6e3c",
+    "countryCode": "FI",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Finlande",
+    "characteristics": [
+      "Format nordique proche du standard europeen",
+      "Combinaison lettres-chiffres lisible",
+      "Plaque utile pour la Finlande avec d'autres indices nordiques"
+    ],
+    "notes": "Indice officiel pour la Finlande. La plaque confirme bien le pays quand elle est combinee a la route, la signalisation et l'environnement.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Finland_registration_plate_2007.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Finland_registration_plate_2007.jpg",
+    "attributionText": "Official Finland registration plate 2007.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Finland_registration_plate_2007.jpg",
+    "imageAltText": "Plaque d'immatriculation Finlande"
+  },
+  {
+    "id": "707f598d-c54a-ead4-38c8-42189a513996",
+    "countryCode": "GR",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Grece",
+    "characteristics": [
+      "Format europeen long",
+      "Alphabet latin avec structure nationale grecque",
+      "Plaque utile pour confirmer la Grece dans le sud-est europeen"
+    ],
+    "notes": "Indice officiel pour la Grece. La plaque devient plus forte lorsqu'elle est croisee avec l'alphabet et les infrastructures locales.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:License_plate_Greece_1972-1982_01.JPG",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:License_plate_Greece_1972-1982_01.JPG",
+    "attributionText": "Official License plate Greece 1972-1982 01.JPG reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/License_plate_Greece_1972-1982_01.JPG",
+    "imageAltText": "Plaque d'immatriculation Grece"
+  },
+  {
+    "id": "d00b4024-28c5-e183-ea02-b0ea8153af31",
+    "countryCode": "LT",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Lituanie",
+    "characteristics": [
+      "Format europeen long",
+      "Style baltique moderne",
+      "Plaque utile pour confirmer la Lituanie"
+    ],
+    "notes": "Indice officiel pour la Lituanie. La plaque sert surtout a trancher entre les pays baltes avec les autres indices routiers.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lithuanian_license_plate_2025.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Lithuanian_license_plate_2025.jpg",
+    "attributionText": "Official Lithuanian license plate 2025.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Lithuanian_license_plate_2025.jpg",
+    "imageAltText": "Plaque d'immatriculation Lituanie"
+  },
+  {
+    "id": "a7334b7b-e856-313e-8a24-7e53e66de8ee",
+    "countryCode": "LU",
+    "coverage": "whole_country",
+    "difficulty": "expert",
+    "title": "Plaque - Luxembourg",
+    "characteristics": [
+      "Format europeen long",
+      "Style discret proche d'autres plaques UE",
+      "Plaque utile surtout en confirmation"
+    ],
+    "notes": "Indice officiel pour le Luxembourg. La plaque seule reste subtile mais devient utile dans un faisceau d'indices regional.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Luxembourg_licenseplate_EU.JPG",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Luxembourg_licenseplate_EU.JPG",
+    "attributionText": "Official Luxembourg licenseplate EU.JPG reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Luxembourg_licenseplate_EU.JPG",
+    "imageAltText": "Plaque d'immatriculation Luxembourg"
+  },
+  {
+    "id": "3f7f03a2-803d-9f44-a0cf-857c67ecd0d7",
+    "countryCode": "MD",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Moldavie",
+    "characteristics": [
+      "Format long proche du standard europeen",
+      "Structure utile pour distinguer la Moldavie des voisins",
+      "Plaque exploitable avec les autres indices regionaux"
+    ],
+    "notes": "Indice officiel pour la Moldavie. Cette plaque aide surtout a confirmer le pays face a la Roumanie ou l'Ukraine.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Moldova_MD_license_plate_ABC012_2015.svg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Moldova_MD_license_plate_ABC012_2015.svg",
+    "attributionText": "Official Moldova MD license plate ABC012 2015.svg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Moldova_MD_license_plate_ABC012_2015.svg?width=640",
+    "imageAltText": "Plaque d'immatriculation Moldavie"
+  },
+  {
+    "id": "05db582c-4e1f-d0db-0290-b2ffd8c8311b",
+    "countryCode": "MK",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Macedoine du Nord",
+    "characteristics": [
+      "Format europeen long",
+      "Evolution recente de la plaque nationale",
+      "Plaque utile dans les Balkans avec les autres indices"
+    ],
+    "notes": "Indice officiel pour la Macedoine du Nord. La plaque aide a confirmer le pays dans des situations balkaniques ambiguës.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Licence_plates_of_Macedonia-2020.svg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Licence_plates_of_Macedonia-2020.svg",
+    "attributionText": "Official Licence plates of Macedonia-2020.svg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Licence_plates_of_Macedonia-2020.svg?width=640",
+    "imageAltText": "Plaque d'immatriculation Macedoine du Nord"
+  },
+  {
+    "id": "8cf94b6c-8944-44df-6554-9e9c99ab958d",
+    "countryCode": "NO",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Norvege",
+    "characteristics": [
+      "Format nordique proche du standard europeen",
+      "Style sobre typique de la Norvege",
+      "Plaque utile pour separer la Norvege de ses voisins scandinaves"
+    ],
+    "notes": "Indice officiel pour la Norvege. La plaque est souvent une confirmation plus qu'un indice unique.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Norway_license_plate_E6813.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Norway_license_plate_E6813.jpg",
+    "attributionText": "Official Norway license plate E6813.jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Norway_license_plate_E6813.jpg",
+    "imageAltText": "Plaque d'immatriculation Norvege"
+  },
+  {
+    "id": "d2477714-2cb3-8ba4-d3bc-49e9ebef6cb4",
+    "countryCode": "PL",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Pologne",
+    "characteristics": [
+      "Format europeen long",
+      "Structure nationale bien reconnaissable avec le code local",
+      "Plaque utile en Europe centrale"
+    ],
+    "notes": "Indice officiel pour la Pologne. Le code local et l'ensemble de la mise en page sont utiles pour confirmer le pays.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Polish_license_plate_1976-2000_(front).jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Polish_license_plate_1976-2000_(front).jpg",
+    "attributionText": "Official Polish license plate 1976-2000 (front).jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Polish_license_plate_1976-2000_(front).jpg",
+    "imageAltText": "Plaque d'immatriculation Pologne"
+  },
+  {
+    "id": "7bef3fde-7ebd-6456-32f7-db9a797a2b32",
+    "countryCode": "RO",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Roumanie",
+    "characteristics": [
+      "Format europeen long",
+      "Code de departement utile a l'identification",
+      "Plaque forte pour confirmer la Roumanie"
+    ],
+    "notes": "Indice officiel pour la Roumanie. Le prefixe territorial et la structure generale donnent un bon meta de confirmation.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Romanian_license_plate_from_Cluj_county_(2024-present).jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Romanian_license_plate_from_Cluj_county_(2024-present).jpg",
+    "attributionText": "Official Romanian license plate from Cluj county (2024-present).jpg reference image from Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Romanian_license_plate_from_Cluj_county_(2024-present).jpg",
+    "imageAltText": "Plaque d'immatriculation Roumanie"
+  }
+]

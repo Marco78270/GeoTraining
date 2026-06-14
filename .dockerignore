@@ -1,0 +1,16 @@
+node_modules
+dist
+output
+playwright-report
+test-results
+.git
+.gitignore
+.superpowers
+.tmp-home
+supabase/.temp
+DockerDesktopWSL
+.env
+.env.local
+.env.*
+!.env.example
+debug.log

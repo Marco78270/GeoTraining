@@ -1,16 +1,41 @@
 import "../styles/global.css";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AtlasPage } from "../features/atlas/AtlasPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireSession } from "../features/auth/RequireSession";
 import { useAuth } from "../features/auth/authContext";
-import { ClueEditorPage } from "../features/clues/ClueEditorPage";
-import { AcceptInvitationPage } from "../features/collections/AcceptInvitationPage";
 import { ActiveCollectionProvider } from "../features/collections/ActiveCollectionProvider";
 import type { CollectionApi } from "../features/collections/collectionApi";
-import { CollectionsPage } from "../features/collections/CollectionsPage";
+
+const AtlasPage = lazy(async () => {
+  const module = await import("../features/atlas/AtlasPage");
+  return { default: module.AtlasPage };
+});
+const CollectionsPage = lazy(async () => {
+  const module = await import("../features/collections/CollectionsPage");
+  return { default: module.CollectionsPage };
+});
+const TrainingPage = lazy(async () => {
+  const module = await import("../features/training/TrainingPage");
+  return { default: module.TrainingPage };
+});
+const StatisticsPage = lazy(async () => {
+  const module = await import("../features/statistics/StatisticsPage");
+  return { default: module.StatisticsPage };
+});
+const ClueEditorPage = lazy(async () => {
+  const module = await import("../features/clues/ClueEditorPage");
+  return { default: module.ClueEditorPage };
+});
+const AcceptInvitationPage = lazy(async () => {
+  const module = await import("../features/collections/AcceptInvitationPage");
+  return { default: module.AcceptInvitationPage };
+});
+const AdminPage = lazy(async () => {
+  const module = await import("../features/admin/AdminPage");
+  return { default: module.AdminPage };
+});
 
 function RootRedirect() {
   const { session, loading } = useAuth();
@@ -26,6 +51,14 @@ function RootRedirect() {
   return <Navigate to={session ? "/atlas" : "/login"} replace />;
 }
 
+function PageLoadingFallback() {
+  return (
+    <main className="session-loading" role="status">
+      Chargement du module…
+    </main>
+  );
+}
+
 function CollectionWorkspace({
   api,
   children,
@@ -34,7 +67,9 @@ function CollectionWorkspace({
   children: ReactNode;
 }) {
   return (
-    <ActiveCollectionProvider api={api}>{children}</ActiveCollectionProvider>
+    <ActiveCollectionProvider api={api}>
+      <Suspense fallback={<PageLoadingFallback />}>{children}</Suspense>
+    </ActiveCollectionProvider>
   );
 }
 
@@ -62,7 +97,39 @@ export function App({ collectionApi }: { collectionApi?: CollectionApi }) {
           }
         />
         <Route
+          path="/training"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <TrainingPage />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
+          path="/statistics"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <StatisticsPage />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <AdminPage />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
           path="/clues/new"
+          element={
+            <CollectionWorkspace api={collectionApi}>
+              <ClueEditorPage collectionApi={collectionApi} />
+            </CollectionWorkspace>
+          }
+        />
+        <Route
+          path="/clues/:clueId/edit"
           element={
             <CollectionWorkspace api={collectionApi}>
               <ClueEditorPage collectionApi={collectionApi} />

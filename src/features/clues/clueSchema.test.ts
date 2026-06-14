@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_CLUE_IMAGE_BYTES,
   parseClueForm,
+  parseClueEditForm,
   type ClueFormInput,
 } from "./clueSchema";
 
@@ -26,6 +27,7 @@ function validInput(
     title: "Panneau STOP français",
     characteristics: ["Bordure blanche"],
     notes: "",
+    googleMapsUrl: "",
     images: [image()],
     ...overrides,
   };
@@ -111,5 +113,59 @@ describe("parseClueForm", () => {
         }),
       ).regionIds,
     ).toEqual(["FR-IDF"]);
+  });
+  it("accepte un lien Google Maps HTTP(S) valide et le normalise", () => {
+    expect(
+      parseClueForm(
+        validInput({
+          googleMapsUrl:
+            "  https://www.google.com/maps/@-0.1048,34.759,3a,75y  ",
+        }),
+      ).googleMapsUrl,
+    ).toBe("https://www.google.com/maps/@-0.1048,34.759,3a,75y");
+  });
+
+  it("refuse un lien Google Maps invalide", () => {
+    expect(() =>
+      parseClueForm(validInput({ googleMapsUrl: "maps.google.com" })),
+    ).toThrow("Ajoutez une URL HTTP(S) valide pour Google Maps.");
+  });
+
+  it("accepte une edition sans nouvelle image si une image existante reste", () => {
+    expect(
+      parseClueEditForm({
+        ...validInput({ images: [] }),
+        clueId: "clue-1",
+        previousCoverage: "whole_country",
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "Stored image",
+            sortOrder: 0,
+          },
+        ],
+        removedImageIds: [],
+      }).existingImages,
+    ).toHaveLength(1);
+  });
+
+  it("refuse une edition qui supprime la derniere image restante", () => {
+    expect(() =>
+      parseClueEditForm({
+        ...validInput({ images: [] }),
+        clueId: "clue-1",
+        previousCoverage: "whole_country",
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "Stored image",
+            sortOrder: 0,
+          },
+        ],
+        removedImageIds: ["stored-1"],
+      }),
+    ).toThrow("Ajoutez au moins une image.");
   });
 });

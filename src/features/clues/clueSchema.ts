@@ -21,18 +21,46 @@ export type ClueFormInput = {
   title: string;
   characteristics: string[];
   notes: string;
+  googleMapsUrl: string;
   images: File[];
+};
+
+export type PersistedClueImage = {
+  id: string;
+  storagePath: string;
+  altText: string | null;
+  sortOrder: number;
+};
+
+export type ClueEditInput = ClueFormInput & {
+  clueId: string;
+  previousCoverage: ClueCoverage;
+  existingImages: PersistedClueImage[];
+  removedImageIds: string[];
 };
 
 export type ParsedClueForm = Omit<
   ClueFormInput,
-  "categoryIds" | "countryCode" | "title" | "characteristics" | "notes"
+  | "categoryIds"
+  | "countryCode"
+  | "title"
+  | "characteristics"
+  | "notes"
+  | "googleMapsUrl"
 > & {
   categoryId: string;
   countryCode: string;
   title: string;
   characteristics: string[];
   notes: string | null;
+  googleMapsUrl: string | null;
+};
+
+export type ParsedClueEditForm = ParsedClueForm & {
+  clueId: string;
+  previousCoverage: ClueCoverage;
+  existingImages: PersistedClueImage[];
+  removedImageIds: string[];
 };
 
 export class ClueValidationError extends Error {
@@ -57,7 +85,46 @@ function requireValue(
   return normalized;
 }
 
-export function parseClueForm(input: ClueFormInput): ParsedClueForm {
+function optionalHttpUrl(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return null;
+
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("invalid_protocol");
+    }
+    return normalized;
+  } catch {
+    throw new ClueValidationError(
+      "googleMapsUrl",
+      "Ajoutez une URL HTTP(S) valide pour Google Maps.",
+    );
+  }
+}
+
+function validateNewImages(images: File[]) {
+  if (images.length > MAX_CLUE_IMAGES) {
+    throw new ClueValidationError(
+      "images",
+      `Ajoutez au maximum ${MAX_CLUE_IMAGES} images.`,
+    );
+  }
+  if (images.some((file) => !acceptedImageTypes.has(file.type))) {
+    throw new ClueValidationError(
+      "images",
+      "Seuls les fichiers JPEG, PNG et WebP sont acceptés.",
+    );
+  }
+  if (images.some((file) => file.size > MAX_CLUE_IMAGE_BYTES)) {
+    throw new ClueValidationError(
+      "images",
+      "Chaque image doit peser 10 Mo maximum.",
+    );
+  }
+}
+
+function parseBaseClueForm(input: ClueFormInput): Omit<ParsedClueForm, "images"> {
   const collectionId = requireValue(
     input.collectionId,
     "collectionId",
@@ -78,27 +145,6 @@ export function parseClueForm(input: ClueFormInput): ParsedClueForm {
     throw new ClueValidationError(
       "difficulty",
       "Sélectionnez une difficulté valide.",
-    );
-  }
-  if (input.images.length === 0) {
-    throw new ClueValidationError("images", "Ajoutez au moins une image.");
-  }
-  if (input.images.length > MAX_CLUE_IMAGES) {
-    throw new ClueValidationError(
-      "images",
-      `Ajoutez au maximum ${MAX_CLUE_IMAGES} images.`,
-    );
-  }
-  if (input.images.some((file) => !acceptedImageTypes.has(file.type))) {
-    throw new ClueValidationError(
-      "images",
-      "Seuls les fichiers JPEG, PNG et WebP sont acceptés.",
-    );
-  }
-  if (input.images.some((file) => file.size > MAX_CLUE_IMAGE_BYTES)) {
-    throw new ClueValidationError(
-      "images",
-      "Chaque image doit peser 10 Mo maximum.",
     );
   }
 
@@ -125,6 +171,49 @@ export function parseClueForm(input: ClueFormInput): ParsedClueForm {
       .map((characteristic) => characteristic.trim())
       .filter(Boolean),
     notes: input.notes.trim() || null,
+    googleMapsUrl: optionalHttpUrl(input.googleMapsUrl),
+  };
+}
+
+export function parseClueForm(input: ClueFormInput): ParsedClueForm {
+  validateNewImages(input.images);
+  if (input.images.length === 0) {
+    throw new ClueValidationError("images", "Ajoutez au moins une image.");
+  }
+
+  return {
+    ...parseBaseClueForm(input),
+    images: input.images,
+  };
+}
+
+export function parseClueEditForm(input: ClueEditInput): ParsedClueEditForm {
+  validateNewImages(input.images);
+
+  const removedImageIds = new Set(
+    input.removedImageIds.map((imageId) => imageId.trim()).filter(Boolean),
+  );
+  const existingImages = input.existingImages.filter(
+    (image) => !removedImageIds.has(image.id),
+  );
+  const finalImageCount = existingImages.length + input.images.length;
+
+  if (finalImageCount === 0) {
+    throw new ClueValidationError("images", "Ajoutez au moins une image.");
+  }
+  if (finalImageCount > MAX_CLUE_IMAGES) {
+    throw new ClueValidationError(
+      "images",
+      `Ajoutez au maximum ${MAX_CLUE_IMAGES} images.`,
+    );
+  }
+
+  return {
+    clueId: input.clueId.trim(),
+    previousCoverage: input.previousCoverage,
+    ...parseBaseClueForm(input),
+    existingImages,
+    removedImageIds: [...removedImageIds],
     images: input.images,
   };
 }

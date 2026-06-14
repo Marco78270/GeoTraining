@@ -32,6 +32,7 @@ import {
   MAX_CLUE_IMAGES,
   type ClueCoverage,
   type ClueDifficulty,
+  type PersistedClueImage,
 } from "./clueSchema";
 
 const steps = [
@@ -43,10 +44,27 @@ const steps = [
 ];
 const acceptedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+type InitialClue = {
+  id: string;
+  collectionId: string;
+  categoryId: string;
+  countryCode: string;
+  coverage: ClueCoverage;
+  regionIds: string[];
+  difficulty: ClueDifficulty;
+  title: string;
+  characteristics: string[];
+  notes: string;
+  googleMapsUrl: string;
+  existingImages: PersistedClueImage[];
+};
+
 type ClueEditorProps = {
   clueApi?: ClueApi;
   collectionApi?: CollectionApi;
   geographyClient?: GeographyDataClient;
+  mode?: "create" | "edit";
+  initialClue?: InitialClue;
   onCreated?(clueId: string): void;
   onCancel?(): void;
 };
@@ -68,6 +86,8 @@ export function ClueEditor({
   clueApi: suppliedClueApi,
   collectionApi: suppliedCollectionApi,
   geographyClient,
+  mode = "create",
+  initialClue,
   onCreated,
   onCancel,
 }: ClueEditorProps) {
@@ -81,29 +101,73 @@ export function ClueEditor({
     () => suppliedCollectionApi ?? getCollectionApi(),
   );
   const [step, setStep] = useState(0);
-  const [requestedCollectionId, setRequestedCollectionId] = useState<
-    string | null
-  >(null);
-  const collectionId = requestedCollectionId ?? activeCollectionId ?? "";
-  const [categoryId, setCategoryId] = useState("");
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [requestedCollectionId, setRequestedCollectionId] = useState<string | null>(
+    initialClue?.collectionId ?? null,
+  );
+  const [categoryId, setCategoryId] = useState(initialClue?.categoryId ?? "");
+  const [categoryState, setCategoryState] = useState<{
+    collectionId: string;
+    rows: Category[];
+  }>({ collectionId: "", rows: [] });
   const [countries, setCountries] = useState<Country[]>([]);
-  const [countryCode, setCountryCode] = useState("");
+  const [countryCode, setCountryCode] = useState(initialClue?.countryCode ?? "");
   const [regions, setRegions] = useState<Region[]>([]);
   const [regionsLoading, setRegionsLoading] = useState(false);
-  const [coverage, setCoverage] = useState<ClueCoverage>("whole_country");
+  const [coverage, setCoverage] = useState<ClueCoverage>(
+    initialClue?.coverage ?? "whole_country",
+  );
   const [selectedRegionIds, setSelectedRegionIds] = useState<Set<string>>(
-    () => new Set(),
+    () => new Set(initialClue?.regionIds ?? []),
   );
   const [images, setImages] = useState<File[]>([]);
-  const [title, setTitle] = useState("");
-  const [characteristics, setCharacteristics] = useState("");
-  const [notes, setNotes] = useState("");
-  const [difficulty, setDifficulty] = useState<ClueDifficulty>("easy");
+  const [existingImages] = useState<PersistedClueImage[]>(
+    initialClue?.existingImages ?? [],
+  );
+  const [removedImageIds, setRemovedImageIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [title, setTitle] = useState(initialClue?.title ?? "");
+  const [characteristics, setCharacteristics] = useState(
+    initialClue?.characteristics.join("\n") ?? "",
+  );
+  const [notes, setNotes] = useState(initialClue?.notes ?? "");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState(
+    initialClue?.googleMapsUrl ?? "",
+  );
+  const [difficulty, setDifficulty] = useState<ClueDifficulty>(
+    initialClue?.difficulty ?? "easy",
+  );
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState(false);
+  const writableCollections = useMemo(
+    () =>
+      collections.filter(
+        (collection) =>
+          collection.visibility !== "public_readonly" ||
+          collection.role === "owner",
+      ),
+    [collections],
+  );
+  const immutableIdentity = mode === "edit";
+  const preferredCollectionId = requestedCollectionId ?? activeCollectionId ?? "";
+  const preferredCollection = collections.find(
+    (collection) => collection.id === preferredCollectionId,
+  );
+  const collectionId =
+    immutableIdentity ||
+    (preferredCollection &&
+      (preferredCollection.visibility !== "public_readonly" ||
+        preferredCollection.role === "owner"))
+      ? preferredCollectionId
+      : writableCollections[0]?.id ?? "";
+  const activeCollection = collections.find((collection) => collection.id === collectionId);
+  const readOnlyCollection =
+    activeCollection?.visibility === "public_readonly" &&
+    activeCollection.role !== "owner";
+  const categories =
+    categoryState.collectionId === collectionId ? categoryState.rows : [];
 
   useEffect(() => {
     let current = true;
@@ -121,11 +185,13 @@ export function ClueEditor({
 
   useEffect(() => {
     let current = true;
-    if (!collectionId) return () => undefined;
+    if (!collectionId || readOnlyCollection) {
+      return () => undefined;
+    }
     collectionApi
       .listCategories(collectionId)
       .then((rows) => {
-        if (current) setCategories(rows);
+        if (current) setCategoryState({ collectionId, rows });
       })
       .catch(() => {
         if (current) setLoadError("Impossible de charger les catégories.");
@@ -133,7 +199,7 @@ export function ClueEditor({
     return () => {
       current = false;
     };
-  }, [collectionApi, collectionId]);
+  }, [collectionApi, collectionId, readOnlyCollection]);
 
   useEffect(() => {
     let current = true;
@@ -159,15 +225,17 @@ export function ClueEditor({
     };
   }, [countryCode, geographyClient]);
 
-  const regionIds = useMemo(
-    () => [...selectedRegionIds],
-    [selectedRegionIds],
+  const regionIds = useMemo(() => [...selectedRegionIds], [selectedRegionIds]);
+  const visibleExistingImages = useMemo(
+    () => existingImages.filter((image) => !removedImageIds.has(image.id)),
+    [existingImages, removedImageIds],
   );
+  const totalImageCount = visibleExistingImages.length + images.length;
 
   function validateCurrentStep() {
     if (step === 0) {
-      if (images.length === 0) return "Ajoutez au moins une image.";
-      if (images.length > MAX_CLUE_IMAGES) {
+      if (totalImageCount === 0) return "Ajoutez au moins une image.";
+      if (totalImageCount > MAX_CLUE_IMAGES) {
         return `Ajoutez au maximum ${MAX_CLUE_IMAGES} images.`;
       }
       if (images.some((file) => !acceptedTypes.has(file.type))) {
@@ -202,7 +270,7 @@ export function ClueEditor({
 
   function selectCollection(nextCollectionId: string) {
     setCategoryId("");
-    setCategories([]);
+    setCategoryState({ collectionId: "", rows: [] });
     setRequestedCollectionId(nextCollectionId);
     setActiveCollectionId(nextCollectionId || null);
   }
@@ -212,6 +280,15 @@ export function ClueEditor({
     setRegionsLoading(Boolean(nextCountryCode));
     setSelectedRegionIds(new Set());
     setCountryCode(nextCountryCode);
+  }
+
+  function toggleExistingImageRemoval(imageId: string) {
+    setRemovedImageIds((current) => {
+      const next = new Set(current);
+      if (next.has(imageId)) next.delete(imageId);
+      else next.add(imageId);
+      return next;
+    });
   }
 
   function toggleRegion(regionId: string) {
@@ -228,7 +305,7 @@ export function ClueEditor({
     setLoading(true);
     setSuccess(false);
     try {
-      const result = await clueApi.create({
+      const payload = {
         collectionId,
         categoryIds: categoryId ? [categoryId] : [],
         countryCode,
@@ -238,8 +315,19 @@ export function ClueEditor({
         title,
         characteristics: characteristics.split("\n"),
         notes,
+        googleMapsUrl,
         images,
-      });
+      };
+      const result =
+        mode === "edit" && initialClue
+          ? await clueApi.update({
+              ...payload,
+              clueId: initialClue.id,
+              previousCoverage: initialClue.coverage,
+              existingImages,
+              removedImageIds: [...removedImageIds],
+            })
+          : await clueApi.create(payload);
       setSuccess(true);
       onCreated?.(result.id);
     } catch (error) {
@@ -253,8 +341,10 @@ export function ClueEditor({
     <section className="clue-editor" aria-label="Éditeur d’indice">
       <header className="clue-editor-header">
         <div>
-          <span className="clue-editor-kicker">Nouvel indice privé</span>
-          <h1>Ajouter un indice</h1>
+          <span className="clue-editor-kicker">
+            {mode === "edit" ? "Modification d’indice" : "Nouvel indice privé"}
+          </span>
+          <h1>{mode === "edit" ? "Modifier un indice" : "Ajouter un indice"}</h1>
           <p>Documentez un détail visuel puis associez-le à sa localisation.</p>
         </div>
         {onCancel ? (
@@ -294,6 +384,21 @@ export function ClueEditor({
               <strong>Choisir des images</strong>
               <small>10 Mo maximum par image</small>
             </label>
+            {visibleExistingImages.length > 0 ? (
+              <div className="clue-file-summary">
+                {visibleExistingImages.map((image) => (
+                  <span key={image.id}>
+                    {image.altText ?? image.id}
+                    <button
+                      type="button"
+                      onClick={() => toggleExistingImageRemoval(image.id)}
+                    >
+                      Retirer
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
             {images.length > 0 ? (
               <div className="clue-file-summary">
                 {images.map((file) => (
@@ -312,10 +417,11 @@ export function ClueEditor({
               Collection
               <select
                 value={collectionId}
+                disabled={immutableIdentity}
                 onChange={(event) => selectCollection(event.target.value)}
               >
                 <option value="">Choisir une collection</option>
-                {collections.map((collection) => (
+                {writableCollections.map((collection) => (
                   <option key={collection.id} value={collection.id}>
                     {collection.name}
                   </option>
@@ -326,6 +432,7 @@ export function ClueEditor({
               Catégorie
               <select
                 value={categoryId}
+                disabled={immutableIdentity}
                 onChange={(event) => setCategoryId(event.target.value)}
               >
                 <option value="">Choisir une catégorie</option>
@@ -348,6 +455,7 @@ export function ClueEditor({
               Pays
               <select
                 value={countryCode}
+                disabled={immutableIdentity}
                 onChange={(event) => selectCountry(event.target.value)}
               >
                 <option value="">Choisir un pays</option>
@@ -439,13 +547,22 @@ export function ClueEditor({
                 onChange={(event) => setNotes(event.target.value)}
               />
             </label>
+            <label>
+              Lien Google Maps
+              <input
+                type="url"
+                value={googleMapsUrl}
+                placeholder="https://www.google.com/maps/..."
+                onChange={(event) => setGoogleMapsUrl(event.target.value)}
+              />
+            </label>
           </div>
         ) : null}
 
         {step === 4 ? (
           <div className="clue-step-panel clue-review">
             <h2>5. Difficulté et publication</h2>
-            <p>Vérifiez votre indice avant de le publier dans la collection privée.</p>
+            <p>Vérifiez votre indice avant de l’enregistrer dans la collection privée.</p>
             <fieldset className="clue-difficulty">
               <legend>Difficulté</legend>
               {(["easy", "medium", "expert"] as const).map((value) => (
@@ -461,7 +578,7 @@ export function ClueEditor({
               ))}
             </fieldset>
             <div className="clue-review-card">
-              <span>{images.length} image{images.length > 1 ? "s" : ""}</span>
+              <span>{totalImageCount} image{totalImageCount > 1 ? "s" : ""}</span>
               <strong>{title}</strong>
               <span>
                 {countries.find((country) => country.code === countryCode)?.name}
@@ -473,7 +590,7 @@ export function ClueEditor({
             <button
               type="button"
               className="clue-publish-button"
-              disabled={loading}
+              disabled={loading || readOnlyCollection}
               onClick={() => void publish()}
             >
               {loading ? (
@@ -481,11 +598,18 @@ export function ClueEditor({
               ) : (
                 <Send aria-hidden="true" />
               )}
-              Publier l’indice
+              {mode === "edit" ? "Mettre à jour l’indice" : "Publier l’indice"}
             </button>
+            {readOnlyCollection ? (
+              <p className="clue-inline-note">
+                Cette collection est en lecture seule. Choisissez une collection privée pour publier un indice.
+              </p>
+            ) : null}
             {success ? (
               <p className="clue-success" role="status">
-                L’indice a été publié.
+                {mode === "edit"
+                  ? "L’indice a été mis à jour."
+                  : "L’indice a été publié."}
               </p>
             ) : null}
           </div>
@@ -504,11 +628,13 @@ export function ClueEditor({
             setStep((current) => Math.max(0, current - 1));
           }}
         >
-          <ChevronLeft aria-hidden="true" />Retour
+          <ChevronLeft aria-hidden="true" />
+          Retour
         </button>
         {step < steps.length - 1 ? (
           <button type="button" className="primary" onClick={continueToNextStep}>
-            Continuer<ChevronRight aria-hidden="true" />
+            Continuer
+            <ChevronRight aria-hidden="true" />
           </button>
         ) : null}
       </footer>

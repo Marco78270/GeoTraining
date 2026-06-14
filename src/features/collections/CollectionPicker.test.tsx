@@ -9,8 +9,13 @@ it("selects an active collection with an accessible label", async () => {
   render(
     <CollectionPicker
       collections={[
-        { id: "one", name: "STOP", role: "owner" },
-        { id: "two", name: "Bollards", role: "editor" },
+        { id: "one", name: "STOP", role: "owner", visibility: "private" },
+        {
+          id: "two",
+          name: "Collection officielle",
+          role: null,
+          visibility: "public_readonly",
+        },
       ]}
       value="one"
       onChange={onChange}
@@ -22,4 +27,9 @@ it("selects an active collection with an accessible label", async () => {
     "two",
   );
   expect(onChange).toHaveBeenCalledWith("two");
+  expect(
+    screen.getByRole("option", {
+      name: /Collection officielle/i,
+    }),
+  ).toBeVisible();
 });

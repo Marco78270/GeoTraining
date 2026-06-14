@@ -181,6 +181,12 @@ set
   geojson_path = excluded.geojson_path;
 
 insert into public.regions (id, country_code, name, geojson_path)
+select distinct on (id)
+  id,
+  country_code,
+  name,
+  geojson_path
+from (
 values
   ('AE-AJ', 'AE', 'Ajman', '/geography/regions/AE.geojson'),
   ('AE-AZ', 'AE', 'Abu Dhabi', '/geography/regions/AE.geojson'),
@@ -3054,6 +3060,7 @@ values
   ('ZW-D7DE38F00C', 'ZW', 'Mashonaland Central', '/geography/regions/ZW.geojson'),
   ('ZW-E3A15860CB', 'ZW', 'Midlands', '/geography/regions/ZW.geojson'),
   ('ZW-F563237E8A', 'ZW', 'Bulawayo', '/geography/regions/ZW.geojson')
+) as region_seed(id, country_code, name, geojson_path)
 on conflict (id) do update
 set
   country_code = excluded.country_code,
