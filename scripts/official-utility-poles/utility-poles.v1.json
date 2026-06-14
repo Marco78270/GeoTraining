@@ -1,0 +1,122 @@
+[
+  {
+    "id": "0a8de78d-3c08-4bb9-9b71-9a7bf0fdc901",
+    "countryCode": "TW",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Poteaux électriques - Taiwan",
+    "characteristics": [
+      "Poteau urbain charge de nombreux cables superposes",
+      "Accumulation dense de lignes electriques et telecoms",
+      "Infrastructure tres visible au-dessus de rues etroites"
+    ],
+    "notes": "Taiwan se reconnait souvent par la densite des cables au-dessus de la rue. Cet indice devient plus fiable avec les caracteres traditionnels, les scooters et la signalisation locale.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2022-01-28_utility_pole_in_downtown_Changhua.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Lobester00, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/2022-01-28%20utility%20pole%20in%20downtown%20Changhua.jpg",
+    "imageAltText": "Poteau urbain a Changhua avec de nombreux cables superposes"
+  },
+  {
+    "id": "e52fbf5a-49b6-40dd-a13f-fc5ac901fa70",
+    "countryCode": "RO",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Poteaux électriques - Roumanie",
+    "characteristics": [
+      "Grand poteau clair perce de plusieurs ouvertures verticales",
+      "Aspect massif en beton plutot qu'en bois",
+      "Silhouette frequente le long des routes rurales"
+    ],
+    "notes": "Les poteaux en beton perces sont un indice utile en Roumanie. Ils doivent etre combines avec les panneaux a large bord rouge et l'ambiance des villages pour confirmer le pays.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:RO_SJ_Recea_(4).jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Tetcu Mircea Rares, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/RO%20SJ%20Recea%20%284%29.jpg",
+    "imageAltText": "Route roumaine avec poteau de beton perce en bord de chaussee"
+  },
+  {
+    "id": "f2d99b33-7585-4263-82fe-8d81f8b3ba45",
+    "countryCode": "NZ",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Poteaux électriques - Nouvelle-Zelande",
+    "characteristics": [
+      "Ligne electrique rurale sur poteaux simples en terrain accidente",
+      "Traverse et isolateurs visibles dans un paysage residentiel ouvert",
+      "Infrastructure legere frequente dans les zones periurbaines"
+    ],
+    "notes": "Les lignes aeriennes ne suffisent pas seules pour reconnaitre la Nouvelle-Zelande. Utilise-les avec le marquage GIVE WAY, la conduite a gauche et l'ambiance des banlieues ou campagnes neo-zelandaises.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Power_Lines-1310942,_Wainuiomata,_Wellington,_New_Zealand.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Wainuio, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Power%20Lines-1310942%2C%20Wainuiomata%2C%20Wellington%2C%20New%20Zealand.jpg",
+    "imageAltText": "Ligne electrique sur poteaux dans un quartier de Wainuiomata en Nouvelle-Zelande"
+  },
+  {
+    "id": "6f396520-d718-4e0d-9b8b-9efbc84d6d7a",
+    "countryCode": "AU",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Poteaux électriques - Australie",
+    "characteristics": [
+      "Poteau metallique plutot que poteau en bois",
+      "Structure simple et haute dans un environnement sec",
+      "Silhouette tres differente des reseaux urbains denses d'Asie"
+    ],
+    "notes": "Les poteaux metalliques apparaissent souvent dans certaines zones australiennes. Ils deviennent utiles avec les panneaux australiens, la conduite a gauche et la vegetation seche.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Steel_Utility_pole.jpg",
+    "licenseName": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "attributionText": "Photo de Bidgee, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Steel%20Utility%20pole.jpg",
+    "imageAltText": "Poteau metallique australien dans un environnement sec"
+  },
+  {
+    "id": "96d6f93f-97be-44a3-98f4-d37eb593e5e8",
+    "countryCode": "GB",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Poteaux électriques - Royaume-Uni",
+    "characteristics": [
+      "Poteau en bois mince au bord d'une route rurale etroite",
+      "Reseau aerien simple dans un paysage vert humide",
+      "Aspect tres typique de campagne britannique"
+    ],
+    "notes": "Un simple poteau en bois n'est pas exclusif au Royaume-Uni, donc l'indice est subtil. Il aide surtout avec les haies, la route etroite, les plaques britanniques et le marquage de rive.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Utility_pole,_Saul_Road,_January_2010.JPG",
+    "licenseName": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "attributionText": "Photo de Ardfern, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Utility%20pole%2C%20Saul%20Road%2C%20January%202010.JPG",
+    "imageAltText": "Poteau en bois au bord d'une petite route rurale au Royaume-Uni"
+  },
+  {
+    "id": "fc828273-661e-4f9d-9180-4f361d634af2",
+    "countryCode": "US",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Poteaux électriques - Etats-Unis",
+    "characteristics": [
+      "Poteau en bois avec luminaire routier fixe en hauteur",
+      "Bord de route large typique d'une voirie nord-americaine",
+      "Environnement routier et mobilier urbain de banlieue"
+    ],
+    "notes": "Le pole + lampadaire est surtout un indice de contexte nord-americain. Il sert davantage a confirmer une impression USA ou Canada qu'a trancher seul.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2015-04-12_16_53_33_Utility_pole_and_street_light_on_Federal_City_Road_in_Hopewell_Township,_New_Jersey.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Famartin, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/2015-04-12%2016%2053%2033%20Utility%20pole%20and%20street%20light%20on%20Federal%20City%20Road%20in%20Hopewell%20Township%2C%20New%20Jersey.jpg",
+    "imageAltText": "Poteau en bois avec lampadaire le long d'une route du New Jersey"
+  }
+]
