@@ -482,7 +482,9 @@ export async function runOfficialImport({
   if (!authorEnvName?.trim()) {
     throw new Error("authorEnvName est requis.");
   }
-  if (!authorId || !UUID_PATTERN.test(authorId)) {
+  const normalizedAuthorId =
+    typeof authorId === "string" ? authorId.trim() : authorId ?? null;
+  if (!dryRun && (!normalizedAuthorId || !UUID_PATTERN.test(normalizedAuthorId))) {
     throw new Error(`${authorEnvName} doit contenir un UUID valide.`);
   }
 
@@ -494,7 +496,7 @@ export async function runOfficialImport({
     dryRun,
     missingImagesOnly,
     total: entries.length,
-    authorId,
+    authorId: normalizedAuthorId,
     created: 0,
     updated: 0,
     imagesImported: 0,
@@ -539,7 +541,7 @@ export async function runOfficialImport({
       const draftPayload = buildCluePayload(
         entry,
         category.id,
-        authorId,
+        normalizedAuthorId,
         "draft",
       );
       mutationStarted = true;

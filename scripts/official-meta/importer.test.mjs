@@ -504,6 +504,37 @@ test("dry-run reads geography but performs no writes", async () => {
   }
 });
 
+test("dry-run does not require an author UUID", async () => {
+  const fixture = await createFixture();
+  const fake = createFakeSupabase();
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: "",
+      dryRun: true,
+      missingImagesOnly: false,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () =>
+        new Response(Buffer.from([0xff, 0xd8, 0xff]), { status: 200 }),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
+    });
+
+    assert.equal(summary.created, 1);
+    assert.equal(summary.failed, 0);
+    assert.equal(summary.authorId, "");
+    assert.equal(fake.writes.length, 0);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
 test("dry-run rejects SVG images without writing", async () => {
   const fixture = await createFixture();
   const fake = createFakeSupabase();

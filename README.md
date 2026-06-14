@@ -239,6 +239,35 @@ Mode verification sans upload :
 npm run plates:import -- --dry-run
 ```
 
+## Categories publiques GeoGuessr meta
+
+Les categories officielles `Marquages au sol`, `Poteaux electriques` et `Google Car` utilisent le meme importeur partage que les autres collections publiques. Le `dry-run` telecharge et verifie les images sans rien publier, tandis que l'import reel exige un auteur technique pour remplir `clues.author_id`.
+
+Variables utiles :
+
+```env
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_META_AUTHOR_ID=<profile-uuid-utilise-pour-les-imports-officiels>
+```
+
+Commandes :
+
+```bash
+npm run road-markings:import -- --dry-run
+npm run utility-poles:import -- --dry-run
+npm run google-car:import -- --dry-run
+
+npm run road-markings:import
+npm run utility-poles:import
+npm run google-car:import
+```
+
+Note :
+
+- `SUPABASE_META_AUTHOR_ID` n'est pas necessaire pour le `dry-run` ;
+- il reste obligatoire pour un import reel publie en base.
+
 ## Routes principales
 
 - `/login` : connexion ;

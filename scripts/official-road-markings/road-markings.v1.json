@@ -382,24 +382,22 @@
   {
     "id": "72553e9f-8e0a-420f-8f93-1393b0eb8519",
     "countryCode": "AU",
-    "regionIds": [
-      "AU-QLD"
-    ],
+    "regionIds": [],
     "difficulty": "easy",
-    "title": "Zones scolaires - Queensland",
+    "title": "Marquages au sol - Australie",
     "characteristics": [
       "Grand cartouche colore peint sur toute la largeur de la voie",
       "Texte anglais SCHOOL ZONE en capitales blanches",
       "Encadrement jaune et fond rouge tres visibles"
     ],
-    "notes": "Ce grand cartouche de zone scolaire est photographie dans le Queensland. Il doit etre utilise comme indice regional, avec la conduite a gauche, les bordures et la signalisation locale pour confirmer l'Australie.",
+    "notes": "Ce grand cartouche de zone scolaire est photographie dans le Queensland, mais il reste surtout utile comme indice australien large. Combine-le avec la conduite a gauche, les bordures et la signalisation locale pour confirmer le pays.",
     "sourceName": "Wikimedia Commons",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:School_zone_warning_road_markings_in_Queensland,_Australia,_2023.jpg",
     "licenseName": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "attributionText": "Photo de Kgbo, via Wikimedia Commons.",
     "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/School%20zone%20warning%20road%20markings%20in%20Queensland%2C%20Australia%2C%202023.jpg",
-    "imageAltText": "Rue du Queensland avec grand marquage rouge SCHOOL ZONE"
+    "imageAltText": "Rue australienne avec grand marquage rouge SCHOOL ZONE"
   },
   {
     "id": "6f530e70-b3a6-4e40-aff5-a90110ea4daa",
