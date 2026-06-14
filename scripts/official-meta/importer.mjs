@@ -298,6 +298,7 @@ export async function fetchImage(
           Number.isFinite(declaredLength) &&
           declaredLength > MAX_IMAGE_BYTES
         ) {
+          await releaseResponseBody(response);
           throw new PermanentFetchError(
             "Image refusee: taille superieure a 10 MiB.",
           );
@@ -767,6 +768,9 @@ async function rollbackImport({
   uploadedPath,
 }) {
   const rollbackErrors = [];
+  const previousPaths = new Set(
+    snapshot?.images.map((image) => image.storage_path) ?? [],
+  );
   if (snapshot) {
     const originalStatus = snapshot.clue.status;
     let criticalRestoreSucceeded = true;
@@ -823,6 +827,16 @@ async function rollbackImport({
     }, () => {
       criticalRestoreSucceeded = false;
     });
+    if (uploadedPath && !previousPaths.has(uploadedPath)) {
+      await collectRollbackError(rollbackErrors, async () => {
+        const result = await supabase.storage
+          .from("clue-images")
+          .remove([uploadedPath]);
+        if (result.error) throw result.error;
+      }, () => {
+        criticalRestoreSucceeded = false;
+      });
+    }
     if (criticalRestoreSucceeded) {
       await collectRollbackError(rollbackErrors, async () => {
         await expectNoError(
@@ -843,10 +857,7 @@ async function rollbackImport({
     });
   }
 
-  const previousPaths = new Set(
-    snapshot?.images.map((image) => image.storage_path) ?? [],
-  );
-  if (uploadedPath && !previousPaths.has(uploadedPath)) {
+  if (!snapshot && uploadedPath && !previousPaths.has(uploadedPath)) {
     await collectRollbackError(rollbackErrors, async () => {
       const result = await supabase.storage
         .from("clue-images")

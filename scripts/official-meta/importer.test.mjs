@@ -420,6 +420,31 @@ test("rejects images larger than ten MiB from headers or body", async () => {
   );
 });
 
+test("cancels the response body when Content-Length exceeds the limit", async () => {
+  let cancelled = 0;
+  await assert.rejects(
+    fetchImage(
+      validEntry.imageUrl,
+      async () =>
+        responseWithCancelSpy({
+          status: 200,
+          headers: { "Content-Length": String(10 * 1024 * 1024 + 1) },
+          onCancel: () => {
+            cancelled += 1;
+          },
+        }),
+      {
+        attempts: 1,
+        requestSpacingMs: 0,
+        lookupImpl: publicLookup,
+        sleepImpl: async () => {},
+      },
+    ),
+    /10 MiB/i,
+  );
+  assert.equal(cancelled, 1);
+});
+
 test("aborts image downloads after the configured timeout", async () => {
   await assert.rejects(
     fetchImage(
@@ -1029,6 +1054,53 @@ test("does not republish when a critical rollback step fails", async () => {
       outputDir: fixture.directory,
       fetchImpl: async () =>
         new Response(Buffer.from([0xff, 0xd8, 0xff, 0x77])),
+      requestSpacingMs: 0,
+      retryBaseDelayMs: 0,
+      lookupImpl: publicLookup,
+    });
+    assert.equal(summary.failed, 1);
+    assert.match(summary.failures[0].message, /restauration impossible/i);
+    assert.equal(fake.state.clue.status, "draft");
+    assert.equal(fake.publishedUpdateCount, 1);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test("does not republish when removing the new rollback object fails", async () => {
+  const fixture = await createFixture(validEntry);
+  const oldPath =
+    `${COLLECTION_ID}/${validEntry.id}/cccccccc-cccc-4ccc-8ccc-cccccccccccc.jpg`;
+  const uploadedImage = Buffer.from([0xff, 0xd8, 0xff, 0x88]);
+  const uploadedImageId = buildImageId(validEntry.id, uploadedImage);
+  const uploadedPath =
+    `${COLLECTION_ID}/${validEntry.id}/${uploadedImageId}.jpg`;
+  const fake = createStatefulSupabase({
+    clue: buildStoredClue({ status: "published" }),
+    images: [
+      {
+        id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        clue_id: validEntry.id,
+        storage_path: oldPath,
+        alt_text: "Old",
+        sort_order: 0,
+      },
+    ],
+    storagePaths: [oldPath],
+    failPublicationOnce: true,
+    storageRemoveFailures: [uploadedPath],
+  });
+
+  try {
+    const summary = await runOfficialImport({
+      category: { id: CATEGORY_ID, name: "Marquages au sol" },
+      datasetPath: fixture.datasetPath,
+      summaryFileName: "summary.json",
+      authorEnvName: "SUPABASE_META_AUTHOR_ID",
+      authorId: AUTHOR_ID,
+      supabase: fake.client,
+      outputDir: fixture.directory,
+      fetchImpl: async () => new Response(uploadedImage),
       requestSpacingMs: 0,
       retryBaseDelayMs: 0,
       lookupImpl: publicLookup,
