@@ -1,0 +1,462 @@
+[
+  {
+    "id": "73ecb5fd-0b48-48d3-9378-531928fa5ecf",
+    "countryCode": "FR",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages au sol - France",
+    "characteristics": [
+      "Marquages de voies exclusivement blancs",
+      "Lignes axiales discontinues composees de traits relativement courts",
+      "Fleches directionnelles blanches avant les intersections"
+    ],
+    "notes": "En France, le rythme des lignes discontinues peut aider, mais il faut le comparer avec les balises, panneaux et priorites. La photo montre plusieurs types de traits et de fleches visibles en circulation urbaine.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Road_markings_in_Nantes_France_2008.JPG",
+    "licenseName": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "attributionText": "Photo de Kamel15, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Road%20markings%20in%20Nantes%20France%202008.JPG",
+    "imageAltText": "Chaussee urbaine a Nantes avec lignes discontinues et fleches blanches"
+  },
+  {
+    "id": "1fb16851-acb4-4968-be44-d56b9f46507c",
+    "countryCode": "GB",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Marquages au sol - Royaume-Uni",
+    "characteristics": [
+      "Double ligne jaune peinte le long du bord de la chaussee",
+      "Marquage parallele au trottoir plutot qu'au centre de la route",
+      "Les lignes signalent une restriction permanente de stationnement"
+    ],
+    "notes": "Les doubles lignes jaunes de bord sont un indice britannique tres visible. Elles sont plus utiles que la simple conduite a gauche pour separer le Royaume-Uni de nombreux autres pays.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:No_parking_on_double_yellow_lines_-_geograph.org.uk_-_1012450.jpg",
+    "licenseName": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "attributionText": "Photo de Gordon Hatton, via Wikimedia Commons et Geograph Britain and Ireland.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/No%20parking%20on%20double%20yellow%20lines%20-%20geograph.org.uk%20-%201012450.jpg",
+    "imageAltText": "Double ligne jaune britannique peinte au bord d'une rue"
+  },
+  {
+    "id": "5eeb3f84-6132-46b7-b4c1-50b3b86fac34",
+    "countryCode": "IE",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Marquages au sol - Irlande",
+    "characteristics": [
+      "Texte routier pouvant employer la langue irlandaise",
+      "Inscriptions blanches en grandes capitales",
+      "Arrets de bus delimites directement sur la chaussee"
+    ],
+    "notes": "Une inscription irlandaise telle que BUSANNA est un indice national tres fort. Sur les routes rurales, les lignes jaunes de rive constituent un autre element utile a rechercher.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Road_Markings-1290800,_Dingle_Peninsula,_Co._Kerry,_Ireland.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Mucklagh, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Road%20Markings-1290800%2C%20Dingle%20Peninsula%2C%20Co.%20Kerry%2C%20Ireland.jpg",
+    "imageAltText": "Arret de bus en Irlande avec inscriptions routieres en irlandais"
+  },
+  {
+    "id": "3b79da2b-da98-4958-8f69-5c374d249f14",
+    "countryCode": "ES",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Marquages au sol - Espagne",
+    "characteristics": [
+      "Lignes blanches utilisees pour separer la circulation et les voies reservees",
+      "Bandes colorees possibles dans certains amenagements cyclables urbains",
+      "Marquages souvent combines a des pictogrammes au sol"
+    ],
+    "notes": "Les bandes vertes ne sont pas uniformes dans toute l'Espagne et ne doivent pas etre utilisees seules. Elles deviennent utiles avec l'architecture, les plaques et la signalisation locale.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Greenroad.marking.Spain.jpg",
+    "licenseName": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "attributionText": "Photo de Thoughtfortheday, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Greenroad.marking.Spain.jpg",
+    "imageAltText": "Rue espagnole avec bande verte delimitant un amenagement cyclable"
+  },
+  {
+    "id": "b5439842-2056-4b4e-a42b-2b5d58886ee2",
+    "countryCode": "NL",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages au sol - Pays-Bas",
+    "characteristics": [
+      "Double ligne axiale blanche avec remplissage colore",
+      "Bande centrale verte utilisee sur certaines routes rapides",
+      "Larges lignes blanches continues sur les bords"
+    ],
+    "notes": "Une bande verte prise entre deux lignes blanches est un indice neerlandais tres marquant, notamment sur les routes ou elle accompagne une limitation a 100 km/h. Confirmer avec les pistes cyclables et les bollards.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Wegmarkering100groen.jpg",
+    "licenseName": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "attributionText": "Photo de M. Minderhoud, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Wegmarkering100groen.jpg",
+    "imageAltText": "Route neerlandaise avec double ligne blanche et bande centrale verte"
+  },
+  {
+    "id": "ed7ac0cf-b4e5-4dfc-868c-c80c446e299d",
+    "countryCode": "IT",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages au sol - Italie",
+    "characteristics": [
+      "Limitations de vitesse peintes en grands chiffres blancs",
+      "Cercles colores possibles autour des chiffres dans les zones apaisees",
+      "Mots STOP et BUS frequemment peints en capitales"
+    ],
+    "notes": "Les grands marquages urbains italiens sont utiles mais partages avec d'autres pays europeens. Observer en complement les panneaux, les plaques et le mobilier routier.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Zona_30_Avezzano.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Marica Massaro, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Zona%2030%20Avezzano.jpg",
+    "imageAltText": "Rue italienne avec zone 30, STOP et BUS peints sur la chaussee"
+  },
+  {
+    "id": "1af64390-1c1a-40b4-8174-efdf5940fabb",
+    "countryCode": "DE",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Marquages temporaires - Allemagne",
+    "characteristics": [
+      "Lignes jaunes employees pour les tracages temporaires",
+      "Anciennes lignes blanches pouvant rester visibles sous le parcours provisoire",
+      "Marquage jaune prioritaire pendant les travaux"
+    ],
+    "notes": "Le jaune qui remplace temporairement les lignes blanches est un indice routier allemand tres utile. Il faut distinguer ce cas des pays qui utilisent normalement le jaune pour separer les sens de circulation.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Road_marking_-_yellow_overrides_white.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Sz501, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Road%20marking%20-%20yellow%20overrides%20white.jpg",
+    "imageAltText": "Autoroute allemande avec lignes jaunes temporaires superposees aux lignes blanches"
+  },
+  {
+    "id": "4179b53b-a2fd-41e2-bc96-263155f12117",
+    "countryCode": "DK",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Bandes cyclables - Danemark",
+    "characteristics": [
+      "Traversées cyclables colorees en bleu aux intersections",
+      "Pictogrammes blancs de velo places sur la zone bleue",
+      "Bandes larges et fortement visibles dans les carrefours urbains"
+    ],
+    "notes": "Les traversees cyclables bleues sont un indice danois classique, particulierement a Copenhague. Leur forme et leur usage aux grands carrefours les rendent plus fiables qu'une simple piste cyclable.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Danish_bikelanes_in_intersection.jpg",
+    "licenseName": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "attributionText": "Photo de heb, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Danish%20bikelanes%20in%20intersection.jpg",
+    "imageAltText": "Intersection danoise avec traversees cyclables bleues et pictogrammes de velo"
+  },
+  {
+    "id": "0ed71a54-c714-4a9a-b384-14d3dbe00757",
+    "countryCode": "NO",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Lignes axiales jaunes - Norvege",
+    "characteristics": [
+      "Ligne centrale jaune separant les sens opposes",
+      "Lignes de rive blanches",
+      "Segments jaunes doubles et rapproches dans les zones de depassement contraint"
+    ],
+    "notes": "En Europe, une ligne centrale jaune associee a des rives blanches pointe fortement vers la Norvege. La couleur centrale la distingue nettement de la plupart de ses voisins.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:E6_Vingnes_s%C3%B8r.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Vegard Gran, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/E6%20Vingnes%20s%C3%B8r.jpg",
+    "imageAltText": "Route norvegienne avec doubles segments jaunes au centre et lignes de rive blanches"
+  },
+  {
+    "id": "782d343d-32ff-46cb-9d57-40a9b104f33e",
+    "countryCode": "SE",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Marquages de rive - Suede",
+    "characteristics": [
+      "Lignes de rive blanches continues",
+      "Ligne centrale blanche sur les routes a double sens",
+      "Bandes laterales parfois etroites sur les routes rurales"
+    ],
+    "notes": "Le marquage suedois est subtil et ressemble a celui de plusieurs pays nordiques. Il faut surtout l'utiliser avec les pointilles lateraux, les bollards et la vegetation.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:V%C3%A4g370.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de NnieAndersson, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/V%C3%A4g370.jpg",
+    "imageAltText": "Route rurale suedoise avec lignes blanches centrales et laterales"
+  },
+  {
+    "id": "0bef1f20-2462-43a8-90d1-5c945e34b89d",
+    "countryCode": "PL",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Marquages autoroutiers - Pologne",
+    "characteristics": [
+      "Lignes de voies blanches longues et regulieres",
+      "Bandes de rive blanches continues",
+      "Zones de rabattement composees de longues diagonales blanches"
+    ],
+    "notes": "Ces marquages sont propres et tres normalises mais peu exclusifs a la Pologne. Ils servent surtout a confirmer une hypothese avec les panneaux, les glissieres et les bollards polonais.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:DOL_Wrze%C5%9Bnia_2021-09-04.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Miko101, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/DOL%20Wrze%C5%9Bnia%202021-09-04.jpg",
+    "imageAltText": "Large chaussee polonaise avec lignes de voies et bandes de rive blanches"
+  },
+  {
+    "id": "810e5504-7de5-449a-a34d-5b230f50e937",
+    "countryCode": "CZ",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Marquages de travaux - Tchequie",
+    "characteristics": [
+      "Lignes jaunes temporaires utilisees dans les zones de travaux",
+      "Lignes blanches permanentes pouvant rester visibles",
+      "Traces jaunes guidant les changements de voie"
+    ],
+    "notes": "Les lignes temporaires jaunes existent dans plusieurs pays europeens. En Tchequie, elles doivent donc etre combinees aux panneaux, aux bollards et au style des autoroutes.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Loket,_rekonstrukce_d%C3%A1lnice_D1.jpg",
+    "licenseName": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "attributionText": "Photo d'Aktron, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Loket%2C%20rekonstrukce%20d%C3%A1lnice%20D1.jpg",
+    "imageAltText": "Autoroute tcheque en travaux avec lignes jaunes temporaires"
+  },
+  {
+    "id": "8c55d2aa-e8d2-4299-979b-a15e039c8737",
+    "countryCode": "HU",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Voies de bus - Hongrie",
+    "characteristics": [
+      "Mot BUS peint en grandes capitales blanches",
+      "Fleches directionnelles blanches a proximite des voies reservees",
+      "Lignes continues delimitant le couloir de bus"
+    ],
+    "notes": "Le marquage BUS seul n'est pas propre a la Hongrie. La typographie, la signalisation et le paysage urbain de Budapest ou de ses environs sont necessaires pour en faire un indice fiable.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bus_lane_road_marking_and_bus_lane_end_road_sign,_2020_Kelenf%C3%B6ld.jpg",
+    "licenseName": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "attributionText": "Photo de Globetrotter19, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Bus%20lane%20road%20marking%20and%20bus%20lane%20end%20road%20sign%2C%202020%20Kelenf%C3%B6ld.jpg",
+    "imageAltText": "Voie de bus hongroise avec inscription BUS et fleche blanche"
+  },
+  {
+    "id": "e335ebe2-650b-43b7-9410-a59aabf39856",
+    "countryCode": "GR",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Voies reservees - Grece",
+    "characteristics": [
+      "Mots grecs peints directement sur la chaussee",
+      "Inscriptions jaunes ou blanches selon le type de voie",
+      "Lignes continues delimitant les couloirs reserves"
+    ],
+    "notes": "L'alphabet grec visible au sol est beaucoup plus utile que la couleur de la ligne. Lorsque le texte est lisible, il confirme rapidement la Grece meme dans un environnement urbain dense.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Bus_lane_Athens.jpg",
+    "licenseName": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/",
+    "attributionText": "Photo de Badseed, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Bus%20lane%20Athens.jpg",
+    "imageAltText": "Voie reservee a Athenes avec inscription grecque peinte en jaune"
+  },
+  {
+    "id": "77db2426-3a8a-4078-a44b-223e98b16c59",
+    "countryCode": "TR",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages routiers - Turquie",
+    "characteristics": [
+      "Lignes axiales et de rive blanches sur les grands axes",
+      "Fleches blanches larges avant les bifurcations",
+      "Zebras blancs dans les zones neutralisees"
+    ],
+    "notes": "Les marquages turcs ressemblent aux standards europeens. Ils deviennent utiles avec les grands panneaux bleus, les chevrons noir-jaune et le relief souvent sec.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:State_Road_D-695_1.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Bluetime93, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/State%20Road%20D-695%201.jpg",
+    "imageAltText": "Route nationale turque avec lignes blanches et zone de bifurcation"
+  },
+  {
+    "id": "f5e497d3-013e-4f3f-817d-cf15b7494e1d",
+    "countryCode": "US",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Double ligne jaune - Etats-Unis",
+    "characteristics": [
+      "Double ligne jaune separant les sens opposes",
+      "Lignes blanches reservees aux bords et aux voies de meme sens",
+      "Segments jaunes interrompus aux acces et intersections"
+    ],
+    "notes": "La separation jaune des sens de circulation est fondamentale en Amerique du Nord. Pour distinguer les Etats-Unis du Canada, observer les panneaux, les poteaux et le style des lignes de rive.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Leaving_Dickey_Ridge_Shenandoah_NP_VA_2024-10-10_13-27-04_1.jpg",
+    "licenseName": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "attributionText": "Photo de G. Edward Johnson, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Leaving%20Dickey%20Ridge%20Shenandoah%20NP%20VA%202024-10-10%2013-27-04%201.jpg",
+    "imageAltText": "Route americaine avec double ligne jaune centrale"
+  },
+  {
+    "id": "3daab385-714e-4bc8-a5ac-ec0db6c51403",
+    "countryCode": "CA",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages routiers - Canada",
+    "characteristics": [
+      "Double ligne jaune au centre de la route",
+      "Lignes de rive blanches continues",
+      "Marquages tres proches du standard nord-americain"
+    ],
+    "notes": "Le Canada partage le code couleur jaune et blanc avec les Etats-Unis. Les paysages, panneaux de vitesse en kilometres et delineateurs sont indispensables pour trancher.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Malakwa_(BC,_Canada),_Trans-Canada_Highway_--_2022_--_112701.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Dietmar Rabich, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Malakwa%20%28BC%2C%20Canada%29%2C%20Trans-Canada%20Highway%20--%202022%20--%20112701.jpg",
+    "imageAltText": "Route canadienne avec double ligne jaune et lignes de rive blanches"
+  },
+  {
+    "id": "b4a14866-2816-4700-954a-73ce0197de92",
+    "countryCode": "BR",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages routiers - Bresil",
+    "characteristics": [
+      "Lignes jaunes separant les flux opposes",
+      "Lignes blanches separant les voies de meme sens",
+      "Fleches directionnelles blanches de grande taille"
+    ],
+    "notes": "Le code couleur bresilien suit une logique americaine. Les bordures peintes, la signalisation en portugais et les panneaux verts a texte blanc permettent de renforcer l'identification.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:BR_135_Entrada_para_Curvelo_altura_do_Km_622_sentido_Norte_Sul.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Lucas.cvo, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/BR%20135%20Entrada%20para%20Curvelo%20altura%20do%20Km%20622%20sentido%20Norte%20Sul.jpg",
+    "imageAltText": "Route bresilienne avec lignes jaunes, lignes blanches et fleche directionnelle"
+  },
+  {
+    "id": "ca5c9827-2218-4929-8068-382557264b8e",
+    "countryCode": "CL",
+    "regionIds": [],
+    "difficulty": "expert",
+    "title": "Marquages routiers - Chili",
+    "characteristics": [
+      "Ligne centrale jaune separant les sens opposes",
+      "Lignes de rive jaunes visibles sur certains axes",
+      "Longs segments rectilignes dans les zones peu habitees"
+    ],
+    "notes": "La presence de jaune au centre et sur les rives n'est pas exclusive au Chili. Dans le sud du pays, elle devient utile avec les paysages ouverts, les poteaux et la signalisation chilienne.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Magallanes,_ruta_9,_2.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de LBM1948, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Magallanes%2C%20ruta%209%2C%202.jpg",
+    "imageAltText": "Route chilienne rectiligne avec marquages jaunes au centre et sur les rives"
+  },
+  {
+    "id": "72553e9f-8e0a-420f-8f93-1393b0eb8519",
+    "countryCode": "AU",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Zones scolaires - Australie",
+    "characteristics": [
+      "Grand cartouche colore peint sur toute la largeur de la voie",
+      "Texte anglais SCHOOL ZONE en capitales blanches",
+      "Encadrement jaune et fond rouge tres visibles"
+    ],
+    "notes": "Les grands marquages de zone scolaire australiens sont faciles a reperer. La conduite a gauche, les bordures et les panneaux de vitesse temporaires permettent de confirmer le pays.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:School_zone_warning_road_markings_in_Queensland,_Australia,_2023.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Kgbo, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/School%20zone%20warning%20road%20markings%20in%20Queensland%2C%20Australia%2C%202023.jpg",
+    "imageAltText": "Rue australienne avec grand marquage rouge SCHOOL ZONE"
+  },
+  {
+    "id": "6f530e70-b3a6-4e40-aff5-a90110ea4daa",
+    "countryCode": "NZ",
+    "regionIds": [],
+    "difficulty": "medium",
+    "title": "Marquages d'information - Nouvelle-Zelande",
+    "characteristics": [
+      "Panneaux d'information peints directement sur la chaussee",
+      "Fond bleu avec texte et symboles blancs",
+      "Fleches de direction separees du cartouche principal"
+    ],
+    "notes": "Les grands cartouches bleus apparaissent dans certains amenagements neo-zelandais, mais ne suffisent pas seuls. Les mots anglais, la conduite a gauche et les poteaux routiers complètent l'indice.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Road_Marking-1120253,_Wellington,_New_Zealand.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Wainuio, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Road%20Marking-1120253%2C%20Wellington%2C%20New%20Zealand.jpg",
+    "imageAltText": "Cartouche routier bleu et fleche peints sur une route de Wellington"
+  },
+  {
+    "id": "7a8c46d4-d5a9-40ce-873c-9526fb3a3393",
+    "countryCode": "ZA",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Lignes de rive jaunes - Afrique du Sud",
+    "characteristics": [
+      "Ligne jaune continue placee sur le bord exterieur de la chaussee",
+      "Lignes de voies centrales blanches",
+      "Conduite a gauche avec la rive jaune visible du cote gauche"
+    ],
+    "notes": "La ligne jaune de rive est l'un des indices routiers les plus connus d'Afrique australe. Elle ne suffit pas toujours a separer l'Afrique du Sud de ses voisins, mais identifie fortement la region.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Route_leading_to_Huguenot_Tunnel.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de Zizipho Tyeko, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Route%20leading%20to%20Huguenot%20Tunnel.jpg",
+    "imageAltText": "Autoroute sud-africaine avec ligne jaune continue sur la rive gauche"
+  },
+  {
+    "id": "e4479e20-8fcb-478b-8899-62a429f8c381",
+    "countryCode": "JP",
+    "regionIds": [],
+    "difficulty": "easy",
+    "title": "Ligne centrale orange - Japon",
+    "characteristics": [
+      "Ligne centrale orange continue",
+      "Lignes de rive blanches",
+      "L'orange signale une interdiction de franchissement"
+    ],
+    "notes": "Une ligne centrale orange est un indice japonais tres utile, surtout sur les routes etroites. Elle se combine bien avec la conduite a gauche, les poteaux et la signalisation verticale japonaise.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Orange_center_line_and_no-overtaking_sign.jpg",
+    "licenseName": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "attributionText": "Photo de 運動会プロテインパワー, via Wikimedia Commons.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Orange%20center%20line%20and%20no-overtaking%20sign.jpg",
+    "imageAltText": "Route japonaise etroite avec ligne centrale orange et rives blanches"
+  }
+]
