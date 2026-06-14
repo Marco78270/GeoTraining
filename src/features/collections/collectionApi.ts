@@ -9,9 +9,15 @@ export type Category = Tables["categories"]["Row"];
 
 export type CollectionSummary = Pick<
   Collection,
-  "id" | "name" | "description" | "owner_id" | "created_at" | "updated_at"
+  | "id"
+  | "name"
+  | "description"
+  | "owner_id"
+  | "visibility"
+  | "created_at"
+  | "updated_at"
 > & {
-  role: Membership["role"];
+  role: Membership["role"] | null;
 };
 
 export type CollectionMember = Membership & {
@@ -54,7 +60,7 @@ export class CollectionError extends Error {
 export type CollectionDataClient = {
   getCurrentUser(): Promise<CurrentUser>;
   listCollections(userId: string): Promise<
-    Array<Collection & { current_user_role: Membership["role"] }>
+    Array<Collection & { current_user_role: Membership["role"] | null }>
   >;
   insertCollection(input: Tables["collections"]["Insert"]): Promise<Collection>;
   getMembership(
@@ -117,6 +123,7 @@ export function createCollectionApi(client: CollectionDataClient) {
         owner_id: user.id,
         name: requireText(input.name, "Le nom"),
         description: input.description?.trim() || null,
+        visibility: "private",
       });
       const membership = await client.getMembership(collection.id, user.id);
       return { collection, membership };
@@ -230,13 +237,92 @@ function unwrap<T>(
   return result.data;
 }
 
-type MembershipCollectionRow = Membership & {
-  collections: Collection | null;
-};
-
 type MemberProfileRow = Membership & {
   profiles: Pick<Tables["profiles"]["Row"], "display_name" | "avatar_url"> | null;
 };
+
+type LegacyCollectionRow = Omit<Collection, "visibility"> & {
+  visibility?: Collection["visibility"];
+};
+
+const HIDDEN_PUBLIC_COLLECTION_IDS = new Set([
+  "b0000000-0000-0000-0000-000000000001",
+]);
+
+function isMissingVisibilityColumn(
+  error: { message: string; code?: string } | null,
+): boolean {
+  if (!error) return false;
+  return (
+    error.message.includes("visibility") &&
+    (error.message.includes("column") || error.code === "42703")
+  );
+}
+
+function normalizeCollectionVisibility<
+  TCollection extends Omit<Collection, "visibility"> & {
+    visibility?: Collection["visibility"];
+  },
+>(collection: TCollection): Collection {
+  return {
+    ...collection,
+    visibility: collection.visibility ?? "private",
+  };
+}
+
+async function selectCollectionsByIds(
+  supabase: SupabaseClient<Database>,
+  ids: string[],
+): Promise<Collection[]> {
+  if (!ids.length) {
+    return [];
+  }
+
+  const collectionQuery = supabase
+    .from("collections")
+    .select()
+    .in("id", ids)
+    .order("created_at");
+  const collectionResult = await collectionQuery;
+
+  if (isMissingVisibilityColumn(collectionResult.error)) {
+    const legacyResult = await supabase
+      .from("collections")
+      .select("id, owner_id, name, description, created_at, updated_at")
+      .in("id", ids)
+      .order("created_at");
+    const legacyCollections = unwrap(
+      legacyResult as unknown as {
+        data: LegacyCollectionRow[] | null;
+        error: { message: string; code?: string } | null;
+      },
+      "collections_list_failed",
+    );
+    return legacyCollections.map((collection) =>
+      normalizeCollectionVisibility(collection),
+    );
+  }
+
+  const collections = unwrap(collectionResult, "collections_list_failed");
+  return collections.map((collection) => normalizeCollectionVisibility(collection));
+}
+
+async function listPublicCollections(
+  supabase: SupabaseClient<Database>,
+): Promise<Collection[]> {
+  const publicResult = await supabase
+    .from("collections")
+    .select()
+    .eq("visibility", "public_readonly")
+    .order("created_at");
+  if (isMissingVisibilityColumn(publicResult.error)) {
+    return [];
+  }
+  const collections = unwrap(publicResult, "collections_list_failed");
+  return collections
+    .map((collection) => normalizeCollectionVisibility(collection))
+    .filter((collection) => !HIDDEN_PUBLIC_COLLECTION_IDS.has(collection.id));
+}
 
 export function createSupabaseCollectionDataClient(
   supabase: SupabaseClient<Database>,
@@ -251,27 +337,59 @@ export function createSupabaseCollectionDataClient(
     },
 
     async listCollections(userId) {
-      const result = await supabase
+      const membershipResult = await supabase
         .from("collection_members")
-        .select("*, collections(*)")
+        .select()
         .eq("user_id", userId)
         .order("created_at");
-      const rows = unwrap(
-        result as unknown as {
-          data: MembershipCollectionRow[] | null;
-          error: { message: string; code?: string } | null;
-        },
-        "collections_list_failed",
+      const membershipRows = unwrap(membershipResult, "collections_list_failed");
+      const privateMemberships = membershipRows.filter(
+        (row) => row.collection_id !== null,
       );
-      return rows
-        .filter(
-          (row): row is MembershipCollectionRow & { collections: Collection } =>
-            row.collections !== null,
-        )
-        .map((row) => ({
-          ...row.collections,
-          current_user_role: row.role,
-        }));
+      const privateCollectionIds = [
+        ...new Set(privateMemberships.map((row) => row.collection_id)),
+      ];
+      const privateCollections = await selectCollectionsByIds(
+        supabase,
+        privateCollectionIds,
+      );
+      const privateCollectionsById = new Map(
+        privateCollections.map((collection) => [collection.id, collection]),
+      );
+      const collectionsWithRole: Array<
+        Collection & { current_user_role: Membership["role"] | null }
+      > = [];
+      for (const membership of privateMemberships) {
+        const collection = privateCollectionsById.get(membership.collection_id);
+        if (!collection || HIDDEN_PUBLIC_COLLECTION_IDS.has(collection.id)) {
+          continue;
+        }
+        collectionsWithRole.push({
+          ...collection,
+          current_user_role: membership.role,
+        });
+      }
+      const publicCollections = await listPublicCollections(supabase);
+
+      const collectionsById = new Map<string, Collection & {
+        current_user_role: Membership["role"] | null;
+      }>();
+
+      for (const collection of collectionsWithRole) {
+        collectionsById.set(collection.id, collection);
+      }
+      for (const collection of publicCollections) {
+        if (!collectionsById.has(collection.id)) {
+          collectionsById.set(collection.id, {
+            ...collection,
+            current_user_role: null,
+          });
+        }
+      }
+
+      return [...collectionsById.values()].sort((left, right) =>
+        left.created_at.localeCompare(right.created_at),
+      );
     },
 
     async insertCollection(input) {

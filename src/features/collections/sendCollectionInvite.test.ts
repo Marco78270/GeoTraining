@@ -61,6 +61,42 @@ describe("send collection invite handler", () => {
     expect(deps.authenticate).not.toHaveBeenCalled();
   });
 
+  it("falls back to the trusted request origin when APP_URL is not configured", async () => {
+    const deps = dependencies({ appUrl: "" });
+    const response = await createInviteHandler(deps)(post());
+
+    expect(response.status).toBe(200);
+    expect(deps.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inviteUrl:
+          "https://atlas.example.com/invitations/raw-token-with-at-least-thirty-two-characters",
+      }),
+    );
+  });
+
+  it("fails clearly when neither APP_URL nor a trusted origin is available", async () => {
+    const deps = dependencies({
+      allowedOrigins: new Set(),
+      appUrl: "",
+    });
+    const request = new Request(
+      "https://functions.example.com/send-collection-invite",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer valid-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      },
+    );
+
+    const response = await createInviteHandler(deps)(request);
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "app_url_not_configured" });
+  });
+
   it("requires collection ownership", async () => {
     const deps = dependencies({
       findOwnedCollection: vi.fn().mockResolvedValue(null),

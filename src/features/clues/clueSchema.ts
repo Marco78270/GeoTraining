@@ -34,6 +34,7 @@ export type PersistedClueImage = {
 
 export type ClueEditInput = ClueFormInput & {
   clueId: string;
+  previousCoverage: ClueCoverage;
   existingImages: PersistedClueImage[];
   removedImageIds: string[];
 };
@@ -57,6 +58,7 @@ export type ParsedClueForm = Omit<
 
 export type ParsedClueEditForm = ParsedClueForm & {
   clueId: string;
+  previousCoverage: ClueCoverage;
   existingImages: PersistedClueImage[];
   removedImageIds: string[];
 };
@@ -208,6 +210,7 @@ export function parseClueEditForm(input: ClueEditInput): ParsedClueEditForm {
 
   return {
     clueId: input.clueId.trim(),
+    previousCoverage: input.previousCoverage,
     ...parseBaseClueForm(input),
     existingImages,
     removedImageIds: [...removedImageIds],

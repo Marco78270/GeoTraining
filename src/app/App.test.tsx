@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
 import { MemoryRouter } from "react-router-dom";
@@ -14,8 +14,16 @@ vi.mock("../features/atlas/AtlasMap", () => ({
   AtlasMap: () => <div aria-label="Carte mondiale interactive" />,
 }));
 
+vi.mock("../features/training/TrainingMap", () => ({
+  TrainingMap: () => <div aria-label="Carte d'entraînement interactive" />,
+}));
+
+vi.mock("../features/admin/AdminPage", () => ({
+  AdminPage: () => <p role="alert">Accès administrateur requis.</p>,
+}));
+
 vi.mock("../features/clues/ClueEditor", () => ({
-  ClueEditor: () => <h1>Éditeur d’indice</h1>,
+  ClueEditor: () => <h1>Éditeur d'indice</h1>,
 }));
 
 const anonymousAuth: AuthContextValue = {
@@ -83,7 +91,7 @@ it("opens the protected clue editor from its creation route", async () => {
   );
 
   expect(
-    await screen.findByRole("heading", { name: "Éditeur d’indice" }),
+    await screen.findByRole("heading", { name: "Éditeur d'indice" }),
   ).toBeVisible();
 });
 
@@ -102,4 +110,55 @@ it("opens the protected clue editor from its edit route", async () => {
   expect(
     await screen.findByRole("alert"),
   ).toHaveTextContent("Impossible de charger cet indice pour modification.");
+});
+
+it("opens the protected training page route", async () => {
+  const session = { user: { id: "user-1" } } as Session;
+
+  renderApp(
+    {
+      ...anonymousAuth,
+      session,
+      user: session.user,
+    },
+    "/training",
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: /Entraînement/i }),
+  ).toBeVisible();
+});
+
+it("opens the protected admin page route", async () => {
+  const session = { user: { id: "user-1" } } as Session;
+
+  renderApp(
+    {
+      ...anonymousAuth,
+      session,
+      user: session.user,
+    },
+    "/admin",
+  );
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Accès administrateur requis.",
+  );
+});
+
+it("opens the protected statistics page route", async () => {
+  const session = { user: { id: "user-1" } } as Session;
+
+  renderApp(
+    {
+      ...anonymousAuth,
+      session,
+      user: session.user,
+    },
+    "/statistics",
+  );
+
+  expect(
+    await screen.findByRole("heading", { name: /statistiques/i }),
+  ).toBeVisible();
 });

@@ -9,9 +9,11 @@ import { collectionKeys } from "./collectionKeys";
 
 export function CategoryList({
   collectionId,
+  readOnly = false,
   api: suppliedApi,
 }: {
   collectionId: string;
+  readOnly?: boolean;
   api?: CollectionApi;
 }) {
   const [api] = useState(() => suppliedApi ?? getCollectionApi());
@@ -87,34 +89,40 @@ export function CategoryList({
         </div>
       </div>
 
-      <form className="inline-form category-form" onSubmit={submit}>
-        <label>
-          <span>Nom de la catégorie</span>
-          <input value={name} onChange={(event) => setName(event.target.value)} />
-        </label>
-        <label>
-          <span>Icône</span>
-          <input value={icon} onChange={(event) => setIcon(event.target.value)} />
-        </label>
-        <label>
-          <span>Couleur</span>
-          <input
-            type="color"
-            value={color}
-            onChange={(event) => setColor(event.target.value)}
-          />
-        </label>
-        <button className="primary-button" type="submit" disabled={create.isPending}>
-          {create.isPending ? "Ajout…" : "Ajouter la catégorie"}
-        </button>
-      </form>
+      {readOnly ? (
+        <p className="notice" role="status">
+          Cette collection publique est en lecture seule.
+        </p>
+      ) : (
+        <form className="inline-form category-form" onSubmit={submit}>
+          <label>
+            <span>Nom de la catégorie</span>
+            <input value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <label>
+            <span>Icône</span>
+            <input value={icon} onChange={(event) => setIcon(event.target.value)} />
+          </label>
+          <label>
+            <span>Couleur</span>
+            <input
+              type="color"
+              value={color}
+              onChange={(event) => setColor(event.target.value)}
+            />
+          </label>
+          <button className="primary-button" type="submit" disabled={create.isPending}>
+            {create.isPending ? "Ajout..." : "Ajouter la catégorie"}
+          </button>
+        </form>
+      )}
       {formError ? (
         <p className="notice notice-error" role="alert">
           {formError}
         </p>
       ) : null}
 
-      {query.isLoading ? <p role="status">Chargement des catégories…</p> : null}
+      {query.isLoading ? <p role="status">Chargement des catégories...</p> : null}
       {query.error ? (
         <p className="notice notice-error" role="alert">
           Impossible de charger les catégories.
@@ -131,33 +139,37 @@ export function CategoryList({
             />
             <span>{category.icon ?? "indice"}</span>
             <strong>{category.name}</strong>
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                const nextName = window.prompt(
-                  "Nouveau nom de la catégorie",
-                  category.name,
-                );
-                if (nextName?.trim()) {
-                  update.mutate({
-                    id: category.id,
-                    nextName,
-                    nextIcon: category.icon,
-                    nextColor: category.color,
-                  });
-                }
-              }}
-            >
-              Renommer
-            </button>
-            <button
-              type="button"
-              className="danger-button"
-              onClick={() => remove.mutate(category.id)}
-            >
-              Supprimer
-            </button>
+            {!readOnly ? (
+              <>
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    const nextName = window.prompt(
+                      "Nouveau nom de la catégorie",
+                      category.name,
+                    );
+                    if (nextName?.trim()) {
+                      update.mutate({
+                        id: category.id,
+                        nextName,
+                        nextIcon: category.icon,
+                        nextColor: category.color,
+                      });
+                    }
+                  }}
+                >
+                  Renommer
+                </button>
+                <button
+                  type="button"
+                  className="danger-button"
+                  onClick={() => remove.mutate(category.id)}
+                >
+                  Supprimer
+                </button>
+              </>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -1,6 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+﻿import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  BarChart3,
+  Bookmark,
+  Globe2,
+  GraduationCap,
+  Map,
+  ShieldCheck,
+} from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import { ProfileMenu } from "../admin/ProfileMenu";
 import { useAuth } from "../auth/authContext";
 import { useActiveCollection } from "./activeCollectionContext";
 import {
@@ -60,32 +69,49 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
       await refresh();
     },
   });
+  const isPublicReadOnly = activeCollection?.visibility === "public_readonly";
+  const canAdministerActiveCollection =
+    activeCollection?.role === "owner";
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <Link className="brand brand-link" to="/atlas">
-          <span className="brand-mark" aria-hidden="true">
-            ◎
-          </span>
+    <main className="app-shell atlas-module-page">
+      <header className="topbar atlas-topbar">
+        <Link className="brand brand-link" to="/atlas" aria-label="GeoTrainer Atlas">
+          <Globe2 className="brand-globe" aria-hidden="true" />
           <strong>GeoTrainer</strong>
           <span>Atlas</span>
         </Link>
-        <nav className="topbar-actions" aria-label="Navigation principale">
-          <Link to="/atlas">Atlas</Link>
-          <strong>Collections</strong>
-          <span>{user?.email}</span>
-          <button className="secondary-button" type="button" onClick={() => void signOut()}>
-            Se déconnecter
-          </button>
+        <nav className="atlas-nav" aria-label="Navigation principale">
+          <NavLink to="/atlas">
+            <Map />
+            Atlas
+          </NavLink>
+          <NavLink to="/collections">
+            <Bookmark />
+            Collections
+          </NavLink>
+          <NavLink to="/training">
+            <GraduationCap />
+            EntraÃ®nement
+          </NavLink>
+          <NavLink to="/statistics">
+            <BarChart3 />
+            Statistiques
+          </NavLink>
         </nav>
+        <ProfileMenu
+          email={user?.email}
+          onSignOut={() => {
+            void signOut();
+          }}
+        />
       </header>
 
       <div className="collections-layout">
         <aside className="panel collections-sidebar">
-          <p className="eyebrow">Espace privé</p>
+          <p className="eyebrow">Collections</p>
           <h1>Collections</h1>
-          {isLoading ? <p role="status">Chargement des collections…</p> : null}
+          {isLoading ? <p role="status">Chargement des collections...</p> : null}
           {error ? (
             <p className="notice notice-error" role="alert">
               Impossible de charger vos collections.
@@ -120,8 +146,12 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
                 onChange={(event) => setDescription(event.target.value)}
               />
             </label>
-            <button className="primary-button" type="submit" disabled={create.isPending}>
-              {create.isPending ? "Création…" : "Créer la collection"}
+            <button
+              className="primary-button"
+              type="submit"
+              disabled={create.isPending}
+            >
+              {create.isPending ? "CrÃ©ation..." : "CrÃ©er la collection"}
             </button>
           </form>
           {create.error ? (
@@ -134,8 +164,8 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
         <div className="collections-content">
           {!isLoading && collections.length === 0 ? (
             <section className="panel empty-state">
-              <h2>Votre première collection</h2>
-              <p>Créez un espace privé pour classer vos indices GeoGuessr.</p>
+              <h2>Votre premiÃ¨re collection</h2>
+              <p>CrÃ©ez un espace privÃ© pour classer vos indices GeoGuessr.</p>
             </section>
           ) : null}
           {activeCollection ? (
@@ -143,14 +173,31 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
               <section className="panel collection-header">
                 <div>
                   <p className="eyebrow">
-                    {activeCollection.role === "owner"
-                      ? "Propriétaire"
-                      : "Éditeur"}
+                    {isPublicReadOnly
+                      ? canAdministerActiveCollection
+                        ? "Publique Â· Administration"
+                        : "Publique Â· Lecture seule"
+                      : activeCollection.role === "owner"
+                        ? "PropriÃ©taire"
+                        : "Ã‰diteur"}
                   </p>
-                  <h2>{activeCollection.name}</h2>
+                  <div className="collection-title-row">
+                    <h2>{activeCollection.name}</h2>
+                    {isPublicReadOnly ? (
+                      <span className="official-badge">
+                        <ShieldCheck aria-hidden="true" />
+                        Officielle
+                      </span>
+                    ) : null}
+                  </div>
                   <p>{activeCollection.description || "Aucune description."}</p>
+                  {isPublicReadOnly && !canAdministerActiveCollection ? (
+                    <p className="notice" role="status">
+                      Cette collection est visible par tous les utilisateurs, mais seule l'administration peut la modifier.
+                    </p>
+                  ) : null}
                 </div>
-                {activeCollection.role === "owner" ? (
+                {canAdministerActiveCollection ? (
                   <div className="button-row">
                     <button
                       className="secondary-button"
@@ -176,7 +223,7 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
                       onClick={() => {
                         if (
                           window.confirm(
-                            `Supprimer définitivement ${activeCollection.name} ?`,
+                            `Supprimer dÃ©finitivement ${activeCollection.name} ?`,
                           )
                         ) {
                           remove.mutate(activeCollection.id);
@@ -188,10 +235,14 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
                   </div>
                 ) : null}
               </section>
-              <CategoryList collectionId={activeCollection.id} api={api} />
+              <CategoryList
+                collectionId={activeCollection.id}
+                readOnly={isPublicReadOnly && !canAdministerActiveCollection}
+                api={api}
+              />
               <InviteEditorDialog
                 collectionId={activeCollection.id}
-                isOwner={activeCollection.role === "owner"}
+                isOwner={canAdministerActiveCollection}
                 api={api}
               />
             </>

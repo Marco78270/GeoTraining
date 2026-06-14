@@ -63,13 +63,35 @@ function normalizeEmail(value: string) {
 }
 
 function corsHeaders(origin: string | null, allowedOrigins: Set<string>) {
-  const allowed = origin && allowedOrigins.has(origin);
+  const allowed =
+    origin && (allowedOrigins.size === 0 || allowedOrigins.has(origin));
   return {
     "Access-Control-Allow-Origin": allowed ? origin : "null",
     "Access-Control-Allow-Headers": "authorization, content-type, x-client-info",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     Vary: "Origin",
   };
+}
+
+function isTrustedOrigin(origin: string | null, allowedOrigins: Set<string>) {
+  return Boolean(origin) && (allowedOrigins.size === 0 || allowedOrigins.has(origin!));
+}
+
+function resolveAppUrl(
+  configuredAppUrl: string,
+  origin: string | null,
+  allowedOrigins: Set<string>,
+) {
+  const normalizedConfigured = configuredAppUrl.trim().replace(/\/$/, "");
+  if (normalizedConfigured) {
+    return normalizedConfigured;
+  }
+
+  if (isTrustedOrigin(origin, allowedOrigins)) {
+    return origin!.replace(/\/$/, "");
+  }
+
+  return "";
 }
 
 function response(
@@ -87,10 +109,20 @@ function response(
 export function createInviteHandler(deps: InviteHandlerDependencies) {
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
-    if (origin && !deps.allowedOrigins.has(origin)) {
+    if (origin && deps.allowedOrigins.size > 0 && !deps.allowedOrigins.has(origin)) {
       return response(
         403,
         { error: "origin_not_allowed" },
+        origin,
+        deps.allowedOrigins,
+      );
+    }
+
+    const appUrl = resolveAppUrl(deps.appUrl, origin, deps.allowedOrigins);
+    if (!appUrl) {
+      return response(
+        503,
+        { error: "app_url_not_configured" },
         origin,
         deps.allowedOrigins,
       );
@@ -205,7 +237,7 @@ export function createInviteHandler(deps: InviteHandlerDependencies) {
       );
     }
 
-    const inviteUrl = `${deps.appUrl.replace(/\/$/, "")}/invitations/${encodeURIComponent(token)}`;
+    const inviteUrl = `${appUrl}/invitations/${encodeURIComponent(token)}`;
     if (deps.providerConfigured) {
       const sent = await deps
         .sendEmail({

@@ -19,21 +19,29 @@ vi.mock("./AtlasMap", () => ({
   AtlasMap: ({
     markers,
     selectedCountryCode,
+    selectedRegionId,
     onCountrySelect,
+    onRegionSelect,
     onViewportChange,
     hasWholeCountryCoverage,
     coveredRegionIds = [],
   }: ComponentProps<typeof import("./AtlasMap").AtlasMap>) => (
     <div data-testid="atlas-map">
       <output aria-label="Nombre de marqueurs">{markers.length}</output>
-      <output aria-label="Pays sélectionné">
+      <output aria-label="Difficultes pays">
+        {markers.map((marker) => `${marker.code}:${marker.difficulty}`).join(",")}
+      </output>
+      <output aria-label="Pays selectionne">
         {selectedCountryCode ?? "monde"}
       </output>
       <output aria-label="Couverture nationale">
         {hasWholeCountryCoverage ? "oui" : "non"}
       </output>
-      <output aria-label="Régions couvertes">
+      <output aria-label="Regions couvertes">
         {coveredRegionIds.join(",")}
+      </output>
+      <output aria-label="Region selectionnee">
+        {selectedRegionId ?? "aucune"}
       </output>
       <button
         type="button"
@@ -42,7 +50,17 @@ vi.mock("./AtlasMap", () => ({
           onViewportChange("country");
         }}
       >
-        Sélectionner le Kenya
+        Selectionner le Kenya
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onCountrySelect("KE");
+          onViewportChange("country");
+          onRegionSelect?.("KE-30");
+        }}
+      >
+        Selectionner Nairobi County
       </button>
     </div>
   ),
@@ -67,6 +85,7 @@ const collection = {
   name: "Mes indices",
   description: null,
   owner_id: "user-1",
+  visibility: "private" as const,
   created_at: "2026-06-10T00:00:00.000Z",
   updated_at: "2026-06-10T00:00:00.000Z",
   role: "owner" as const,
@@ -171,17 +190,46 @@ function renderAtlas(api: AtlasApi = atlasApi) {
   );
 }
 
-it("affiche les catégories et indices publiés de la collection active", async () => {
+function renderAtlasWithCollection(
+  collectionOverride: Partial<(typeof collectionValue)["activeCollection"]> = {},
+  api: AtlasApi = atlasApi,
+) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const currentCollection = { ...collection, ...collectionOverride };
+  const currentValue = {
+    ...collectionValue,
+    collections: [currentCollection],
+    activeCollection: currentCollection,
+    activeCollectionId: currentCollection.id,
+  };
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AuthContext.Provider value={authValue}>
+          <ActiveCollectionContext.Provider value={currentValue}>
+            <AtlasPage atlasApi={api} />
+          </ActiveCollectionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+it("affiche les categories et indices publies de la collection active", async () => {
   const user = userEvent.setup();
   renderAtlas();
 
-  expect(await screen.findByRole("button", { name: /Bollards/i })).toBeVisible();
+  expect(
+    (await screen.findAllByRole("button", { name: /Bollards/i })).length,
+  ).toBeGreaterThan(0);
   expect(screen.getByLabelText("Nombre de marqueurs")).toHaveTextContent("1");
 
-  await user.click(screen.getByRole("button", { name: "Sélectionner le Kenya" }));
+  await user.click(screen.getByRole("button", { name: "Selectionner le Kenya" }));
 
   expect(screen.getByRole("heading", { name: "Kenya" })).toBeVisible();
-  expect(screen.getByText("Bollards Kenyan")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Bollards Kenyan" })).toBeVisible();
   expect(screen.getByRole("img", { name: "Bollard kenyan" })).toHaveAttribute(
     "src",
     "https://example.test/kenya.png",
@@ -197,17 +245,45 @@ it("affiche les catégories et indices publiés de la collection active", async 
   ).toHaveAttribute("href", "/clues/clue-1/edit");
 });
 
-it("agrège la couverture régionale du pays sélectionné", async () => {
+it("agrege la couverture regionale du pays selectionne", async () => {
   const user = userEvent.setup();
   renderAtlas();
 
-  await user.click(await screen.findByRole("button", { name: "Sélectionner le Kenya" }));
+  await user.click(await screen.findByRole("button", { name: "Selectionner le Kenya" }));
 
   expect(screen.getByLabelText("Couverture nationale")).toHaveTextContent("oui");
-  expect(screen.getByLabelText("Régions couvertes")).toHaveTextContent("KE-30,KE-40");
+  expect(screen.getByLabelText("Regions couvertes")).toHaveTextContent("KE-30,KE-40");
 });
 
-it("affiche un état vide lorsque la collection ne contient aucun indice", async () => {
+it("masque la liste des indices regionaux dans le panneau de droite", async () => {
+  const user = userEvent.setup();
+  renderAtlas();
+
+  await user.click(await screen.findByRole("button", { name: "Selectionner le Kenya" }));
+
+  expect(screen.getByRole("heading", { name: "Bollards Kenyan" })).toBeVisible();
+  expect(
+    screen.queryByRole("heading", { name: "Indices régionaux" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Nairobi County, Mombasa County" }),
+  ).not.toBeInTheDocument();
+});
+
+it("selectionne un indice regional depuis la carte", async () => {
+  const user = userEvent.setup();
+  renderAtlas();
+
+  await user.click(
+    await screen.findByRole("button", { name: "Selectionner Nairobi County" }),
+  );
+
+  expect(screen.getByRole("heading", { name: "Kenya" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Bollards Nairobi" })).toBeVisible();
+  expect(screen.getByLabelText("Region selectionnee")).toHaveTextContent("KE-30");
+});
+
+it("affiche un etat vide lorsque la collection ne contient aucun indice", async () => {
   renderAtlas({
     load: vi.fn().mockResolvedValue({ categories: [], countries: [] }),
   });
@@ -217,10 +293,32 @@ it("affiche un état vide lorsque la collection ne contient aucun indice", async
   ).toHaveTextContent("Aucun indice publié");
 });
 
-it("ouvre l’éditeur d’indice depuis l’action principale", async () => {
+it("ouvre l'editeur d'indice depuis l'action principale", async () => {
   renderAtlas();
 
   expect(
     await screen.findByRole("link", { name: "Ajouter un indice" }),
   ).toHaveAttribute("href", "/clues/new");
+});
+
+it("masque les actions d'ecriture pour une collection publique", async () => {
+  const user = userEvent.setup();
+  renderAtlasWithCollection({
+    id: "collection-public",
+    name: "Collection officielle",
+    visibility: "public_readonly",
+    role: null,
+  });
+
+  expect(screen.queryByRole("link", { name: "Ajouter un indice" })).not.toBeInTheDocument();
+  expect(
+    await screen.findByText(/Collection publique en lecture seule/i),
+  ).toBeVisible();
+
+  await user.click(screen.getByRole("button", { name: "Selectionner le Kenya" }));
+
+  expect(screen.getByText("Officielle")).toBeVisible();
+  expect(
+    screen.queryByRole("link", { name: "Modifier l’indice" }),
+  ).not.toBeInTheDocument();
 });

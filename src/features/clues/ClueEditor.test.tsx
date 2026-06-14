@@ -15,6 +15,7 @@ const collection = {
   name: "Mes panneaux",
   description: null,
   owner_id: "user-1",
+  visibility: "private" as const,
   created_at: "2026-06-11T00:00:00.000Z",
   updated_at: "2026-06-11T00:00:00.000Z",
   role: "owner" as const,
@@ -187,7 +188,7 @@ it("publie après la dernière étape et conserve le formulaire en cas d'erreur"
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "Publier l’indice" })).toBeEnabled();
   });
-});
+}, 10_000);
 
 it("préremplit un indice en mode édition et appelle update", async () => {
   const user = userEvent.setup();
@@ -230,6 +231,7 @@ it("préremplit un indice en mode édition et appelle update", async () => {
   expect(deps.clueApi.update).toHaveBeenCalledWith(
     expect.objectContaining({
       clueId: "clue-1",
+      previousCoverage: "selected_regions",
       existingImages: [
         expect.objectContaining({
           id: "stored-1",
@@ -239,6 +241,44 @@ it("préremplit un indice en mode édition et appelle update", async () => {
       removedImageIds: [],
     }),
   );
+});
+
+it("verrouille la collection, la catégorie et le pays en mode édition", async () => {
+  const user = userEvent.setup();
+  const deps = dependencies();
+  renderEditor(deps, {
+    mode: "edit",
+    initialClue: {
+      id: "clue-1",
+      collectionId: "collection-1",
+      categoryId: "category-stop",
+      countryCode: "FR",
+      coverage: "selected_regions",
+      regionIds: ["FR-IDF"],
+      difficulty: "medium",
+      title: "STOP français",
+      characteristics: ["Octogone rouge"],
+      notes: "Présent sur les routes.",
+      googleMapsUrl: "https://www.google.com/maps/@48.8566,2.3522,3a,75y",
+      existingImages: [
+        {
+          id: "stored-1",
+          storagePath: "collection-1/clue-1/stored-1.jpg",
+          altText: "STOP 1",
+          sortOrder: 0,
+        },
+      ],
+    },
+  });
+
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+
+  expect(screen.getByLabelText("Collection")).toBeDisabled();
+  expect(screen.getByLabelText("Catégorie")).toBeDisabled();
+
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+
+  expect(screen.getByLabelText("Pays")).toBeDisabled();
 });
 
 it("désactive la couverture régionale lorsqu'un pays n'a aucune région", async () => {

@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(151);
+select plan(164);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select has_table('public', 'collections', 'collections table exists');
@@ -54,6 +54,8 @@ select has_type('public', 'clue_difficulty', 'clue_difficulty enum exists');
 select has_type('public', 'invitation_status', 'invitation_status enum exists');
 select has_type('public', 'training_mode', 'training_mode enum exists');
 select has_type('public', 'clue_status', 'clue_status enum exists');
+select has_type('public', 'platform_role', 'platform_role enum exists');
+select has_table('public', 'user_roles', 'user_roles table exists');
 
 select has_column('public', 'collection_invitations', 'token_hash', 'invitation token hash exists');
 select col_type_is('public', 'collection_invitations', 'token_hash', 'text', 'token hash is text');
@@ -90,6 +92,8 @@ select hasnt_column('public', 'regions', 'code', 'legacy region code column is a
 select has_function('public', 'is_collection_member', array['uuid'], 'membership helper exists');
 select has_function('public', 'is_collection_owner', array['uuid'], 'ownership helper exists');
 select has_function('public', 'shares_collection_with', array['uuid'], 'profile visibility helper exists');
+select has_function('public', 'is_platform_admin', array[]::text[], 'platform admin helper exists');
+select has_function('public', 'is_super_admin', array[]::text[], 'super admin helper exists');
 select has_function(
   'public',
   'accept_collection_invitation',
@@ -478,6 +482,19 @@ values
     '{"display_name":"Outsider"}'::jsonb,
     now(),
     now()
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    '10000000-0000-0000-0000-000000000004',
+    'authenticated',
+    'authenticated',
+    'marc.roger@outlook.fr',
+    '',
+    now(),
+    '{}'::jsonb,
+    '{"display_name":"Marc"}'::jsonb,
+    now(),
+    now()
   );
 
 select is(
@@ -487,11 +504,22 @@ select is(
     where id in (
       '10000000-0000-0000-0000-000000000001',
       '10000000-0000-0000-0000-000000000002',
-      '10000000-0000-0000-0000-000000000003'
+      '10000000-0000-0000-0000-000000000003',
+      '10000000-0000-0000-0000-000000000004'
     )
   ),
-  3,
+  4,
   'auth user creation creates profiles'
+);
+
+select is(
+  (
+    select role::text
+    from public.user_roles
+    where user_id = '10000000-0000-0000-0000-000000000004'
+  ),
+  'super_admin',
+  'root account is seeded as super admin when present'
 );
 
 insert into public.countries (code, name, geojson_path)
@@ -506,6 +534,16 @@ values
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000001', true);
+select is(
+  public.is_super_admin(),
+  false,
+  'regular owner is not a super admin'
+);
+select is(
+  public.is_platform_admin(),
+  false,
+  'regular owner is not a platform admin by default'
+);
 
 insert into public.collections (id, owner_id, name)
 values (
@@ -602,6 +640,13 @@ values (
   'Second category'
 );
 
+select throws_ok(
+  $$ insert into public.user_roles (user_id, role)
+     values ('10000000-0000-0000-0000-000000000002', 'admin') $$,
+  '42501',
+  null,
+  'non super admin cannot grant platform roles'
+);
 select throws_ok(
   $$ insert into public.clues (
        collection_id,
@@ -1195,6 +1240,62 @@ select is(
   ),
   false,
   'membership helper rejects outsider'
+);
+
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000004', true);
+select is(
+  public.is_super_admin(),
+  true,
+  'root account is recognized as super admin'
+);
+select is(
+  public.is_platform_admin(),
+  true,
+  'super admin is also a platform admin'
+);
+select lives_ok(
+  $$ insert into public.user_roles (user_id, role)
+     values ('10000000-0000-0000-0000-000000000002', 'admin') $$,
+  'super admin can create an admin role'
+);
+select is(
+  (
+    select count(*)::integer
+    from public.user_roles
+    where user_id = '10000000-0000-0000-0000-000000000002'
+      and role = 'admin'
+  ),
+  1,
+  'admin role row is created'
+);
+select throws_ok(
+  $$ update public.user_roles
+     set role = 'admin'
+     where user_id = '10000000-0000-0000-0000-000000000004' $$,
+  '23514',
+  'root super admin role is immutable',
+  'root super admin cannot be downgraded'
+);
+select throws_ok(
+  $$ delete from public.user_roles
+     where user_id = '10000000-0000-0000-0000-000000000004' $$,
+  '23514',
+  'root super admin role is immutable',
+  'root super admin cannot be deleted'
+);
+select set_config('request.jwt.claim.sub', '10000000-0000-0000-0000-000000000002', true);
+select is(
+  public.is_platform_admin(),
+  true,
+  'granted admin is recognized as platform admin'
+);
+select is(
+  (
+    select count(*)::integer
+    from public.user_roles
+  ),
+  2,
+  'platform admin can read all role rows'
 );
 
 select *

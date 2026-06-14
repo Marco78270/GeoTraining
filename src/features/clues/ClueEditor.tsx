@@ -104,9 +104,11 @@ export function ClueEditor({
   const [requestedCollectionId, setRequestedCollectionId] = useState<string | null>(
     initialClue?.collectionId ?? null,
   );
-  const collectionId = requestedCollectionId ?? activeCollectionId ?? "";
   const [categoryId, setCategoryId] = useState(initialClue?.categoryId ?? "");
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryState, setCategoryState] = useState<{
+    collectionId: string;
+    rows: Category[];
+  }>({ collectionId: "", rows: [] });
   const [countries, setCountries] = useState<Country[]>([]);
   const [countryCode, setCountryCode] = useState(initialClue?.countryCode ?? "");
   const [regions, setRegions] = useState<Region[]>([]);
@@ -139,6 +141,33 @@ export function ClueEditor({
   const [loadError, setLoadError] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState(false);
+  const writableCollections = useMemo(
+    () =>
+      collections.filter(
+        (collection) =>
+          collection.visibility !== "public_readonly" ||
+          collection.role === "owner",
+      ),
+    [collections],
+  );
+  const immutableIdentity = mode === "edit";
+  const preferredCollectionId = requestedCollectionId ?? activeCollectionId ?? "";
+  const preferredCollection = collections.find(
+    (collection) => collection.id === preferredCollectionId,
+  );
+  const collectionId =
+    immutableIdentity ||
+    (preferredCollection &&
+      (preferredCollection.visibility !== "public_readonly" ||
+        preferredCollection.role === "owner"))
+      ? preferredCollectionId
+      : writableCollections[0]?.id ?? "";
+  const activeCollection = collections.find((collection) => collection.id === collectionId);
+  const readOnlyCollection =
+    activeCollection?.visibility === "public_readonly" &&
+    activeCollection.role !== "owner";
+  const categories =
+    categoryState.collectionId === collectionId ? categoryState.rows : [];
 
   useEffect(() => {
     let current = true;
@@ -156,11 +185,13 @@ export function ClueEditor({
 
   useEffect(() => {
     let current = true;
-    if (!collectionId) return () => undefined;
+    if (!collectionId || readOnlyCollection) {
+      return () => undefined;
+    }
     collectionApi
       .listCategories(collectionId)
       .then((rows) => {
-        if (current) setCategories(rows);
+        if (current) setCategoryState({ collectionId, rows });
       })
       .catch(() => {
         if (current) setLoadError("Impossible de charger les catégories.");
@@ -168,7 +199,7 @@ export function ClueEditor({
     return () => {
       current = false;
     };
-  }, [collectionApi, collectionId]);
+  }, [collectionApi, collectionId, readOnlyCollection]);
 
   useEffect(() => {
     let current = true;
@@ -239,7 +270,7 @@ export function ClueEditor({
 
   function selectCollection(nextCollectionId: string) {
     setCategoryId("");
-    setCategories([]);
+    setCategoryState({ collectionId: "", rows: [] });
     setRequestedCollectionId(nextCollectionId);
     setActiveCollectionId(nextCollectionId || null);
   }
@@ -292,6 +323,7 @@ export function ClueEditor({
           ? await clueApi.update({
               ...payload,
               clueId: initialClue.id,
+              previousCoverage: initialClue.coverage,
               existingImages,
               removedImageIds: [...removedImageIds],
             })
@@ -385,10 +417,11 @@ export function ClueEditor({
               Collection
               <select
                 value={collectionId}
+                disabled={immutableIdentity}
                 onChange={(event) => selectCollection(event.target.value)}
               >
                 <option value="">Choisir une collection</option>
-                {collections.map((collection) => (
+                {writableCollections.map((collection) => (
                   <option key={collection.id} value={collection.id}>
                     {collection.name}
                   </option>
@@ -399,6 +432,7 @@ export function ClueEditor({
               Catégorie
               <select
                 value={categoryId}
+                disabled={immutableIdentity}
                 onChange={(event) => setCategoryId(event.target.value)}
               >
                 <option value="">Choisir une catégorie</option>
@@ -421,6 +455,7 @@ export function ClueEditor({
               Pays
               <select
                 value={countryCode}
+                disabled={immutableIdentity}
                 onChange={(event) => selectCountry(event.target.value)}
               >
                 <option value="">Choisir un pays</option>
@@ -555,7 +590,7 @@ export function ClueEditor({
             <button
               type="button"
               className="clue-publish-button"
-              disabled={loading}
+              disabled={loading || readOnlyCollection}
               onClick={() => void publish()}
             >
               {loading ? (
@@ -565,6 +600,11 @@ export function ClueEditor({
               )}
               {mode === "edit" ? "Mettre à jour l’indice" : "Publier l’indice"}
             </button>
+            {readOnlyCollection ? (
+              <p className="clue-inline-note">
+                Cette collection est en lecture seule. Choisissez une collection privée pour publier un indice.
+              </p>
+            ) : null}
             {success ? (
               <p className="clue-success" role="status">
                 {mode === "edit"

@@ -31,6 +31,7 @@ function form(): ClueFormInput {
 
 function client(events: string[]): ClueDataClient {
   return {
+    loadForEdit: vi.fn(async () => null),
     insertDraft: vi.fn(async () => {
       events.push("draft");
       return { id: "clue-1" };
@@ -201,6 +202,7 @@ describe("createClueApi", () => {
     const input: ClueEditInput = {
       ...form(),
       clueId: "clue-1",
+      previousCoverage: "selected_regions",
       countryCode: "KE",
       regionIds: ["KE-30"],
       title: "Bollards Kenyan",
@@ -258,5 +260,80 @@ describe("createClueApi", () => {
         alt_text: "Bollards Kenyan - image 2",
       },
     ]);
+    expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
+  });
+
+  it("retire d'abord les régions avant de passer un indice au pays entier", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    const api = createClueApi(dataClient, () => "image-1");
+
+    await expect(
+      api.update({
+        ...form(),
+        clueId: "clue-1",
+        previousCoverage: "selected_regions",
+        coverage: "whole_country",
+        regionIds: [],
+        images: [],
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "STOP 1",
+            sortOrder: 0,
+          },
+        ],
+        removedImageIds: [],
+      }),
+    ).resolves.toEqual({ id: "clue-1" });
+
+    expect(vi.mocked(dataClient.updateClue)).toHaveBeenNthCalledWith(
+      1,
+      "clue-1",
+      expect.objectContaining({
+        coverage: "selected_regions",
+        status: "draft",
+      }),
+    );
+    expect(vi.mocked(dataClient.replaceRegions)).toHaveBeenCalledWith("clue-1", []);
+    expect(vi.mocked(dataClient.updateClue)).toHaveBeenNthCalledWith(
+      2,
+      "clue-1",
+      expect.objectContaining({
+        coverage: "whole_country",
+        status: "draft",
+      }),
+    );
+    expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
+  });
+
+  it("n'actualise pas les métadonnées d'image quand seul le contenu textuel change", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    const api = createClueApi(dataClient, () => "image-1");
+
+    await expect(
+      api.update({
+        ...form(),
+        clueId: "clue-1",
+        previousCoverage: "selected_regions",
+        title: "Panneau STOP",
+        googleMapsUrl: "https://www.google.com/maps/@1,2,3a,75y",
+        images: [],
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "STOP 1",
+            sortOrder: 0,
+          },
+        ],
+        removedImageIds: [],
+      }),
+    ).resolves.toEqual({ id: "clue-1" });
+
+    expect(dataClient.updateImageSortOrders).not.toHaveBeenCalled();
+    expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
   });
 });

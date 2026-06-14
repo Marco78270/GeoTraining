@@ -1,14 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
   Bookmark,
-  ChevronDown,
-  CircleUserRound,
   Fence,
   Globe2,
   GraduationCap,
   Leaf,
-  LogOut,
   Map,
   MapPinned,
   Milestone,
@@ -22,6 +19,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { ProfileMenu } from "../admin/ProfileMenu";
 import { useAuth } from "../auth/authContext";
 import { useActiveCollection } from "../collections/activeCollectionContext";
 import { collectionKeys } from "../collections/collectionKeys";
@@ -76,10 +74,15 @@ function filterCountries(
             clue.title.toLocaleLowerCase("fr").includes(normalizedSearch)),
       );
       if (visibleClues.length === 0) return null;
+      const difficulty = visibleClues.reduce<Difficulty>((current, clue) => {
+        const rank = difficultyOrder.indexOf(clue.difficulty);
+        const currentRank = difficultyOrder.indexOf(current);
+        return rank > currentRank ? clue.difficulty : current;
+      }, visibleClues[0].difficulty);
       return {
         ...country,
         clues: visibleClues,
-        difficulty: visibleClues[0].difficulty,
+        difficulty,
       };
     })
     .filter((country): country is AtlasCountry => country !== null);
@@ -100,6 +103,9 @@ export function AtlasPage({
     error: collectionsError,
   } = useActiveCollection();
   const [atlasApi] = useState(() => suppliedAtlasApi ?? getAtlasApi());
+  const isPublicReadOnly = activeCollection?.visibility === "public_readonly";
+  const canEditActiveCollection =
+    activeCollection?.role === "owner";
   const [activeCategoryId, setActiveCategoryId] = useState("");
   const [activeDifficulties, setActiveDifficulties] = useState<Set<Difficulty>>(
     () => new Set(difficultyOrder),
@@ -107,6 +113,8 @@ export function AtlasPage({
   const [selectedCountryCode, setSelectedCountryCode] = useState<string | null>(
     null,
   );
+  const [selectedClueId, setSelectedClueId] = useState<string | null>(null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<"world" | "country">("world");
   const [search, setSearch] = useState("");
 
@@ -145,7 +153,14 @@ export function AtlasPage({
     markers.find((country) => country.code === effectiveSelectedCountryCode) ??
     markers[0] ??
     null;
-  const selectedClue = selectedCountry?.clues[0] ?? null;
+  const selectedClue =
+    selectedCountry?.clues.find((clue) => clue.id === selectedClueId) ??
+    selectedCountry?.clues[0] ??
+    null;
+  const effectiveSelectedRegionId =
+    selectedRegionId && selectedClue?.regionIds.includes(selectedRegionId)
+      ? selectedRegionId
+      : null;
   const selectedCountryCoverage = useMemo(() => {
     if (!selectedCountry || !activeCategory) {
       return {
@@ -185,7 +200,30 @@ export function AtlasPage({
   function selectCategory(categoryId: string) {
     setActiveCategoryId(categoryId);
     setSelectedCountryCode(null);
+    setSelectedClueId(null);
+    setSelectedRegionId(null);
     setViewport("world");
+  }
+
+  function selectCountry(code: string) {
+    setSelectedCountryCode(code);
+    setSelectedClueId(null);
+    setSelectedRegionId(null);
+  }
+
+  function selectRegion(regionId: string) {
+    if (!selectedCountry) {
+      return;
+    }
+    const matchingClue = selectedCountry.clues.find((clue) =>
+      clue.regionIds.includes(regionId),
+    );
+    if (!matchingClue) {
+      return;
+    }
+    setSelectedClueId(matchingClue.id);
+    setSelectedRegionId(regionId);
+    setViewport("country");
   }
 
   const totalClues = activeCategory?.total ?? 0;
@@ -203,17 +241,15 @@ export function AtlasPage({
         <nav className="atlas-nav" aria-label="Navigation principale">
           <NavLink to="/atlas"><Map />Atlas</NavLink>
           <NavLink to="/collections"><Bookmark />Collections</NavLink>
-          <span aria-disabled="true"><GraduationCap />Entraînement <small>Bientôt</small></span>
-          <span aria-disabled="true"><BarChart3 />Statistiques <small>Bientôt</small></span>
+          <NavLink to="/training"><GraduationCap />Entraînement</NavLink>
+          <NavLink to="/statistics"><BarChart3 />Statistiques</NavLink>
         </nav>
-        <div className="atlas-account">
-          <CircleUserRound aria-hidden="true" />
-          <span>{user?.email ?? "Utilisateur"}</span>
-          <ChevronDown aria-hidden="true" />
-          <button type="button" onClick={() => void signOut()} aria-label="Se déconnecter">
-            <LogOut aria-hidden="true" />
-          </button>
-        </div>
+        <ProfileMenu
+          email={user?.email}
+          onSignOut={() => {
+            void signOut();
+          }}
+        />
       </header>
 
       <div className="atlas-workspace">
@@ -258,7 +294,7 @@ export function AtlasPage({
                   >
                     <CategoryIcon category={category} />
                     <span>{category.name}</span>
-                    <span className="category-check" aria-hidden="true">{active ? "✓" : ""}</span>
+                    <span className="category-check" aria-hidden="true">{active ? "?" : ""}</span>
                   </button>
                 );
               })}
@@ -282,9 +318,13 @@ export function AtlasPage({
             </div>
           </section>
 
-          <Link className="add-clue-button" to="/clues/new">
-            <Plus aria-hidden="true" />Ajouter un indice
-          </Link>
+          {!isPublicReadOnly || canEditActiveCollection ? (
+            <Link className="add-clue-button" to="/clues/new">
+              <Plus aria-hidden="true" />Ajouter un indice
+            </Link>
+          ) : (
+            <p className="atlas-state">Collection publique en lecture seule.</p>
+          )}
         </aside>
 
         <section className="atlas-center">
@@ -312,12 +352,14 @@ export function AtlasPage({
             <AtlasMap
               markers={markers}
               selectedCountryCode={effectiveSelectedCountryCode}
+              selectedRegionId={effectiveSelectedRegionId}
               viewport={effectiveSelectedCountryCode ? viewport : "world"}
               hasWholeCountryCoverage={
                 selectedCountryCoverage.hasWholeCountryCoverage
               }
               coveredRegionIds={selectedCountryCoverage.coveredRegionIds}
-              onCountrySelect={setSelectedCountryCode}
+              onCountrySelect={selectCountry}
+              onRegionSelect={selectRegion}
               onViewportChange={setViewport}
             />
             {viewport === "country" ? (
@@ -326,6 +368,8 @@ export function AtlasPage({
                 className="world-view-button"
                 onClick={() => {
                   setSelectedCountryCode(null);
+                  setSelectedClueId(null);
+                  setSelectedRegionId(null);
                   setViewport("world");
                 }}
               >
@@ -363,6 +407,12 @@ export function AtlasPage({
               <div>
                 <h1>{selectedCountry.name}</h1>
                 <p>Catégorie : <strong>{activeCategory.name}</strong></p>
+                {isPublicReadOnly ? (
+                  <span className="official-badge">
+                    <ShieldCheck aria-hidden="true" />
+                    Officielle
+                  </span>
+                ) : null}
               </div>
               <span className={`difficulty-badge ${selectedClue.difficulty}`}>
                 <ShieldCheck aria-hidden="true" />
@@ -371,7 +421,7 @@ export function AtlasPage({
             </div>
 
             <h2 className="atlas-clue-title">{selectedClue.title}</h2>
-            {activeCollectionId ? (
+            {activeCollectionId && (!isPublicReadOnly || canEditActiveCollection) ? (
               <Link
                 className="zoom-country-button"
                 to={`/clues/${selectedClue.id}/edit`}
@@ -431,6 +481,36 @@ export function AtlasPage({
               <h2>Notes GeoGuessr</h2>
               <p>{selectedClue.notes || "Aucune note renseignée."}</p>
             </section>
+            {selectedClue.sourceName || selectedClue.licenseName ? (
+              <section className="detail-section">
+                <h2>Source</h2>
+                {selectedClue.attributionText ? <p>{selectedClue.attributionText}</p> : null}
+                {selectedClue.sourceName ? (
+                  <p>
+                    Source :{" "}
+                    {selectedClue.sourceUrl ? (
+                      <a href={selectedClue.sourceUrl} target="_blank" rel="noreferrer">
+                        {selectedClue.sourceName}
+                      </a>
+                    ) : (
+                      selectedClue.sourceName
+                    )}
+                  </p>
+                ) : null}
+                {selectedClue.licenseName ? (
+                  <p>
+                    Licence :{" "}
+                    {selectedClue.licenseUrl ? (
+                      <a href={selectedClue.licenseUrl} target="_blank" rel="noreferrer">
+                        {selectedClue.licenseName}
+                      </a>
+                    ) : (
+                      selectedClue.licenseName
+                    )}
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
             {selectedClue.googleMapsUrl ? (
               <a
                 className="zoom-country-button"
@@ -455,7 +535,11 @@ export function AtlasPage({
               className="zoom-country-button"
               onClick={() => setViewport("country")}
             >
-              <Target aria-hidden="true" />Zoomer sur {selectedCountry.name}
+              <Target aria-hidden="true" />
+              Zoomer sur{" "}
+              {selectedClue.regions[0]
+                ? `${selectedCountry.name} · ${selectedClue.regions[0]}`
+                : selectedCountry.name}
             </button>
           </aside>
         ) : (

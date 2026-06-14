@@ -136,6 +136,7 @@ describe("parseClueForm", () => {
       parseClueEditForm({
         ...validInput({ images: [] }),
         clueId: "clue-1",
+        previousCoverage: "whole_country",
         existingImages: [
           {
             id: "stored-1",
@@ -154,6 +155,7 @@ describe("parseClueForm", () => {
       parseClueEditForm({
         ...validInput({ images: [] }),
         clueId: "clue-1",
+        previousCoverage: "whole_country",
         existingImages: [
           {
             id: "stored-1",

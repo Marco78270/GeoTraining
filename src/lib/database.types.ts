@@ -7,6 +7,8 @@ export type Json =
   | Json[];
 
 type CollectionRole = "owner" | "editor";
+type CollectionVisibility = "private" | "public_readonly";
+type PlatformRole = "admin" | "super_admin";
 type CoverageMode = "whole_country" | "selected_regions";
 type ClueDifficulty = "easy" | "medium" | "expert";
 type InvitationStatus =
@@ -27,6 +29,7 @@ export type Database = {
           id: string;
           display_name: string;
           avatar_url: string | null;
+          email: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -34,6 +37,7 @@ export type Database = {
           id: string;
           display_name?: string;
           avatar_url?: string | null;
+          email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -41,6 +45,7 @@ export type Database = {
           id?: string;
           display_name?: string;
           avatar_url?: string | null;
+          email?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -55,28 +60,60 @@ export type Database = {
           },
         ];
       };
+      user_roles: {
+        Row: {
+          user_id: string;
+          role: PlatformRole;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          role: PlatformRole;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          role?: PlatformRole;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       collections: {
         Row: {
           id: string;
-          owner_id: string;
+          owner_id: string | null;
           name: string;
           description: string | null;
+          visibility: CollectionVisibility;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          owner_id: string;
+          owner_id?: string | null;
           name: string;
           description?: string | null;
+          visibility?: CollectionVisibility;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          owner_id?: string;
+          owner_id?: string | null;
           name?: string;
           description?: string | null;
+          visibility?: CollectionVisibility;
           created_at?: string;
           updated_at?: string;
         };
@@ -303,6 +340,11 @@ export type Database = {
           characteristics: string[];
           notes: string | null;
           google_maps_url: string | null;
+          source_name: string | null;
+          source_url: string | null;
+          license_name: string | null;
+          license_url: string | null;
+          attribution_text: string | null;
           author_id: string;
           created_at: string;
           updated_at: string;
@@ -319,6 +361,11 @@ export type Database = {
           characteristics?: string[];
           notes?: string | null;
           google_maps_url?: string | null;
+          source_name?: string | null;
+          source_url?: string | null;
+          license_name?: string | null;
+          license_url?: string | null;
+          attribution_text?: string | null;
           author_id?: string;
           created_at?: string;
           updated_at?: string;
@@ -335,6 +382,11 @@ export type Database = {
           characteristics?: string[];
           notes?: string | null;
           google_maps_url?: string | null;
+          source_name?: string | null;
+          source_url?: string | null;
+          license_name?: string | null;
+          license_url?: string | null;
+          attribution_text?: string | null;
           author_id?: string;
           created_at?: string;
           updated_at?: string;
@@ -574,12 +626,33 @@ export type Database = {
         };
         Returns: {
           id: string;
-          owner_id: string;
+          owner_id: string | null;
           name: string;
           description: string | null;
+          visibility: CollectionVisibility;
           created_at: string;
           updated_at: string;
         };
+      };
+      can_read_collection: {
+        Args: { target_collection_id: string };
+        Returns: boolean;
+      };
+      can_read_collection_clue: {
+        Args: { target_collection_id: string; target_status: ClueStatus };
+        Returns: boolean;
+      };
+      is_platform_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      is_super_admin: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      is_collection_public: {
+        Args: { target_collection_id: string };
+        Returns: boolean;
       };
       is_collection_member: {
         Args: { target_collection_id: string };
@@ -623,6 +696,8 @@ export type Database = {
       };
     };
     Enums: {
+      platform_role: PlatformRole;
+      collection_visibility: CollectionVisibility;
       collection_role: CollectionRole;
       coverage_mode: CoverageMode;
       clue_difficulty: ClueDifficulty;

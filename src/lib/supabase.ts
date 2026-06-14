@@ -1,6 +1,15 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 
+declare global {
+  interface Window {
+    __APP_CONFIG__?: {
+      VITE_SUPABASE_URL?: string;
+      VITE_SUPABASE_ANON_KEY?: string;
+    };
+  }
+}
+
 export type SupabaseConfig = {
   url: string;
   anonKey: string;
@@ -40,6 +49,25 @@ function validateConfig(config: SupabaseConfig) {
   }
 }
 
+function readRuntimeConfig() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  return window.__APP_CONFIG__;
+}
+
+export function resolveSupabaseConfig(): SupabaseConfig {
+  const runtimeConfig = readRuntimeConfig();
+
+  return {
+    url: runtimeConfig?.VITE_SUPABASE_URL ?? import.meta.env.VITE_SUPABASE_URL ?? "",
+    anonKey:
+      runtimeConfig?.VITE_SUPABASE_ANON_KEY ??
+      import.meta.env.VITE_SUPABASE_ANON_KEY ??
+      "",
+  };
+}
+
 export function createSupabaseClient(
   config: SupabaseConfig,
 ): SupabaseClient<Database> {
@@ -50,10 +78,7 @@ export function createSupabaseClient(
 let singleton: SupabaseClient<Database> | undefined;
 
 export function getSupabaseClient(): SupabaseClient<Database> {
-  singleton ??= createSupabaseClient({
-    url: import.meta.env.VITE_SUPABASE_URL ?? "",
-    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? "",
-  });
+  singleton ??= createSupabaseClient(resolveSupabaseConfig());
 
   return singleton;
 }

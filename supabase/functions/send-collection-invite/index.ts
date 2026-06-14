@@ -7,7 +7,7 @@ import {
 
 function allowedOrigins() {
   return new Set(
-    (Deno.env.get("INVITE_ALLOWED_ORIGINS") ?? "http://localhost:5173")
+    (Deno.env.get("INVITE_ALLOWED_ORIGINS") ?? "")
       .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
@@ -126,7 +126,7 @@ const dependencies: InviteHandlerDependencies = {
   createToken,
   hashToken: sha256,
   now: () => new Date(),
-  appUrl: Deno.env.get("APP_URL") ?? "http://localhost:5173",
+  appUrl: Deno.env.get("APP_URL") ?? "",
   localMode:
     Deno.env.get("SUPABASE_ENV") === "local" &&
     Deno.env.get("ALLOW_LOCAL_INVITE_LINK") === "true",

@@ -1,10 +1,7 @@
 import { useEffect, useRef } from "react";
-import type {
-  GeoJSONSource,
-  Map as MapLibreMap,
-  MapLayerMouseEvent,
-} from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, MapLayerMouseEvent } from "maplibre-gl";
 import type { AtlasCountry } from "./atlasApi";
+import type { WorldFeatureCollection } from "./atlasApi";
 
 type Viewport = "world" | "country";
 type AtlasMapCountry = Pick<
@@ -15,10 +12,12 @@ type AtlasMapCountry = Pick<
 export type AtlasMapProps = {
   markers: AtlasMapCountry[];
   selectedCountryCode: string | null;
+  selectedRegionId?: string | null;
   viewport: Viewport;
   hasWholeCountryCoverage?: boolean;
   coveredRegionIds?: string[];
   onCountrySelect(code: string): void;
+  onRegionSelect?(regionId: string): void;
   onViewportChange(viewport: Viewport): void;
 };
 
@@ -48,40 +47,122 @@ const inlineStyle = {
   ],
 };
 
+const difficultyFillColors = {
+  easy: "#4fd38a",
+  medium: "#f4c84f",
+  expert: "#f06b6b",
+} as const;
+
+type Bounds = [[number, number], [number, number]];
+type Coordinates = number | Coordinates[];
+type PaintPropertyValue = Parameters<MapLibreMap["setPaintProperty"]>[2];
+
+function featureBounds(
+  feature: WorldFeatureCollection["features"][number] | undefined,
+): Bounds | null {
+  if (!feature?.geometry) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  function visit(value: Coordinates) {
+    if (
+      Array.isArray(value) &&
+      value.length === 2 &&
+      typeof value[0] === "number" &&
+      typeof value[1] === "number"
+    ) {
+      minX = Math.min(minX, value[0]);
+      maxX = Math.max(maxX, value[0]);
+      minY = Math.min(minY, value[1]);
+      maxY = Math.max(maxY, value[1]);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+    }
+  }
+
+  visit(feature.geometry.coordinates as Coordinates);
+
+  return Number.isFinite(minX)
+    ? [
+        [minX, minY],
+        [maxX, maxY],
+      ]
+    : null;
+}
+
 export function AtlasMap({
   markers,
   selectedCountryCode,
+  selectedRegionId = null,
   viewport,
   hasWholeCountryCoverage = false,
   coveredRegionIds = [],
   onCountrySelect,
+  onRegionSelect,
   onViewportChange,
 }: AtlasMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const callbacksRef = useRef({ onCountrySelect, onViewportChange });
+  const callbacksRef = useRef({ onCountrySelect, onRegionSelect, onViewportChange });
   const markersRef = useRef(markers);
   const selectedCountryCodeRef = useRef(selectedCountryCode);
+  const selectedRegionIdRef = useRef(selectedRegionId);
   const previousSelectedCountryCodeRef = useRef<string | null>(null);
+  const previousMarkerCodesRef = useRef<Set<string>>(new Set());
   const viewportRef = useRef(viewport);
   const hasWholeCountryCoverageRef = useRef(hasWholeCountryCoverage);
   const coveredRegionIdsRef = useRef(coveredRegionIds);
+  const worldFeaturesRef = useRef(
+    new Map<string, WorldFeatureCollection["features"][number]>(),
+  );
 
   useEffect(() => {
-    callbacksRef.current = { onCountrySelect, onViewportChange };
-  }, [onCountrySelect, onViewportChange]);
+    callbacksRef.current = { onCountrySelect, onRegionSelect, onViewportChange };
+  }, [onCountrySelect, onRegionSelect, onViewportChange]);
 
   useEffect(() => {
     markersRef.current = markers;
     selectedCountryCodeRef.current = selectedCountryCode;
+    selectedRegionIdRef.current = selectedRegionId;
     viewportRef.current = viewport;
     hasWholeCountryCoverageRef.current = hasWholeCountryCoverage;
     coveredRegionIdsRef.current = coveredRegionIds;
-  }, [markers, selectedCountryCode, viewport, hasWholeCountryCoverage, coveredRegionIds]);
+  }, [
+    markers,
+    selectedCountryCode,
+    selectedRegionId,
+    viewport,
+    hasWholeCountryCoverage,
+    coveredRegionIds,
+  ]);
 
   useEffect(() => {
     let disposed = false;
     let map: MapLibreMap | null = null;
+
+    void fetch("/geography/world.geojson")
+      .then((response) =>
+        response.ok ? (response.json() as Promise<WorldFeatureCollection>) : null,
+      )
+      .then((world) => {
+        if (disposed || !world) {
+          return;
+        }
+        worldFeaturesRef.current = new Map(
+          world.features.map((feature) => [feature.properties.iso2, feature]),
+        );
+      })
+      .catch(() => {
+        if (!disposed) {
+          worldFeaturesRef.current = new Map();
+        }
+      });
 
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !containerRef.current) {
@@ -121,12 +202,26 @@ export function AtlasMap({
               "#20d4e6",
               ["boolean", ["feature-state", "hover"], false],
               "#3b6e83",
+              ["boolean", ["feature-state", "hasData"], false],
+              [
+                "match",
+                ["feature-state", "difficulty"],
+                "easy",
+                difficultyFillColors.easy,
+                "medium",
+                difficultyFillColors.medium,
+                "expert",
+                difficultyFillColors.expert,
+                "#29445f",
+              ],
               "#29445f",
             ],
             "fill-opacity": [
               "case",
               ["boolean", ["feature-state", "selected"], false],
               0.7,
+              ["boolean", ["feature-state", "hasData"], false],
+              0.42,
               0.84,
             ],
           },
@@ -137,50 +232,29 @@ export function AtlasMap({
           source: "world-demo",
           paint: {
             "line-color": "#7790a7",
-            "line-width": 0.75,
+            "line-width": [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              1.6,
+              0.75,
+            ],
             "line-opacity": 0.7,
           },
         });
-        map.addSource("atlas-markers", {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: [],
-          },
-        });
-        map.addLayer({
-          id: "atlas-markers-glow",
-          type: "circle",
-          source: "atlas-markers",
-          paint: {
-            "circle-radius": 10,
-            "circle-color": ["get", "color"],
-            "circle-opacity": 0.16,
-          },
-        });
-        map.addLayer({
-          id: "atlas-markers",
-          type: "circle",
-          source: "atlas-markers",
-          paint: {
-            "circle-radius": 5.5,
-            "circle-color": ["get", "color"],
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#f5f8fc",
-          },
-        });
 
-        updateMarkers(map, markersRef.current);
         updateSelection(
           map,
           markersRef.current,
           selectedCountryCodeRef.current,
           viewportRef.current,
+          worldFeaturesRef.current,
+          previousMarkerCodesRef.current,
         );
         previousSelectedCountryCodeRef.current = selectedCountryCodeRef.current;
         void updateRegionOverlay(
           map,
           selectedCountryCodeRef.current,
+          selectedRegionIdRef.current,
           viewportRef.current,
           hasWholeCountryCoverageRef.current,
           coveredRegionIdsRef.current,
@@ -228,11 +302,29 @@ export function AtlasMap({
             callbacksRef.current.onViewportChange("country");
           }
         });
-        map.on("click", "atlas-markers", (event: MapLayerMouseEvent) => {
-          const code = event.features?.[0]?.properties?.code as string | undefined;
-          if (code) {
-            callbacksRef.current.onCountrySelect(code);
-            callbacksRef.current.onViewportChange("country");
+        map.on("mousemove", "country-regions-fill", (event: MapLayerMouseEvent) => {
+          if (!map) {
+            return;
+          }
+          const regionId = event.features?.[0]?.properties?.id;
+          const interactive =
+            typeof regionId === "string" &&
+            coveredRegionIdsRef.current.includes(regionId);
+          map.getCanvas().style.cursor = interactive ? "pointer" : "";
+        });
+        map.on("mouseleave", "country-regions-fill", () => {
+          if (!map) {
+            return;
+          }
+          map.getCanvas().style.cursor = "";
+        });
+        map.on("click", "country-regions-fill", (event: MapLayerMouseEvent) => {
+          const regionId = event.features?.[0]?.properties?.id;
+          if (
+            typeof regionId === "string" &&
+            coveredRegionIdsRef.current.includes(regionId)
+          ) {
+            callbacksRef.current.onRegionSelect?.(regionId);
           }
         });
       });
@@ -250,15 +342,16 @@ export function AtlasMap({
     if (!map?.isStyleLoaded()) {
       return;
     }
-    updateMarkers(map, markers);
-  }, [markers]);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map?.isStyleLoaded()) {
-      return;
-    }
-    updateSelection(map, markers, selectedCountryCode, viewport);
+    map.setLayoutProperty("countries-fill", "visibility", "visible");
+    map.setLayoutProperty("countries-line", "visibility", "visible");
+    updateSelection(
+      map,
+      markers,
+      selectedCountryCode,
+      viewport,
+      worldFeaturesRef.current,
+      previousMarkerCodesRef.current,
+    );
     if (
       previousSelectedCountryCodeRef.current &&
       previousSelectedCountryCodeRef.current !== selectedCountryCode
@@ -269,16 +362,24 @@ export function AtlasMap({
       );
     }
     previousSelectedCountryCodeRef.current = selectedCountryCode;
+  }, [markers, selectedCountryCode, viewport]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.isStyleLoaded()) {
+      return;
+    }
     void updateRegionOverlay(
       map,
       selectedCountryCode,
+      selectedRegionId,
       viewport,
       hasWholeCountryCoverage,
       coveredRegionIds,
     );
   }, [
-    markers,
     selectedCountryCode,
+    selectedRegionId,
     viewport,
     hasWholeCountryCoverage,
     coveredRegionIds,
@@ -324,11 +425,12 @@ export function AtlasMap({
 async function updateRegionOverlay(
   map: MapLibreMap,
   selectedCountryCode: string | null,
+  selectedRegionId: string | null,
   viewport: Viewport,
   hasWholeCountryCoverage: boolean,
   coveredRegionIds: string[],
 ) {
-  const coveredRegionMatchExpression: any = [
+  const coveredRegionMatchExpression: PaintPropertyValue = [
     "match",
     ["get", "id"],
     coveredRegionIds,
@@ -336,6 +438,26 @@ async function updateRegionOverlay(
     false,
   ];
   const source = map.getSource("country-regions") as GeoJSONSource | undefined;
+  const fillColor: PaintPropertyValue = [
+    "case",
+    ["==", ["get", "id"], selectedRegionId ?? ""],
+    "#23e7ff",
+    coveredRegionMatchExpression,
+    "#20d4e6",
+    hasWholeCountryCoverage,
+    "#173c57",
+    "#10293d",
+  ];
+  const fillOpacity: PaintPropertyValue = [
+    "case",
+    ["==", ["get", "id"], selectedRegionId ?? ""],
+    0.82,
+    coveredRegionMatchExpression,
+    0.62,
+    hasWholeCountryCoverage,
+    0.38,
+    0.16,
+  ];
   if (!selectedCountryCode || viewport !== "country") {
     source?.setData({
       type: "FeatureCollection",
@@ -355,26 +477,21 @@ async function updateRegionOverlay(
         data,
       });
       map.addLayer({
+        id: "selected-country-fill",
+        type: "fill",
+        source: "country-regions",
+        paint: {
+          "fill-color": "#20d4e6",
+          "fill-opacity": 0.18,
+        },
+      });
+      map.addLayer({
         id: "country-regions-fill",
         type: "fill",
         source: "country-regions",
         paint: {
-          "fill-color": [
-            "case",
-            coveredRegionMatchExpression,
-            "#20d4e6",
-            hasWholeCountryCoverage,
-            "#173c57",
-            "#10293d",
-          ],
-          "fill-opacity": [
-            "case",
-            coveredRegionMatchExpression,
-            0.62,
-            hasWholeCountryCoverage,
-            0.38,
-            0.16,
-          ],
+          "fill-color": fillColor,
+          "fill-opacity": fillOpacity,
         },
       });
       map.addLayer({
@@ -391,29 +508,11 @@ async function updateRegionOverlay(
     }
 
     source.setData(data);
+    map.setPaintProperty("country-regions-fill", "fill-color", fillColor);
+    map.setPaintProperty("country-regions-fill", "fill-opacity", fillOpacity);
   } catch {
     // Keep the country map usable even when regional geometry is missing.
   }
-}
-
-function updateMarkers(map: MapLibreMap, markers: AtlasMapCountry[]) {
-  const source = map.getSource("atlas-markers") as GeoJSONSource | undefined;
-  source?.setData({
-    type: "FeatureCollection",
-    features: markers.map((country) => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: country.coordinates },
-      properties: {
-        code: country.code,
-        color:
-          country.difficulty === "easy"
-            ? "#38d47a"
-            : country.difficulty === "medium"
-              ? "#f4b52d"
-              : "#ef5b5b",
-      },
-    })),
-  });
 }
 
 function updateSelection(
@@ -421,17 +520,52 @@ function updateSelection(
   markers: AtlasMapCountry[],
   selectedCountryCode: string | null,
   viewport: Viewport,
+  worldFeatures: ReadonlyMap<string, WorldFeatureCollection["features"][number]>,
+  previousMarkerCodes: Set<string>,
 ) {
+  const nextMarkerCodes = new Set(markers.map((country) => country.code));
+
+  for (const code of previousMarkerCodes) {
+    if (!nextMarkerCodes.has(code)) {
+      map.setFeatureState(
+        { source: "world-demo", id: code },
+        { selected: false, hasData: false, difficulty: null },
+      );
+    }
+  }
+
   for (const country of markers) {
+    const isSelectedInCountryView =
+      viewport === "country" && country.code === selectedCountryCode;
+
     map.setFeatureState(
       { source: "world-demo", id: country.code },
-      { selected: country.code === selectedCountryCode },
+      {
+        selected: viewport === "world" && country.code === selectedCountryCode,
+        hasData: isSelectedInCountryView ? false : true,
+        difficulty: country.difficulty,
+      },
     );
   }
-  const selected = markers.find((country) => country.code === selectedCountryCode);
-  if (selected && viewport === "country") {
-    map.flyTo({ center: selected.coordinates, zoom: 3.2, duration: 900 });
-  } else {
-    map.fitBounds(WORLD_BOUNDS, { padding: 34, duration: 800 });
+
+  previousMarkerCodes.clear();
+  for (const code of nextMarkerCodes) {
+    previousMarkerCodes.add(code);
   }
+
+  const selected = selectedCountryCode
+    ? worldFeatures.get(selectedCountryCode)
+    : undefined;
+  const bounds = featureBounds(selected);
+
+  if (bounds && viewport === "country") {
+    map.fitBounds(bounds, {
+      padding: 40,
+      duration: 900,
+      maxZoom: 4.8,
+    });
+    return;
+  }
+
+  map.fitBounds(WORLD_BOUNDS, { padding: 34, duration: 800 });
 }
