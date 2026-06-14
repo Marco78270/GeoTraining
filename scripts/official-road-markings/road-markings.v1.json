@@ -6,9 +6,9 @@
     "difficulty": "medium",
     "title": "Marquages au sol - France",
     "characteristics": [
-      "Marquages de voies exclusivement blancs",
+      "Lignes de separation blanches visibles entre les voies",
       "Lignes axiales discontinues composees de traits relativement courts",
-      "Fleches directionnelles blanches avant les intersections"
+      "Fleches directionnelles blanches et marquage colore d'amenagement urbain"
     ],
     "notes": "En France, le rythme des lignes discontinues peut aider, mais il faut le comparer avec les balises, panneaux et priorites. La photo montre plusieurs types de traits et de fleches visibles en circulation urbaine.",
     "sourceName": "Wikimedia Commons",
@@ -123,14 +123,14 @@
     "id": "1af64390-1c1a-40b4-8174-efdf5940fabb",
     "countryCode": "DE",
     "regionIds": [],
-    "difficulty": "easy",
+    "difficulty": "medium",
     "title": "Marquages temporaires - Allemagne",
     "characteristics": [
       "Lignes jaunes employees pour les tracages temporaires",
       "Anciennes lignes blanches pouvant rester visibles sous le parcours provisoire",
       "Marquage jaune prioritaire pendant les travaux"
     ],
-    "notes": "Le jaune qui remplace temporairement les lignes blanches est un indice routier allemand tres utile. Il faut distinguer ce cas des pays qui utilisent normalement le jaune pour separer les sens de circulation.",
+    "notes": "Le jaune qui remplace temporairement les lignes blanches peut aider en Allemagne, mais ce principe est partage avec plusieurs pays europeens. Il doit etre confirme avec les panneaux, bollards et autres elements routiers.",
     "sourceName": "Wikimedia Commons",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Road_marking_-_yellow_overrides_white.jpg",
     "licenseName": "CC BY-SA 4.0",
@@ -184,11 +184,11 @@
     "countryCode": "SE",
     "regionIds": [],
     "difficulty": "expert",
-    "title": "Marquages de rive - Suede",
+    "title": "Pointilles lateraux - Suede",
     "characteristics": [
-      "Lignes de rive blanches continues",
+      "Courts pointilles blancs visibles pres des bords de la chaussee",
       "Ligne centrale blanche sur les routes a double sens",
-      "Bandes laterales parfois etroites sur les routes rurales"
+      "Accotements etroits au-dela des pointilles lateraux"
     ],
     "notes": "Le marquage suedois est subtil et ressemble a celui de plusieurs pays nordiques. Il faut surtout l'utiliser avec les pointilles lateraux, les bollards et la vegetation.",
     "sourceName": "Wikimedia Commons",
@@ -208,7 +208,7 @@
     "characteristics": [
       "Lignes de voies blanches longues et regulieres",
       "Bandes de rive blanches continues",
-      "Zones de rabattement composees de longues diagonales blanches"
+      "Large chaussee rectiligne avec voies clairement delimitees"
     ],
     "notes": "Ces marquages sont propres et tres normalises mais peu exclusifs a la Pologne. Ils servent surtout a confirmer une hypothese avec les panneaux, les glissieres et les bollards polonais.",
     "sourceName": "Wikimedia Commons",
@@ -247,8 +247,8 @@
     "title": "Voies de bus - Hongrie",
     "characteristics": [
       "Mot BUS peint en grandes capitales blanches",
-      "Fleches directionnelles blanches a proximite des voies reservees",
-      "Lignes continues delimitant le couloir de bus"
+      "Inscription placee dans un couloir reserve au bord de la chaussee",
+      "Marquage visible dans un environnement urbain hongrois"
     ],
     "notes": "Le marquage BUS seul n'est pas propre a la Hongrie. La typographie, la signalisation et le paysage urbain de Budapest ou de ses environs sont necessaires pour en faire un indice fiable.",
     "sourceName": "Wikimedia Commons",
@@ -257,7 +257,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
     "attributionText": "Photo de Globetrotter19, via Wikimedia Commons.",
     "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Bus%20lane%20road%20marking%20and%20bus%20lane%20end%20road%20sign%2C%202020%20Kelenf%C3%B6ld.jpg",
-    "imageAltText": "Voie de bus hongroise avec inscription BUS et fleche blanche"
+    "imageAltText": "Voie de bus hongroise avec inscription BUS peinte sur la chaussee"
   },
   {
     "id": "e335ebe2-650b-43b7-9410-a59aabf39856",
@@ -286,9 +286,9 @@
     "difficulty": "medium",
     "title": "Marquages routiers - Turquie",
     "characteristics": [
-      "Lignes axiales et de rive blanches sur les grands axes",
-      "Fleches blanches larges avant les bifurcations",
-      "Zebras blancs dans les zones neutralisees"
+      "Lignes discontinues blanches separant les voies de circulation",
+      "Ligne de rive blanche continue sur le bord de la chaussee",
+      "Bordures centrales peintes alternativement en jaune et noir"
     ],
     "notes": "Les marquages turcs ressemblent aux standards europeens. Ils deviennent utiles avec les grands panneaux bleus, les chevrons noir-jaune et le relief souvent sec.",
     "sourceName": "Wikimedia Commons",
@@ -297,7 +297,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "attributionText": "Photo de Bluetime93, via Wikimedia Commons.",
     "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/State%20Road%20D-695%201.jpg",
-    "imageAltText": "Route nationale turque avec lignes blanches et zone de bifurcation"
+    "imageAltText": "Route nationale turque avec lignes de voies blanches et bordures jaune-noir"
   },
   {
     "id": "f5e497d3-013e-4f3f-817d-cf15b7494e1d",
@@ -382,22 +382,24 @@
   {
     "id": "72553e9f-8e0a-420f-8f93-1393b0eb8519",
     "countryCode": "AU",
-    "regionIds": [],
+    "regionIds": [
+      "AU-QLD"
+    ],
     "difficulty": "easy",
-    "title": "Zones scolaires - Australie",
+    "title": "Zones scolaires - Queensland",
     "characteristics": [
       "Grand cartouche colore peint sur toute la largeur de la voie",
       "Texte anglais SCHOOL ZONE en capitales blanches",
       "Encadrement jaune et fond rouge tres visibles"
     ],
-    "notes": "Les grands marquages de zone scolaire australiens sont faciles a reperer. La conduite a gauche, les bordures et les panneaux de vitesse temporaires permettent de confirmer le pays.",
+    "notes": "Ce grand cartouche de zone scolaire est photographie dans le Queensland. Il doit etre utilise comme indice regional, avec la conduite a gauche, les bordures et la signalisation locale pour confirmer l'Australie.",
     "sourceName": "Wikimedia Commons",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:School_zone_warning_road_markings_in_Queensland,_Australia,_2023.jpg",
     "licenseName": "CC BY-SA 4.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
     "attributionText": "Photo de Kgbo, via Wikimedia Commons.",
     "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/School%20zone%20warning%20road%20markings%20in%20Queensland%2C%20Australia%2C%202023.jpg",
-    "imageAltText": "Rue australienne avec grand marquage rouge SCHOOL ZONE"
+    "imageAltText": "Rue du Queensland avec grand marquage rouge SCHOOL ZONE"
   },
   {
     "id": "6f530e70-b3a6-4e40-aff5-a90110ea4daa",
