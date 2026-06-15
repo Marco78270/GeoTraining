@@ -1,0 +1,248 @@
+[
+  {
+    "id": "a6b26d8f-7b5c-4613-876c-1386ec09dc65",
+    "countryCode": "FR",
+    "coverage": "whole_country",
+    "difficulty": "easy",
+    "title": "Plaque - France",
+    "characteristics": [
+      "Format long blanc avant et arriere",
+      "Bande bleue a gauche avec l'eurobande F",
+      "Bande bleue a droite avec logo regional ou departemental"
+    ],
+    "notes": "Tres commune en Europe occidentale. La double bande bleue est un excellent indice pour la France moderne.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:AA-229-AA_ref_License_plate_of_France.png",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:AA-229-AA_ref_License_plate_of_France.png",
+    "attributionText": "France plate reference image from Wikimedia Commons: File:AA-229-AA_ref_License_plate_of_France.png.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/AA-229-AA_ref_License_plate_of_France.png",
+    "imageAltText": "Plaque d'immatriculation France"
+  },
+  {
+    "id": "b0f8940a-baf1-4a82-8607-0562b6f00fff",
+    "countryCode": "ES",
+    "coverage": "whole_country",
+    "difficulty": "easy",
+    "title": "Plaque - Espagne",
+    "characteristics": [
+      "Format long blanc avant et arriere",
+      "Eurobande E sur fond bleu a gauche",
+      "Suite alphanumerique sans identifiant regional moderne"
+    ],
+    "notes": "Plaque tres proche du standard UE mais souvent reconnaissable par son style sobre sans bande droite.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Matr%C3%ADcula_automovil%C3%ADstica_Espa%C3%B1a_2000_2008_ZGZ_largo.svg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Matr%C3%ADcula_automovil%C3%ADstica_Espa%C3%B1a_2000_2008_ZGZ_largo.svg",
+    "attributionText": "Spain plate reference image from Wikimedia Commons: File:Matr%C3%ADcula_automovil%C3%ADstica_Espa%C3%B1a_2000_2008_ZGZ_largo.svg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Matr%C3%ADcula_automovil%C3%ADstica_Espa%C3%B1a_2000_2008_ZGZ_largo.svg?width=640",
+    "imageAltText": "Plaque d'immatriculation Espagne"
+  },
+  {
+    "id": "ba171c44-ef32-4389-83b1-9ad5a1d06799",
+    "countryCode": "PT",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Portugal",
+    "characteristics": [
+      "Format long blanc avant et arriere",
+      "Eurobande P sur fond bleu a gauche",
+      "Presence frequente d'une bande jaune datee sur anciens formats"
+    ],
+    "notes": "Le marquage jaune lateral des anciens formats est un meta tres utile au Portugal.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Chapa98.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Chapa98.jpg",
+    "attributionText": "Portugal plate reference image from Wikimedia Commons: File:Chapa98.jpg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Chapa98.jpg",
+    "imageAltText": "Plaque d'immatriculation Portugal"
+  },
+  {
+    "id": "7b295b8d-f3ff-40d3-8d5a-eb08b9dadd37",
+    "countryCode": "IT",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Italie",
+    "characteristics": [
+      "Format long blanc avant et arriere",
+      "Double bande bleue laterale",
+      "Deux lettres, trois chiffres, deux lettres sur de nombreuses plaques modernes"
+    ],
+    "notes": "La double bande bleue peut rappeler la France mais la mise en page italienne differe generalement.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Targa_automobilistica_Italia_1999_EM%E2%80%A2502LA_Firenze_posteriore.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Targa_automobilistica_Italia_1999_EM%E2%80%A2502LA_Firenze_posteriore.jpg",
+    "attributionText": "Italy plate reference image from Wikimedia Commons: File:Targa_automobilistica_Italia_1999_EM%E2%80%A2502LA_Firenze_posteriore.jpg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Targa_automobilistica_Italia_1999_EM%E2%80%A2502LA_Firenze_posteriore.jpg",
+    "imageAltText": "Plaque d'immatriculation Italie"
+  },
+  {
+    "id": "eba42395-98e8-4834-945b-6cd85e906c59",
+    "countryCode": "DE",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Allemagne",
+    "characteristics": [
+      "Format long blanc avant et arriere",
+      "Eurobande D sur fond bleu a gauche",
+      "Prefixe local ou urbain a une a trois lettres"
+    ],
+    "notes": "Le prefixe local est tres utile pour confirmer l'Allemagne et parfois identifier une grande ville.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:2007_Baden-W%C3%BCrttemberg_license_plate_(RAKL8136).png",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:2007_Baden-W%C3%BCrttemberg_license_plate_(RAKL8136).png",
+    "attributionText": "Germany plate reference image from Wikimedia Commons: File:2007_Baden-W%C3%BCrttemberg_license_plate_(RAKL8136).png.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/2007_Baden-W%C3%BCrttemberg_license_plate_(RAKL8136).png",
+    "imageAltText": "Plaque d'immatriculation Allemagne"
+  },
+  {
+    "id": "838aad30-357c-450d-9546-460caaeeba3a",
+    "countryCode": "GB",
+    "coverage": "whole_country",
+    "difficulty": "easy",
+    "title": "Plaque - Royaume-Uni",
+    "characteristics": [
+      "Plaque blanche a l'avant et jaune a l'arriere",
+      "Format long rectangulaire frequent",
+      "Disposition noire tres visible sur fond clair"
+    ],
+    "notes": "Le duo blanc avant / jaune arriere est un des metas plaques les plus faciles a reconnaitre.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Regular_GB_Front_Plate_(No_Band).png",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Regular_GB_Front_Plate_(No_Band).png",
+    "attributionText": "United Kingdom plate reference image from Wikimedia Commons: File:Regular_GB_Front_Plate_(No_Band).png.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Regular_GB_Front_Plate_(No_Band).png",
+    "imageAltText": "Plaque d'immatriculation Royaume-Uni"
+  },
+  {
+    "id": "900b8ea8-64bb-484b-b4b2-4737e9fc7a46",
+    "countryCode": "IE",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Irlande",
+    "characteristics": [
+      "Format long blanc avant et arriere",
+      "Bande bleue IRL sur la gauche",
+      "Annee d'immatriculation visible dans la sequence"
+    ],
+    "notes": "Le format avec annee bien visible est un excellent differentiant face au Royaume-Uni.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Revised_format_Republic_of_Ireland_numberplate_(2013-).svg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Revised_format_Republic_of_Ireland_numberplate_(2013-).svg",
+    "attributionText": "Ireland plate reference image from Wikimedia Commons: File:Revised_format_Republic_of_Ireland_numberplate_(2013-).svg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Revised_format_Republic_of_Ireland_numberplate_(2013-).svg?width=640",
+    "imageAltText": "Plaque d'immatriculation Irlande"
+  },
+  {
+    "id": "03a09196-7d2c-4fc4-a394-abada8302e25",
+    "countryCode": "NL",
+    "coverage": "whole_country",
+    "difficulty": "easy",
+    "title": "Plaque - Pays-Bas",
+    "characteristics": [
+      "Fond jaune a l'avant et a l'arriere",
+      "Texte noir",
+      "Eurobande NL sur fond bleu a gauche"
+    ],
+    "notes": "Les plaques jaunes des Pays-Bas sont tres memorables en Europe.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Current_series_dutch_license_plate.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Current_series_dutch_license_plate.jpg",
+    "attributionText": "Netherlands plate reference image from Wikimedia Commons: File:Current_series_dutch_license_plate.jpg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Current_series_dutch_license_plate.jpg",
+    "imageAltText": "Plaque d'immatriculation Pays-Bas"
+  },
+  {
+    "id": "bca7084b-7267-472a-80ab-bf1d6b28f7e9",
+    "countryCode": "BE",
+    "coverage": "whole_country",
+    "difficulty": "medium",
+    "title": "Plaque - Belgique",
+    "characteristics": [
+      "Fond blanc avec texte rouge",
+      "Eurobande B sur fond bleu a gauche",
+      "Combinaison commencant souvent par un chiffre"
+    ],
+    "notes": "Le texte rouge sur fond blanc aide beaucoup a differencier la Belgique du reste de l'Europe.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Autokenteken_Belgie_rood_op_wit_nr1-ABC-003.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Autokenteken_Belgie_rood_op_wit_nr1-ABC-003.jpg",
+    "attributionText": "Belgium plate reference image from Wikimedia Commons: File:Autokenteken_Belgie_rood_op_wit_nr1-ABC-003.jpg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Autokenteken_Belgie_rood_op_wit_nr1-ABC-003.jpg",
+    "imageAltText": "Plaque d'immatriculation Belgique"
+  },
+  {
+    "id": "975e8f58-2d9a-49eb-8815-c2f77b66c7f9",
+    "countryCode": "US",
+    "coverage": "selected_regions",
+    "regionIds": ["US-CA"],
+    "regionNames": ["California"],
+    "difficulty": "medium",
+    "title": "Plaque - United States - California",
+    "characteristics": [
+      "Fond blanc",
+      "Nom California en rouge script en haut",
+      "Plaque etat tres frequente en GeoGuessr"
+    ],
+    "notes": "Une des plaques d'etat les plus reconnaissables des Etats-Unis.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:California_State_License_Plate.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:California_State_License_Plate.jpg",
+    "attributionText": "California plate reference image from Wikimedia Commons: File:California_State_License_Plate.jpg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/California_State_License_Plate.jpg",
+    "imageAltText": "Plaque d'immatriculation Californie"
+  },
+  {
+    "id": "e096be31-9b7c-4697-a938-eeaa248f3eb8",
+    "countryCode": "US",
+    "coverage": "selected_regions",
+    "regionIds": ["US-NY"],
+    "regionNames": ["New York"],
+    "difficulty": "medium",
+    "title": "Plaque - United States - New York",
+    "characteristics": [
+      "Fond jaune ou degrade jaune selon serie",
+      "Texte sombre",
+      "Etat frequemment mentionne dans les metas plaques US"
+    ],
+    "notes": "La dominante jaune de nombreuses plaques New York aide a la separation avec d'autres etats.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:New_York_plate_4-2010.jpg",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:New_York_plate_4-2010.jpg",
+    "attributionText": "New York plate reference image from Wikimedia Commons: File:New_York_plate_4-2010.jpg.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/New_York_plate_4-2010.jpg",
+    "imageAltText": "Plaque d'immatriculation New York"
+  },
+  {
+    "id": "ee24c97a-95b6-4876-ac49-0294269980f8",
+    "countryCode": "US",
+    "coverage": "selected_regions",
+    "regionIds": ["US-TX"],
+    "regionNames": ["Texas"],
+    "difficulty": "expert",
+    "title": "Plaque - United States - Texas",
+    "characteristics": [
+      "Fond blanc ou clair",
+      "Texte sombre",
+      "Peut paraitre plus neutre que California ou New York"
+    ],
+    "notes": "Plus difficile, a utiliser surtout avec d'autres metas routiers ou urbains.",
+    "sourceName": "Wikimedia Commons",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Texas_Passenger_Car_License_Plate_2020.png",
+    "licenseName": "See Wikimedia Commons file page",
+    "licenseUrl": "https://commons.wikimedia.org/wiki/File:Texas_Passenger_Car_License_Plate_2020.png",
+    "attributionText": "Texas plate reference image from Wikimedia Commons: File:Texas_Passenger_Car_License_Plate_2020.png.",
+    "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Texas_Passenger_Car_License_Plate_2020.png",
+    "imageAltText": "Plaque d'immatriculation Texas"
+  }
+]

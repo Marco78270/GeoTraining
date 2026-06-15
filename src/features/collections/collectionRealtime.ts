@@ -1,0 +1,120 @@
+import type { QueryClient } from "@tanstack/react-query";
+import { collectionKeys } from "./collectionKeys";
+
+type RealtimeChannel = {
+  on(
+    type: "postgres_changes",
+    filter: {
+      event: "INSERT" | "UPDATE";
+      schema: "public";
+      table: string;
+      filter?: string;
+    },
+    callback: () => void,
+  ): RealtimeChannel;
+  subscribe(): RealtimeChannel;
+};
+
+export type CollectionRealtimeClient = {
+  channel(name: string): RealtimeChannel;
+  removeChannel(channel: RealtimeChannel): Promise<unknown> | unknown;
+};
+
+export function subscribeToCollection(
+  realtime: CollectionRealtimeClient,
+  queryClient: QueryClient,
+  collectionId: string,
+) {
+  const channel = realtime.channel(`collection:${collectionId}`);
+  const invalidate = (queryKey: readonly unknown[]) => () => {
+    void queryClient.invalidateQueries({ queryKey });
+  };
+  const invalidateMembership = () => {
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.members(collectionId),
+    });
+    void queryClient.invalidateQueries({ queryKey: collectionKeys.list() });
+  };
+  const invalidateAll = () => {
+    void queryClient.invalidateQueries({ queryKey: collectionKeys.list() });
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.categories(collectionId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.clues(collectionId),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: collectionKeys.members(collectionId),
+    });
+  };
+
+  channel
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "categories",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidate(collectionKeys.categories(collectionId)),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "categories",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidate(collectionKeys.categories(collectionId)),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "clues",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidate(collectionKeys.clues(collectionId)),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "clues",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidate(collectionKeys.clues(collectionId)),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "collection_members",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidateMembership,
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "collection_members",
+        filter: `collection_id=eq.${collectionId}`,
+      },
+      invalidateMembership,
+    )
+    .subscribe();
+
+  const fallbackInterval = window.setInterval(invalidateAll, 25_000);
+
+  return () => {
+    window.clearInterval(fallbackInterval);
+    void realtime.removeChannel(channel);
+  };
+}

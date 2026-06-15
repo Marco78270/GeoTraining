@@ -1,0 +1,21 @@
+{
+  "versionDate": "2026-06-11",
+  "upstreamUrl": "https://www.iso.org/obp/ui/#search",
+  "alpha3ToAlpha2": {
+    "CYN": "CY",
+    "FRA": "FR",
+    "NOR": "NO",
+    "SOL": "SO",
+    "TWN": "TW"
+  },
+  "canonicalNames": {
+    "CY": "Cyprus",
+    "FR": "France",
+    "NO": "Norway",
+    "SO": "Somalia",
+    "TW": "Taiwan"
+  },
+  "excludedAdm0A3": {
+    "KOS": "No officially assigned ISO 3166-1 alpha-2 code; omitted instead of treating XK as official."
+  }
+}

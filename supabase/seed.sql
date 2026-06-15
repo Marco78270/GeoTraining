@@ -1,0 +1,2 @@
+-- Geography reference data is generated and inserted by migrations.
+-- Keep this seed file for future local-only sample data.
