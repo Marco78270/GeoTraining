@@ -9,13 +9,20 @@ type PublishedTrainingClueRow = {
   id: string;
   category_id: string;
   country_code: string;
+  title: string;
+  coverage: "whole_country" | "selected_regions";
   difficulty: Difficulty;
+  source_name: string | null;
   categories: { name: string } | null;
   countries: { name: string } | null;
   clue_images: Array<{
     storage_path: string;
     alt_text: string | null;
     sort_order: number;
+  }>;
+  clue_regions: Array<{
+    region_id: string;
+    regions: { name: string } | null;
   }>;
 };
 
@@ -25,6 +32,8 @@ export type TrainingSessionRow =
 export type CreateTrainingSessionInput = {
   collectionId: string;
   categoryId?: string | null;
+  mode: "world" | "country";
+  countryCode?: string | null;
   totalQuestions: number;
 };
 
@@ -56,6 +65,13 @@ function buildOfficialFlagFallbackUrl(countryCode: string) {
   return `https://flagcdn.com/w320/${countryCode.toLowerCase()}.png`;
 }
 
+function canUseOfficialFlagFallback(clue: PublishedTrainingClueRow) {
+  return (
+    clue.source_name?.includes("FlagCDN") === true ||
+    clue.title.startsWith("Drapeau - ")
+  );
+}
+
 export function createTrainingApi(client: TrainingDataClient) {
   return {
     async loadPlayableClues(collectionId: string): Promise<TrainingClue[]> {
@@ -69,10 +85,17 @@ export function createTrainingApi(client: TrainingDataClient) {
         const primaryImage = [...row.clue_images].sort(
           (left, right) => left.sort_order - right.sort_order,
         )[0];
-        const imageUrl = primaryImage
-          ? (signedUrls[primaryImage.storage_path] ??
-            buildOfficialFlagFallbackUrl(row.country_code))
-          : buildOfficialFlagFallbackUrl(row.country_code);
+        const resolvedPrimaryImageUrl = primaryImage
+          ? signedUrls[primaryImage.storage_path]
+          : undefined;
+        const imageUrl = resolvedPrimaryImageUrl
+          ? resolvedPrimaryImageUrl
+          : canUseOfficialFlagFallback(row)
+            ? buildOfficialFlagFallbackUrl(row.country_code)
+            : null;
+        if (!imageUrl) {
+          continue;
+        }
         clues.push({
           id: row.id,
           countryCode: row.country_code,
@@ -83,6 +106,11 @@ export function createTrainingApi(client: TrainingDataClient) {
           imageUrl,
           imageAlt:
             primaryImage?.alt_text ?? row.countries?.name ?? row.country_code,
+          coverage: row.coverage,
+          regionIds: row.clue_regions.map((item) => item.region_id),
+          regionNames: row.clue_regions
+            .map((item) => item.regions?.name ?? "")
+            .filter(Boolean),
         });
       }
       return clues;
@@ -128,7 +156,7 @@ export function createSupabaseTrainingDataClient(
       const { data, error } = await supabase
         .from("clues")
         .select(
-          "id, category_id, country_code, difficulty, categories(name), countries(name), clue_images(storage_path, alt_text, sort_order)",
+          "id, category_id, country_code, title, coverage, difficulty, source_name, categories(name), countries(name), clue_images(storage_path, alt_text, sort_order), clue_regions(region_id, regions(name))",
         )
         .eq("collection_id", collectionId)
         .eq("status", "published")
@@ -158,7 +186,8 @@ export function createSupabaseTrainingDataClient(
         .from("training_sessions")
         .insert({
           collection_id: input.collectionId,
-          mode: "world",
+          mode: input.mode,
+          country_code: input.countryCode ?? null,
           category_id: input.categoryId ?? null,
           total_questions: input.totalQuestions,
         })

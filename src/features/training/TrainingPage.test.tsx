@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -17,21 +17,36 @@ import { TrainingPage } from "./TrainingPage";
 
 vi.mock("./TrainingMap", () => ({
   TrainingMap: ({
+    viewport,
+    countryCode,
+    markers,
     selectedCode,
     correctCode,
     disabled,
     onSelect,
   }: {
+    viewport: "world" | "country";
+    countryCode: string | null;
+    markers: Array<{ code: string; name: string; difficulty: string }>;
     selectedCode: string | null;
     correctCode: string | null;
     disabled: boolean;
     onSelect: (countryCode: string) => void;
   }) => (
     <div>
+      <output aria-label="Vue carte">{viewport}</output>
+      <output aria-label="Pays carte">{countryCode ?? "aucun"}</output>
+      <output aria-label="Pays couverts carte">
+        {markers.map((marker) => `${marker.name}:${marker.difficulty}`).join(",")}
+      </output>
       <output aria-label="Pays choisi">{selectedCode ?? "aucun"}</output>
       <output aria-label="Pays correct">{correctCode ?? "aucun"}</output>
-      <button type="button" disabled={disabled} onClick={() => onSelect("FR")}>
-        FR
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onSelect(markers[0]?.code ?? "FR")}
+      >
+        selectionner
       </button>
     </div>
   ),
@@ -82,6 +97,9 @@ function createTrainingApi(overrides: Partial<TrainingApi> = {}): TrainingApi {
         difficulty: "easy",
         imageUrl: "https://example.test/fr.png",
         imageAlt: "France",
+        coverage: "whole_country",
+        regionIds: [],
+        regionNames: [],
       },
     ],
     createSession: async () => ({
@@ -151,6 +169,19 @@ describe("TrainingPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("treats clues without images as non-playable", async () => {
+    renderTrainingPage(
+      createTrainingApi({
+        loadPlayableClues: async () => [],
+      }),
+    );
+
+    expect(screen.queryByText(/Drapeaux/i)).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(/aucun indice jouable/i),
+    ).toBeInTheDocument();
+  });
+
   it("starts a session from the setup form", async () => {
     const user = userEvent.setup();
     renderTrainingPage();
@@ -161,12 +192,58 @@ describe("TrainingPage", () => {
     expect(screen.getAllByText(/Drapeaux/i).length).toBeGreaterThan(0);
   });
 
+  it("allows switching to region mode when a single-region clue exists", async () => {
+    const user = userEvent.setup();
+    renderTrainingPage(
+      createTrainingApi({
+        loadPlayableClues: async () => [
+          {
+            id: "clue-1",
+            countryCode: "US",
+            countryName: "United States of America",
+            categoryId: "plates",
+            categoryName: "Plaques",
+            difficulty: "expert",
+            imageUrl: "https://example.test/us-ky.png",
+            imageAlt: "Kentucky plate",
+            coverage: "selected_regions",
+            regionIds: ["US-KY"],
+            regionNames: ["Kentucky"],
+          },
+        ],
+        createSession: async () => ({
+          id: "session-1",
+          user_id: "user-1",
+          collection_id: "collection-1",
+          mode: "country",
+          country_code: "US",
+          category_id: "plates",
+          total_questions: 1,
+          correct_answers: 0,
+          total_answers: 0,
+          started_at: "2026-06-12T08:00:00.000Z",
+          completed_at: null,
+          created_at: "2026-06-12T08:00:00.000Z",
+          updated_at: "2026-06-12T08:00:00.000Z",
+        }),
+      }),
+    );
+
+    await user.click(await screen.findByRole("button", { name: /r.gions/i }));
+
+    expect(screen.getByLabelText("Vue carte")).toHaveTextContent("country");
+    expect(screen.getByText("Kentucky")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /lancer/i }));
+    expect(await screen.findByText(/mode :/i)).toBeInTheDocument();
+  });
+
   it("locks the answer after the first clicked country and reveals the result", async () => {
     const user = userEvent.setup();
     renderTrainingPage();
 
     await user.click(await screen.findByRole("button", { name: /lancer/i }));
-    await user.click(await screen.findByRole("button", { name: "FR" }));
+    await user.click(await screen.findByRole("button", { name: "selectionner" }));
 
     expect(await screen.findByText(/Bonne r/i)).toBeInTheDocument();
     expect(
@@ -174,6 +251,58 @@ describe("TrainingPage", () => {
     ).toBeEnabled();
     expect(screen.getByLabelText("Pays choisi")).toHaveTextContent("FR");
     expect(screen.getByLabelText("Pays correct")).toHaveTextContent("FR");
+    expect(screen.getByText("Choisi : France (FR)")).toBeInTheDocument();
+    expect(screen.getByText("Correct : France (FR)")).toBeInTheDocument();
+  });
+
+  it("shows a region-specific instruction and answer in region mode", async () => {
+    const user = userEvent.setup();
+    renderTrainingPage(
+      createTrainingApi({
+        loadPlayableClues: async () => [
+          {
+            id: "clue-1",
+            countryCode: "US",
+            countryName: "United States of America",
+            categoryId: "plates",
+            categoryName: "Plaques",
+            difficulty: "expert",
+            imageUrl: "https://example.test/us-ct.png",
+            imageAlt: "Connecticut plate",
+            coverage: "selected_regions",
+            regionIds: ["US-CT"],
+            regionNames: ["Connecticut"],
+          },
+        ],
+        createSession: async () => ({
+          id: "session-1",
+          user_id: "user-1",
+          collection_id: "collection-1",
+          mode: "country",
+          country_code: "US",
+          category_id: "plates",
+          total_questions: 1,
+          correct_answers: 0,
+          total_answers: 0,
+          started_at: "2026-06-12T08:00:00.000Z",
+          completed_at: null,
+          created_at: "2026-06-12T08:00:00.000Z",
+          updated_at: "2026-06-12T08:00:00.000Z",
+        }),
+      }),
+    );
+
+    await user.click(await screen.findByRole("button", { name: /r.gions/i }));
+    await user.click(screen.getByRole("button", { name: /lancer/i }));
+
+    expect(
+      await screen.findByText(/cliquez sur la bonne r.gion sur la carte/i),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "selectionner" }));
+
+    expect(await screen.findByText("Choisi : Connecticut")).toBeInTheDocument();
+    expect(screen.getByText("Correct : Connecticut")).toBeInTheDocument();
   });
 
   it("shows the final score after the last answered question", async () => {
@@ -181,7 +310,7 @@ describe("TrainingPage", () => {
     renderTrainingPage();
 
     await user.click(await screen.findByRole("button", { name: /lancer/i }));
-    await user.click(await screen.findByRole("button", { name: "FR" }));
+    await user.click(await screen.findByRole("button", { name: "selectionner" }));
     await user.click(
       await screen.findByRole("button", { name: /question suivante/i }),
     );
@@ -220,5 +349,46 @@ describe("TrainingPage", () => {
       }),
     ).toBeVisible();
     expect(screen.getByText("Officielle")).toBeVisible();
+  });
+
+  it("shows covered countries and difficulty markers like the atlas summary", async () => {
+    renderTrainingPage(
+      createTrainingApi({
+        loadPlayableClues: async () => [
+          {
+            id: "clue-1",
+            countryCode: "TW",
+            countryName: "Taiwan",
+            categoryId: "bollards",
+            categoryName: "Bollards",
+            difficulty: "expert",
+            imageUrl: "https://example.test/tw.png",
+            imageAlt: "Taiwan",
+            coverage: "whole_country",
+            regionIds: [],
+            regionNames: [],
+          },
+          {
+            id: "clue-2",
+            countryCode: "FR",
+            countryName: "France",
+            categoryId: "bollards",
+            categoryName: "Bollards",
+            difficulty: "easy",
+            imageUrl: "https://example.test/fr.png",
+            imageAlt: "France",
+            coverage: "whole_country",
+            regionIds: [],
+            regionNames: [],
+          },
+        ],
+      }),
+    );
+
+    expect(await screen.findByText("France")).toBeInTheDocument();
+    expect(screen.getByText("Taiwan")).toBeInTheDocument();
+    expect(screen.getByLabelText("Pays couverts carte")).toHaveTextContent(
+      "France:easy,Taiwan:expert",
+    );
   });
 });

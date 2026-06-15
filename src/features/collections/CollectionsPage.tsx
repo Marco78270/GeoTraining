@@ -10,6 +10,11 @@ import {
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ProfileMenu } from "../admin/ProfileMenu";
+import {
+  canAdministerCollection,
+  canWriteCollectionContent,
+  usePlatformRole,
+} from "../admin/platformRole";
 import { useAuth } from "../auth/authContext";
 import { useActiveCollection } from "./activeCollectionContext";
 import {
@@ -24,6 +29,7 @@ import { InviteEditorDialog } from "./InviteEditorDialog";
 
 export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
   const [api] = useState(() => suppliedApi ?? getCollectionApi());
+  const platformRole = usePlatformRole();
   const {
     collections,
     activeCollection,
@@ -70,8 +76,14 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
     },
   });
   const isPublicReadOnly = activeCollection?.visibility === "public_readonly";
-  const canAdministerActiveCollection =
-    activeCollection?.role === "owner";
+  const canAdministerActiveCollection = canAdministerCollection(
+    activeCollection,
+    platformRole,
+  );
+  const canEditActiveCollection = canWriteCollectionContent(
+    activeCollection,
+    platformRole,
+  );
 
   return (
     <main className="app-shell atlas-module-page">
@@ -122,6 +134,7 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
             value={activeCollectionId}
             onChange={setActiveCollectionId}
             disabled={isLoading}
+            platformRole={platformRole}
           />
           <form
             className="stack-form"
@@ -237,7 +250,7 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
               </section>
               <CategoryList
                 collectionId={activeCollection.id}
-                readOnly={isPublicReadOnly && !canAdministerActiveCollection}
+                readOnly={!canEditActiveCollection}
                 api={api}
               />
               <InviteEditorDialog

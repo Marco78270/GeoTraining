@@ -1,7 +1,10 @@
+import type { PlatformRole } from "../admin/adminApi";
+import { canAdministerCollection } from "../admin/platformRole";
 import type { CollectionSummary } from "./collectionApi";
 
 function describeCollection(
   collection: Pick<CollectionSummary, "name" | "role" | "visibility">,
+  isCollectionAdmin: boolean,
 ) {
   const suffixes: string[] = [];
 
@@ -10,7 +13,7 @@ function describeCollection(
   }
   if (collection.visibility === "public_readonly") {
     suffixes.push(
-      collection.role === "owner"
+      isCollectionAdmin
         ? "publique · administration"
         : "publique · lecture seule",
     );
@@ -26,6 +29,7 @@ export function CollectionPicker({
   value,
   onChange,
   disabled = false,
+  platformRole,
 }: {
   collections: Array<
     Pick<CollectionSummary, "id" | "name" | "role" | "visibility">
@@ -33,6 +37,7 @@ export function CollectionPicker({
   value: string | null;
   onChange(id: string): void;
   disabled?: boolean;
+  platformRole?: PlatformRole | null;
 }) {
   return (
     <label className="collection-picker">
@@ -47,7 +52,10 @@ export function CollectionPicker({
         ) : null}
         {collections.map((collection) => (
           <option key={collection.id} value={collection.id}>
-            {describeCollection(collection)}
+            {describeCollection(
+              collection,
+              canAdministerCollection(collection, platformRole),
+            )}
           </option>
         ))}
       </select>

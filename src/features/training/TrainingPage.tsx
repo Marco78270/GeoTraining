@@ -6,6 +6,7 @@ import {
   Globe2,
   GraduationCap,
   Map as MapIcon,
+  MapPinned,
   Play,
   Search,
   ShieldCheck,
@@ -33,6 +34,7 @@ import {
 
 type TrainingSessionState = {
   sessionId: string;
+  mode: "world" | "country";
   questions: TrainingQuestion[];
   currentIndex: number;
   answers: TrainingAnswer[];
@@ -48,14 +50,34 @@ const emptyTrainingClues: TrainingClue[] = [];
 
 function filterClues(
   clues: TrainingClue[],
+  mode: "world" | "country",
+  regionCountryCode: string,
   categoryId: string,
   difficulties: ReadonlySet<TrainingDifficulty>,
 ) {
   return clues.filter(
     (clue) =>
+      (mode !== "country" || clue.countryCode === regionCountryCode) &&
       (!categoryId || clue.categoryId === categoryId) &&
-      difficulties.has(clue.difficulty),
+      difficulties.has(clue.difficulty) &&
+      (mode !== "country" ||
+        (clue.coverage === "selected_regions" && clue.regionIds.length === 1)),
   );
+}
+
+function highestDifficulty(
+  clues: TrainingClue[],
+  difficulties: ReadonlySet<TrainingDifficulty>,
+) {
+  return clues.reduce<TrainingDifficulty>((current, clue) => {
+    if (!difficulties.has(clue.difficulty)) {
+      return current;
+    }
+    return difficultyOrder.indexOf(clue.difficulty) >
+      difficultyOrder.indexOf(current)
+      ? clue.difficulty
+      : current;
+  }, clues[0]?.difficulty ?? "easy");
 }
 export function TrainingPage({
   trainingApi: suppliedTrainingApi,
@@ -72,7 +94,9 @@ export function TrainingPage({
     error: collectionsError,
   } = useActiveCollection();
   const [trainingApi] = useState(() => suppliedTrainingApi ?? getTrainingApi());
+  const [mode, setMode] = useState<"world" | "country">("world");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const [selectedRegionCountryCode, setSelectedRegionCountryCode] = useState("");
   const [questionCount, setQuestionCount] = useState(10);
   const [difficulties, setDifficulties] = useState<Set<TrainingDifficulty>>(
     () => new Set(difficultyOrder),
@@ -102,9 +126,35 @@ export function TrainingPage({
       ],
     [clues],
   );
+  const regionCapableCountries = useMemo(
+    () =>
+      [...new Map(
+        clues
+          .filter(
+            (clue) =>
+              clue.coverage === "selected_regions" && clue.regionIds.length === 1,
+          )
+          .map((clue) => [
+            clue.countryCode,
+            { code: clue.countryCode, name: clue.countryName },
+          ]),
+      ).values()].sort((left, right) => left.name.localeCompare(right.name, "fr")),
+    [clues],
+  );
+  const effectiveRegionCountryCode =
+    mode === "country"
+      ? selectedRegionCountryCode || regionCapableCountries[0]?.code || ""
+      : "";
   const playableClues = useMemo(
-    () => filterClues(clues, selectedCategoryId, difficulties),
-    [clues, selectedCategoryId, difficulties],
+    () =>
+      filterClues(
+        clues,
+        mode,
+        effectiveRegionCountryCode,
+        selectedCategoryId,
+        difficulties,
+      ),
+    [clues, mode, effectiveRegionCountryCode, selectedCategoryId, difficulties],
   );
   const currentQuestion = session?.questions[session.currentIndex] ?? null;
   const currentAnswer = session?.answers[session.currentIndex] ?? null;
@@ -121,6 +171,67 @@ export function TrainingPage({
     () => new Set(playableClues.map((clue) => clue.countryCode)).size,
     [playableClues],
   );
+  const countryNameByCode = useMemo(
+    () =>
+      new Map(clues.map((clue) => [clue.countryCode, clue.countryName] as const)),
+    [clues],
+  );
+  const coveredCountryList = useMemo(
+    () =>
+      [...countryNameByCode.entries()]
+        .filter(([code]) => playableClues.some((clue) => clue.countryCode === code))
+        .sort((left, right) => left[1].localeCompare(right[1], "fr")),
+    [countryNameByCode, playableClues],
+  );
+  const regionNameById = useMemo(
+    () =>
+      new Map(
+        clues.flatMap((clue) =>
+          clue.regionIds.map((regionId, index) => [
+            regionId,
+            clue.regionNames[index] ?? regionId,
+          ] as const),
+        ),
+      ),
+    [clues],
+  );
+  const mapMarkers = useMemo(
+    () =>
+      mode === "world"
+        ? coveredCountryList.map(([code, name]) => ({
+            code,
+            name,
+            difficulty: highestDifficulty(
+              playableClues.filter((clue) => clue.countryCode === code),
+              difficulties,
+            ),
+          }))
+        : [...new Map(
+            playableClues.flatMap((clue) =>
+              clue.regionIds.map((regionId, index) => [
+                regionId,
+                {
+                  code: regionId,
+                  name: clue.regionNames[index] ?? regionId,
+                  difficulty: clue.difficulty,
+                },
+              ]),
+            ),
+          ).values()].sort((left, right) => left.name.localeCompare(right.name, "fr")),
+    [mode, coveredCountryList, playableClues, difficulties],
+  );
+
+  function formatCountryLabel(code: string) {
+    const name = countryNameByCode.get(code);
+    return name ? `${name} (${code})` : code;
+  }
+
+  function formatAnswerLabel(code: string, label: string) {
+    if (mode === "country") {
+      return label;
+    }
+    return `${label} (${code})`;
+  }
 
   function toggleDifficulty(difficulty: TrainingDifficulty) {
     setDifficulties((current) => {
@@ -143,15 +254,22 @@ export function TrainingPage({
     }
 
     try {
-      const questions = buildTrainingQuestions(playableClues, safeQuestionCount);
+      const questions = buildTrainingQuestions(
+        playableClues,
+        safeQuestionCount,
+        mode,
+      );
       const persisted = await trainingApi.createSession({
         collectionId: activeCollectionId,
         categoryId: selectedCategoryId || null,
+        mode,
+        countryCode: mode === "country" ? effectiveRegionCountryCode : null,
         totalQuestions: questions.length,
       });
       setStartError(null);
       setSession({
         sessionId: persisted.id,
+        mode,
         questions,
         currentIndex: 0,
         answers: [],
@@ -166,7 +284,15 @@ export function TrainingPage({
       return;
     }
 
-    const answer = resolveTrainingAnswer(currentQuestion, selectedCode);
+    const selectedLabel =
+      mode === "country"
+        ? regionNameById.get(selectedCode) ?? selectedCode
+        : countryNameByCode.get(selectedCode) ?? selectedCode;
+    const answer = resolveTrainingAnswer(
+      currentQuestion,
+      selectedCode,
+      selectedLabel,
+    );
     try {
       await trainingApi.recordAnswer({
         sessionId: session.sessionId,
@@ -302,6 +428,68 @@ export function TrainingPage({
           ) : null}
 
           <section className="atlas-filter-section">
+            <h2>Mode</h2>
+            <div className="category-filters">
+              <button
+                type="button"
+                className={mode === "world" ? "active" : ""}
+                aria-pressed={mode === "world"}
+                onClick={() => {
+                  setMode("world");
+                  resetTraining();
+                }}
+              >
+                <Globe2 aria-hidden="true" />
+                <span>Pays</span>
+                <span className="category-check" aria-hidden="true">
+                  {mode === "world" ? "✓" : ""}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={mode === "country" ? "active" : ""}
+                aria-pressed={mode === "country"}
+                disabled={regionCapableCountries.length === 0}
+                onClick={() => {
+                  setMode("country");
+                  if (!selectedRegionCountryCode && regionCapableCountries[0]) {
+                    setSelectedRegionCountryCode(regionCapableCountries[0].code);
+                  }
+                  resetTraining();
+                }}
+              >
+                <MapPinned aria-hidden="true" />
+                <span>Régions</span>
+                <span className="category-check" aria-hidden="true">
+                  {mode === "country" ? "✓" : ""}
+                </span>
+              </button>
+            </div>
+          </section>
+
+          {mode === "country" ? (
+            <section className="atlas-filter-section training-count-filter">
+              <h2>Pays des régions</h2>
+              <label className="training-question-count">
+                <span>Pays ciblé</span>
+                <select
+                  value={effectiveRegionCountryCode}
+                  onChange={(event) => {
+                    setSelectedRegionCountryCode(event.target.value);
+                    resetTraining();
+                  }}
+                >
+                  {regionCapableCountries.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </section>
+          ) : null}
+
+          <section className="atlas-filter-section">
             <h2>Catégories</h2>
             <div className="category-filters">
               <button
@@ -401,6 +589,9 @@ export function TrainingPage({
 
           <div className="atlas-map-panel training-map-panel-wrapper">
             <TrainingMap
+              viewport={mode}
+              countryCode={mode === "country" ? effectiveRegionCountryCode : null}
+              markers={mapMarkers}
               selectedCode={currentAnswer?.selectedCode ?? null}
               correctCode={currentAnswer?.correctCode ?? null}
               disabled={!currentQuestion || Boolean(currentAnswer)}
@@ -469,7 +660,8 @@ export function TrainingPage({
               <ul className="training-results-list">
                 {session.answers.map((answer, index) => (
                   <li key={`${answer.correctCode}:${index}`}>
-                    {answer.selectedCode} / {answer.correctCode}
+                    {formatAnswerLabel(answer.selectedCode, answer.selectedLabel)} /{" "}
+                    {formatAnswerLabel(answer.correctCode, answer.correctLabel)}
                   </li>
                 ))}
               </ul>
@@ -491,32 +683,56 @@ export function TrainingPage({
                 <p>
                   Catégorie : <strong>{currentQuestion.clue.categoryName}</strong>
                 </p>
+                <p>
+                  Mode : <strong>{session.mode === "world" ? "Pays" : "Régions"}</strong>
+                </p>
               </div>
             </div>
 
-            <img
-              className="atlas-clue-image"
-              src={currentQuestion.clue.imageUrl ?? ""}
-              alt={currentQuestion.clue.imageAlt}
-            />
+            {currentQuestion.clue.imageUrl ? (
+              <img
+                className="atlas-clue-image"
+                src={currentQuestion.clue.imageUrl}
+                alt={currentQuestion.clue.imageAlt}
+              />
+            ) : (
+              <section className="detail-section">
+                <h2>Image</h2>
+                <p>Image indisponible pour cet indice.</p>
+              </section>
+            )}
 
             <section className="detail-section">
               <h2>Consigne</h2>
-              <p>
-                {currentAnswer
-                  ? currentAnswer.isCorrect
-                    ? "Bonne réponse"
-                    : "Mauvaise réponse"
-                  : "Cliquez sur le bon pays sur la carte."}
-              </p>
-            </section>
+                <p>
+                  {currentAnswer
+                    ? currentAnswer.isCorrect
+                      ? "Bonne réponse"
+                      : "Mauvaise réponse"
+                    : session.mode === "country"
+                      ? "Cliquez sur la bonne région sur la carte."
+                      : "Cliquez sur le bon pays sur la carte."}
+                </p>
+              </section>
 
             {currentAnswer ? (
               <section className="detail-section detail-regions">
                 <h2>Réponse</h2>
                 <div>
-                  <span>Choisi : {currentAnswer.selectedCode}</span>
-                  <span>Correct : {currentAnswer.correctCode}</span>
+                  <span>
+                    Choisi :{" "}
+                    {formatAnswerLabel(
+                      currentAnswer.selectedCode,
+                      currentAnswer.selectedLabel,
+                    )}
+                  </span>
+                  <span>
+                    Correct :{" "}
+                    {formatAnswerLabel(
+                      currentAnswer.correctCode,
+                      currentAnswer.correctLabel,
+                    )}
+                  </span>
                 </div>
               </section>
             ) : null}
@@ -559,6 +775,8 @@ export function TrainingPage({
               <div className="training-summary-grid">
                 <span>Catégorie</span>
                 <strong>{selectedCategory?.name ?? "Toutes les catégories"}</strong>
+                <span>Mode</span>
+                <strong>{mode === "world" ? "Pays" : "Régions"}</strong>
                 <span>Difficultés</span>
                 <strong>
                   {difficultyOrder
@@ -570,6 +788,23 @@ export function TrainingPage({
                 <strong>{safeQuestionCount}</strong>
                 <span>Indices jouables</span>
                 <strong>{playableClues.length}</strong>
+              </div>
+            </section>
+
+            <section className="detail-section detail-regions">
+              <h2>{mode === "world" ? "Pays couverts" : "Régions couvertes"}</h2>
+              <div>
+                {mapMarkers.length > 0 ? (
+                  mapMarkers.map((marker) => (
+                    <span key={marker.code}>{marker.name}</span>
+                  ))
+                ) : (
+                  <span>
+                    {mode === "world"
+                      ? "Aucun pays disponible"
+                      : "Aucune région disponible"}
+                  </span>
+                )}
               </div>
             </section>
 

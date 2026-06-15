@@ -29,7 +29,10 @@ function createClient(
         id: "clue-1",
         category_id: "category-1",
         country_code: "FR",
+        title: "Drapeau - France",
+        coverage: "whole_country",
         difficulty: "easy",
+        source_name: "FlagCDN / Flagpedia",
         categories: { name: "Drapeaux" },
         countries: { name: "France" },
         clue_images: [
@@ -39,6 +42,7 @@ function createClient(
             sort_order: 0,
           },
         ],
+        clue_regions: [],
       },
     ]),
     createSignedImageUrls: vi.fn().mockResolvedValue({
@@ -66,6 +70,37 @@ describe("trainingApi", () => {
     ]);
   });
 
+  it("excludes a non-flag clue when no playable image can be resolved", async () => {
+    const api = createTrainingApi(
+      createClient({
+        listPublishedClues: vi.fn().mockResolvedValue([
+          {
+            id: "clue-bollard-1",
+            category_id: "category-bollards",
+            country_code: "KE",
+            title: "Bollard - Kenya",
+            coverage: "whole_country",
+            difficulty: "medium",
+            source_name: "GeoMetas",
+            categories: { name: "Bollards" },
+            countries: { name: "Kenya" },
+            clue_images: [
+              {
+                storage_path: "collection-1/clue-bollard-1/image-1.png",
+                alt_text: "Bollard kenyan",
+                sort_order: 0,
+              },
+            ],
+            clue_regions: [],
+          },
+        ]),
+        createSignedImageUrls: vi.fn().mockResolvedValue({}),
+      }),
+    );
+
+    await expect(api.loadPlayableClues("collection-1")).resolves.toEqual([]);
+  });
+
   it("creates a training session and records an answer", async () => {
     const client = createClient();
     const api = createTrainingApi(client);
@@ -73,6 +108,8 @@ describe("trainingApi", () => {
     const session = await api.createSession({
       collectionId: "collection-1",
       categoryId: "category-1",
+      mode: "world",
+      countryCode: null,
       totalQuestions: 10,
     });
 
@@ -87,6 +124,8 @@ describe("trainingApi", () => {
     expect(client.insertSession).toHaveBeenCalledWith({
       collectionId: "collection-1",
       categoryId: "category-1",
+      mode: "world",
+      countryCode: null,
       totalQuestions: 10,
     });
     expect(client.insertAnswer).toHaveBeenCalledWith({

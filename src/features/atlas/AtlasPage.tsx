@@ -20,6 +20,10 @@ import {
 import { useMemo, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ProfileMenu } from "../admin/ProfileMenu";
+import {
+  canWriteCollectionContent,
+  usePlatformRole,
+} from "../admin/platformRole";
 import { useAuth } from "../auth/authContext";
 import { useActiveCollection } from "../collections/activeCollectionContext";
 import { collectionKeys } from "../collections/collectionKeys";
@@ -94,6 +98,7 @@ export function AtlasPage({
   atlasApi?: AtlasApi;
 }) {
   const { signOut, user } = useAuth();
+  const platformRole = usePlatformRole();
   const {
     collections,
     activeCollection,
@@ -104,8 +109,10 @@ export function AtlasPage({
   } = useActiveCollection();
   const [atlasApi] = useState(() => suppliedAtlasApi ?? getAtlasApi());
   const isPublicReadOnly = activeCollection?.visibility === "public_readonly";
-  const canEditActiveCollection =
-    activeCollection?.role === "owner";
+  const canEditActiveCollection = canWriteCollectionContent(
+    activeCollection,
+    platformRole,
+  );
   const [activeCategoryId, setActiveCategoryId] = useState("");
   const [activeDifficulties, setActiveDifficulties] = useState<Set<Difficulty>>(
     () => new Set(difficultyOrder),
@@ -269,6 +276,7 @@ export function AtlasPage({
             value={activeCollectionId}
             onChange={setActiveCollectionId}
             disabled={collectionsLoading}
+            platformRole={platformRole}
           />
           {collectionsLoading ? <p className="atlas-state">Chargement des collections…</p> : null}
           {collectionsError ? <p className="atlas-state atlas-state-error">Impossible de charger les collections.</p> : null}

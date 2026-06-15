@@ -1,4 +1,3 @@
-﻿import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   CircleUserRound,
@@ -7,8 +6,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getAdminApi, type PlatformRole } from "./adminApi";
-import { adminKeys } from "./adminKeys";
+import type { PlatformRole } from "./adminApi";
+import { isPlatformAdmin, usePlatformRole } from "./platformRole";
 
 export function ProfileMenu({
   email,
@@ -20,16 +19,8 @@ export function ProfileMenu({
   platformRole?: PlatformRole | null;
 }) {
   const [open, setOpen] = useState(false);
-  const roleQuery = useQuery({
-    queryKey: adminKeys.role(),
-    queryFn: () => getAdminApi().getCurrentPlatformRole(),
-    enabled: platformRole === undefined,
-  });
-  const resolvedRole =
-    platformRole === undefined ? roleQuery.data : platformRole;
-
-  const isAdmin =
-    resolvedRole === "admin" || resolvedRole === "super_admin";
+  const resolvedRole = usePlatformRole(platformRole);
+  const isAdmin = isPlatformAdmin(resolvedRole);
 
   return (
     <div className="atlas-account profile-menu">

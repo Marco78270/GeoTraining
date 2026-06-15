@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { vi } from "vitest";
+import { getAdminApi } from "../admin/adminApi";
 import {
   ActiveCollectionContext,
   type ActiveCollectionContextValue,
@@ -8,6 +10,14 @@ import {
 import type { CollectionApi } from "../collections/collectionApi";
 import type { ClueApi } from "./clueApi";
 import { ClueEditorPage } from "./ClueEditorPage";
+
+vi.mock("../admin/adminApi", () => ({
+  getAdminApi: vi.fn(),
+}));
+
+vi.mocked(getAdminApi).mockReturnValue({
+  getCurrentPlatformRole: vi.fn().mockResolvedValue(null),
+} as unknown as ReturnType<typeof getAdminApi>);
 
 const collectionApi = {
   listCategories: vi.fn().mockResolvedValue([
@@ -71,16 +81,24 @@ it("recharge un indice en édition depuis le clueId quand l'état de navigation 
   } as unknown as ClueApi;
 
   render(
-    <ActiveCollectionContext.Provider value={collectionContext}>
-      <MemoryRouter initialEntries={["/clues/clue-1/edit"]}>
-        <Routes>
-          <Route
-            path="/clues/:clueId/edit"
-            element={<ClueEditorPage clueApi={clueApi} collectionApi={collectionApi} />}
-          />
-        </Routes>
-      </MemoryRouter>
-    </ActiveCollectionContext.Provider>,
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false } },
+        })
+      }
+    >
+      <ActiveCollectionContext.Provider value={collectionContext}>
+        <MemoryRouter initialEntries={["/clues/clue-1/edit"]}>
+          <Routes>
+            <Route
+              path="/clues/:clueId/edit"
+              element={<ClueEditorPage clueApi={clueApi} collectionApi={collectionApi} />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </ActiveCollectionContext.Provider>
+    </QueryClientProvider>,
   );
 
   expect(screen.getByRole("status")).toHaveTextContent("Chargement de l’indice");

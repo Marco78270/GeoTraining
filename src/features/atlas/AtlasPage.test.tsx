@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
+import { getAdminApi } from "../admin/adminApi";
 import {
   AuthContext,
   type AuthContextValue,
@@ -14,6 +15,10 @@ import {
 } from "../collections/activeCollectionContext";
 import type { AtlasApi } from "./atlasApi";
 import { AtlasPage } from "./AtlasPage";
+
+vi.mock("../admin/adminApi", () => ({
+  getAdminApi: vi.fn(),
+}));
 
 vi.mock("./AtlasMap", () => ({
   AtlasMap: ({
@@ -65,6 +70,12 @@ vi.mock("./AtlasMap", () => ({
     </div>
   ),
 }));
+
+const getCurrentPlatformRole = vi.fn().mockResolvedValue(null);
+
+vi.mocked(getAdminApi).mockReturnValue({
+  getCurrentPlatformRole,
+} as unknown as ReturnType<typeof getAdminApi>);
 
 const authValue: AuthContextValue = {
   session: null,
@@ -321,4 +332,25 @@ it("masque les actions d'ecriture pour une collection publique", async () => {
   expect(
     screen.queryByRole("link", { name: "Modifier l’indice" }),
   ).not.toBeInTheDocument();
+});
+
+it("autorise un admin de plateforme a modifier une collection publique", async () => {
+  const user = userEvent.setup();
+  getCurrentPlatformRole.mockResolvedValueOnce("admin");
+  renderAtlasWithCollection({
+    id: "collection-public",
+    name: "Collection officielle",
+    visibility: "public_readonly",
+    role: null,
+  });
+
+  expect(
+    await screen.findByRole("link", { name: "Ajouter un indice" }),
+  ).toHaveAttribute("href", "/clues/new");
+
+  await user.click(screen.getByRole("button", { name: "Selectionner le Kenya" }));
+
+  expect(
+    screen.getByRole("link", { name: "Modifier l’indice" }),
+  ).toHaveAttribute("href", "/clues/clue-1/edit");
 });

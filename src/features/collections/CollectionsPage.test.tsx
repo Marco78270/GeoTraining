@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { Session } from "@supabase/supabase-js";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+import { getAdminApi } from "../admin/adminApi";
 import {
   AuthContext,
   type AuthContextValue,
@@ -12,6 +13,10 @@ import {
   type ActiveCollectionContextValue,
 } from "./activeCollectionContext";
 import { CollectionsPage } from "./CollectionsPage";
+
+vi.mock("../admin/adminApi", () => ({
+  getAdminApi: vi.fn(),
+}));
 
 vi.mock("./CategoryList", () => ({
   CategoryList: ({ readOnly }: { readOnly?: boolean }) => (
@@ -24,6 +29,12 @@ vi.mock("./InviteEditorDialog", () => ({
     <div>Invitations {isOwner ? "owner" : "viewer"}</div>
   ),
 }));
+
+const getCurrentPlatformRole = vi.fn().mockResolvedValue(null);
+
+vi.mocked(getAdminApi).mockReturnValue({
+  getCurrentPlatformRole,
+} as unknown as ReturnType<typeof getAdminApi>);
 
 const session = {
   user: { id: "user-1", email: "marc@example.test" },
@@ -60,7 +71,9 @@ const activeCollectionValue: ActiveCollectionContextValue = {
   error: null,
 };
 
-function renderCollectionsPage() {
+function renderCollectionsPage(
+  value: ActiveCollectionContextValue = activeCollectionValue,
+) {
   render(
     <QueryClientProvider
       client={
@@ -71,7 +84,7 @@ function renderCollectionsPage() {
     >
       <MemoryRouter>
         <AuthContext.Provider value={authValue}>
-          <ActiveCollectionContext.Provider value={activeCollectionValue}>
+          <ActiveCollectionContext.Provider value={value}>
             <CollectionsPage />
           </ActiveCollectionContext.Provider>
         </AuthContext.Provider>
@@ -99,34 +112,26 @@ describe("CollectionsPage", () => {
       role: "owner" as const,
     };
 
-    render(
-      <QueryClientProvider
-        client={
-          new QueryClient({
-            defaultOptions: { queries: { retry: false } },
-          })
-        }
-      >
-        <MemoryRouter>
-          <AuthContext.Provider value={authValue}>
-            <ActiveCollectionContext.Provider
-              value={{
-                ...activeCollectionValue,
-                collections: [ownedPublicCollection],
-                activeCollection: ownedPublicCollection,
-                activeCollectionId: ownedPublicCollection.id,
-              }}
-            >
-              <CollectionsPage />
-            </ActiveCollectionContext.Provider>
-          </AuthContext.Provider>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+    renderCollectionsPage({
+      ...activeCollectionValue,
+      collections: [ownedPublicCollection],
+      activeCollection: ownedPublicCollection,
+      activeCollectionId: ownedPublicCollection.id,
+    });
 
     expect(await screen.findByText("Officielle")).toBeVisible();
     expect(screen.getByText("Categories editable")).toBeVisible();
     expect(screen.getByText("Invitations owner")).toBeVisible();
     expect(screen.getByRole("button", { name: "Renommer" })).toBeVisible();
+  });
+
+  it("allows a platform admin to edit public categories without becoming owner", async () => {
+    getCurrentPlatformRole.mockResolvedValueOnce("admin");
+    renderCollectionsPage();
+
+    expect(await screen.findByText("Officielle")).toBeVisible();
+    expect(await screen.findByText("Categories editable")).toBeVisible();
+    expect(await screen.findByText("Invitations owner")).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Renommer" })).toBeVisible();
   });
 });

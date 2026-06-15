@@ -8,6 +8,10 @@ import {
   Send,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+  canWriteCollectionContent,
+  usePlatformRole,
+} from "../admin/platformRole";
 import { useActiveCollection } from "../collections/activeCollectionContext";
 import {
   getCollectionApi,
@@ -96,6 +100,7 @@ export function ClueEditor({
     activeCollectionId,
     setActiveCollectionId,
   } = useActiveCollection();
+  const platformRole = usePlatformRole();
   const [clueApi] = useState(() => suppliedClueApi ?? getClueApi());
   const [collectionApi] = useState(
     () => suppliedCollectionApi ?? getCollectionApi(),
@@ -144,11 +149,9 @@ export function ClueEditor({
   const writableCollections = useMemo(
     () =>
       collections.filter(
-        (collection) =>
-          collection.visibility !== "public_readonly" ||
-          collection.role === "owner",
+        (collection) => canWriteCollectionContent(collection, platformRole),
       ),
-    [collections],
+    [collections, platformRole],
   );
   const immutableIdentity = mode === "edit";
   const preferredCollectionId = requestedCollectionId ?? activeCollectionId ?? "";
@@ -157,15 +160,13 @@ export function ClueEditor({
   );
   const collectionId =
     immutableIdentity ||
-    (preferredCollection &&
-      (preferredCollection.visibility !== "public_readonly" ||
-        preferredCollection.role === "owner"))
+    canWriteCollectionContent(preferredCollection, platformRole)
       ? preferredCollectionId
       : writableCollections[0]?.id ?? "";
   const activeCollection = collections.find((collection) => collection.id === collectionId);
   const readOnlyCollection =
     activeCollection?.visibility === "public_readonly" &&
-    activeCollection.role !== "owner";
+    !canWriteCollectionContent(activeCollection, platformRole);
   const categories =
     categoryState.collectionId === collectionId ? categoryState.rows : [];
 

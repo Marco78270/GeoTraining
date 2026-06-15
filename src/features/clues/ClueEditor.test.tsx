@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
+import { getAdminApi } from "../admin/adminApi";
 import {
   ActiveCollectionContext,
   type ActiveCollectionContextValue,
@@ -9,6 +11,16 @@ import type { CollectionApi } from "../collections/collectionApi";
 import type { GeographyDataClient } from "../geography/geographyApi";
 import type { ClueApi } from "./clueApi";
 import { ClueEditor } from "./ClueEditor";
+
+vi.mock("../admin/adminApi", () => ({
+  getAdminApi: vi.fn(),
+}));
+
+const getCurrentPlatformRole = vi.fn().mockResolvedValue(null);
+
+vi.mocked(getAdminApi).mockReturnValue({
+  getCurrentPlatformRole,
+} as unknown as ReturnType<typeof getAdminApi>);
 
 const collection = {
   id: "collection-1",
@@ -83,11 +95,20 @@ function dependencies() {
 function renderEditor(
   deps = dependencies(),
   props: Partial<Parameters<typeof ClueEditor>[0]> = {},
+  context: ActiveCollectionContextValue = collectionContext,
 ) {
   render(
-    <ActiveCollectionContext.Provider value={collectionContext}>
-      <ClueEditor {...deps} {...props} />
-    </ActiveCollectionContext.Provider>,
+    <QueryClientProvider
+      client={
+        new QueryClient({
+          defaultOptions: { queries: { retry: false } },
+        })
+      }
+    >
+      <ActiveCollectionContext.Provider value={context}>
+        <ClueEditor {...deps} {...props} />
+      </ActiveCollectionContext.Provider>
+    </QueryClientProvider>,
   );
   return deps;
 }
@@ -304,4 +325,49 @@ it("désactive la couverture régionale lorsqu'un pays n'a aucune région", asyn
     await screen.findByText(/aucune division administrative disponible/i),
   ).toBeVisible();
   expect(screen.getByLabelText("Certaines régions")).toBeDisabled();
+});
+
+it("autorise un admin de plateforme a publier dans une collection publique", async () => {
+  const user = userEvent.setup();
+  const deps = dependencies();
+  getCurrentPlatformRole.mockResolvedValueOnce("super_admin");
+  const publicCollection = {
+    ...collection,
+    id: "collection-public",
+    name: "Collection officielle",
+    owner_id: null,
+    visibility: "public_readonly" as const,
+    role: null,
+  };
+  deps.collectionApi.listCategories = vi.fn().mockResolvedValue([
+    {
+      id: "category-stop",
+      collection_id: publicCollection.id,
+      name: "Panneaux STOP",
+      icon: "sign",
+      color: "#20D4E6",
+      created_at: "2026-06-11T00:00:00.000Z",
+      updated_at: "2026-06-11T00:00:00.000Z",
+    },
+  ]);
+
+  renderEditor(
+    deps,
+    {},
+    {
+      ...collectionContext,
+      collections: [publicCollection],
+      activeCollection: publicCollection,
+      activeCollectionId: publicCollection.id,
+    },
+  );
+
+  await user.upload(
+    screen.getByLabelText("Images de l’indice"),
+    new File(["photo"], "stop.jpg", { type: "image/jpeg" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+
+  expect(await screen.findByRole("option", { name: "Panneaux STOP" })).toBeVisible();
+  expect(screen.getByLabelText("Collection")).toHaveValue("collection-public");
 });
