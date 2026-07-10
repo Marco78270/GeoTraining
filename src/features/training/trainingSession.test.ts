@@ -20,6 +20,7 @@ const clues: TrainingClue[] = [
     coverage: "whole_country",
     regionIds: [],
     regionNames: [],
+    zoneGeoJson: null,
   },
   {
     id: "clue-2",
@@ -33,6 +34,7 @@ const clues: TrainingClue[] = [
     coverage: "whole_country",
     regionIds: [],
     regionNames: [],
+    zoneGeoJson: null,
   },
   {
     id: "clue-3",
@@ -46,6 +48,7 @@ const clues: TrainingClue[] = [
     coverage: "whole_country",
     regionIds: [],
     regionNames: [],
+    zoneGeoJson: null,
   },
   {
     id: "clue-4",
@@ -59,6 +62,7 @@ const clues: TrainingClue[] = [
     coverage: "whole_country",
     regionIds: [],
     regionNames: [],
+    zoneGeoJson: null,
   },
   {
     id: "clue-5",
@@ -72,6 +76,7 @@ const clues: TrainingClue[] = [
     coverage: "whole_country",
     regionIds: [],
     regionNames: [],
+    zoneGeoJson: null,
   },
 ];
 
@@ -124,5 +129,32 @@ describe("trainingSession", () => {
         },
       ]),
     ).toBe(2);
+  });
+
+  it("keeps drawn-zone clues playable only in country-answer mode", () => {
+    const drawnZoneClue: TrainingClue = {
+      ...clues[0],
+      id: "clue-zone-1",
+      coverage: "drawn_zone",
+      zoneGeoJson: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [-101, 38],
+            [-98, 38],
+            [-98, 41],
+            [-101, 41],
+            [-101, 38],
+          ],
+        ],
+      },
+    };
+
+    expect(buildTrainingQuestions([drawnZoneClue], 1, "world", () => 0.5)).toEqual([
+      expect.objectContaining({
+        answerCode: drawnZoneClue.countryCode,
+      }),
+    ]);
+    expect(buildTrainingQuestions([drawnZoneClue], 1, "country", () => 0.5)).toEqual([]);
   });
 });

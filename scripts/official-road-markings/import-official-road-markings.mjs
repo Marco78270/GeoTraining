@@ -20,11 +20,14 @@ const summary = await runOfficialImport({
     id: "f1000000-0000-0000-0000-000000000004",
     name: "Marquages au sol",
   },
-  datasetPath: new URL("./road-markings.v1.json", import.meta.url),
+  datasetPath: new URL("./road-markings.geometas.v1.json", import.meta.url),
   summaryFileName: "official-road-markings-import-summary.json",
   authorEnvName: "SUPABASE_META_AUTHOR_ID",
   dryRun: process.argv.includes("--dry-run"),
   missingImagesOnly: process.argv.includes("--missing-images-only"),
+  allowedImageHosts: new Set([
+    "paulplay-storage-1.fra1.digitaloceanspaces.com",
+  ]),
   supabase,
 });
 

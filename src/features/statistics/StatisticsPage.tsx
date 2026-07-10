@@ -1,20 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  ArrowRight,
   BarChart3,
   Bookmark,
+  Brain,
   CalendarRange,
-  Flame,
+  CheckCircle2,
+  CircleAlert,
+  Clock3,
   Globe2,
   GraduationCap,
   ListChecks,
   Map as MapIcon,
   Target,
+  TrendingDown,
+  TrendingUp,
   Trophy,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ProfileMenu } from "../admin/ProfileMenu";
 import { useAuth } from "../auth/authContext";
+import {
+  formatBillingPlan,
+  hasPremiumFeatureAccess,
+  type BillingApi,
+} from "../billing/billingApi";
+import { useBillingStatus } from "../billing/useBillingStatus";
 import {
   getStatisticsApi,
   type StatisticsApi,
@@ -23,8 +35,32 @@ import {
 
 const emptyStatisticsSessions: StatisticsSession[] = [];
 
+type MasteryStatus = "weak" | "progressing" | "mastered";
+
+type CategoryMastery = {
+  id: string;
+  collectionId: string;
+  label: string;
+  collectionLabel: string;
+  sessions: number;
+  correct: number;
+  answers: number;
+  accuracy: number;
+  recentAccuracy: number;
+  previousAccuracy: number;
+  trend: number;
+  errors: number;
+  status: MasteryStatus;
+};
+
 function formatPercent(value: number) {
   return `${Math.round(value)}%`;
+}
+
+function formatSignedPercent(value: number) {
+  const rounded = Math.round(value);
+  if (rounded > 0) return `+${rounded} pts`;
+  return `${rounded} pts`;
 }
 
 function formatDate(value: string | null) {
@@ -48,6 +84,22 @@ function getPastDayKeys(days: number) {
   });
 }
 
+function getAccuracy(correct: number, answers: number) {
+  return answers > 0 ? (correct / answers) * 100 : 0;
+}
+
+function getMasteryStatus(accuracy: number, answers: number): MasteryStatus {
+  if (answers >= 20 && accuracy >= 80) return "mastered";
+  if (answers >= 10 && accuracy >= 60) return "progressing";
+  return "weak";
+}
+
+function getMasteryLabel(status: MasteryStatus) {
+  if (status === "mastered") return "Maîtrisé";
+  if (status === "progressing") return "En progression";
+  return "À travailler";
+}
+
 function getCurrentStreak(dayKeys: string[]) {
   if (dayKeys.length === 0) return 0;
   const uniqueDays = new Set(dayKeys);
@@ -59,10 +111,7 @@ function getCurrentStreak(dayKeys: string[]) {
     if (!uniqueDays.has(key)) {
       if (streak === 0) {
         cursor.setDate(cursor.getDate() - 1);
-        const previousKey = cursor.toISOString().slice(0, 10);
-        if (!uniqueDays.has(previousKey)) {
-          break;
-        }
+        if (!uniqueDays.has(cursor.toISOString().slice(0, 10))) break;
         streak += 1;
         continue;
       }
@@ -75,45 +124,103 @@ function getCurrentStreak(dayKeys: string[]) {
   return streak;
 }
 
-function getBestStreak(dayKeys: string[]) {
-  const sorted = [...new Set(dayKeys)].sort();
-  if (sorted.length === 0) return 0;
-
-  let best = 1;
-  let current = 1;
-
-  for (let index = 1; index < sorted.length; index += 1) {
-    const previous = new Date(sorted[index - 1]);
-    const next = new Date(sorted[index]);
-    const diffInDays = Math.round(
-      (next.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
-    if (diffInDays === 1) {
-      current += 1;
-      best = Math.max(best, current);
-    } else {
-      current = 1;
+function buildCategoryMastery(sessions: StatisticsSession[]) {
+  const grouped = new Map<
+    string,
+    {
+      id: string;
+      collectionId: string;
+      label: string;
+      collectionLabel: string;
+      sessions: StatisticsSession[];
     }
+  >();
+
+  for (const session of sessions) {
+    if (!session.category_id || session.total_answers === 0) continue;
+    const key = `${session.collection_id}:${session.category_id}`;
+    const entry = grouped.get(key) ?? {
+      id: session.category_id,
+      collectionId: session.collection_id,
+      label: session.categories?.name ?? "Catégorie",
+      collectionLabel: session.collections?.name ?? "Collection",
+      sessions: [],
+    };
+    entry.sessions.push(session);
+    grouped.set(key, entry);
   }
 
-  return best;
+  return [...grouped.values()]
+    .map<CategoryMastery>((entry) => {
+      const chronological = [...entry.sessions].sort(
+        (left, right) =>
+          new Date(left.completed_at ?? left.started_at).getTime() -
+          new Date(right.completed_at ?? right.started_at).getTime(),
+      );
+      const splitIndex = Math.max(1, Math.floor(chronological.length / 2));
+      const previous = chronological.slice(0, splitIndex);
+      const recent = chronological.slice(splitIndex);
+      const effectiveRecent = recent.length > 0 ? recent : previous;
+      const correct = chronological.reduce(
+        (sum, session) => sum + session.correct_answers,
+        0,
+      );
+      const answers = chronological.reduce(
+        (sum, session) => sum + session.total_answers,
+        0,
+      );
+      const previousAccuracy = getAccuracy(
+        previous.reduce((sum, session) => sum + session.correct_answers, 0),
+        previous.reduce((sum, session) => sum + session.total_answers, 0),
+      );
+      const recentAccuracy = getAccuracy(
+        effectiveRecent.reduce(
+          (sum, session) => sum + session.correct_answers,
+          0,
+        ),
+        effectiveRecent.reduce((sum, session) => sum + session.total_answers, 0),
+      );
+      const accuracy = getAccuracy(correct, answers);
+
+      return {
+        id: entry.id,
+        collectionId: entry.collectionId,
+        label: entry.label,
+        collectionLabel: entry.collectionLabel,
+        sessions: chronological.length,
+        correct,
+        answers,
+        accuracy,
+        recentAccuracy,
+        previousAccuracy,
+        trend: chronological.length > 1 ? recentAccuracy - previousAccuracy : 0,
+        errors: answers - correct,
+        status: getMasteryStatus(accuracy, answers),
+      };
+    })
+    .sort((left, right) => left.accuracy - right.accuracy);
 }
 
 export function StatisticsPage({
   statisticsApi: suppliedApi,
+  billingApi,
 }: {
   statisticsApi?: StatisticsApi;
+  billingApi?: BillingApi;
 }) {
   const { signOut, user } = useAuth();
   const [statisticsApi] = useState(() => suppliedApi ?? getStatisticsApi());
+  const billingQuery = useBillingStatus(billingApi);
   const sessionsQuery = useQuery({
     queryKey: ["statistics", "sessions"],
     queryFn: () => statisticsApi.loadSessions(),
   });
+  const billing = billingQuery.data;
+  const hasAdvancedStatistics = billing
+    ? hasPremiumFeatureAccess(billing, "advanced_statistics")
+    : false;
 
   const sessions = sessionsQuery.data ?? emptyStatisticsSessions;
-
   const metrics = useMemo(() => {
     const completed = sessions.filter((session) => Boolean(session.completed_at));
     const totalAnswers = completed.reduce(
@@ -124,77 +231,16 @@ export function StatisticsPage({
       (sum, session) => sum + session.correct_answers,
       0,
     );
-    const averageAccuracy =
-      totalAnswers > 0 ? (totalCorrect / totalAnswers) * 100 : 0;
-    const bestSession = completed.reduce<typeof completed[number] | null>(
-      (best, session) =>
-        !best ||
-        session.correct_answers / Math.max(session.total_answers, 1) >
-          best.correct_answers / Math.max(best.total_answers, 1)
-          ? session
-          : best,
-      null,
-    );
-
+    const categoryMastery = buildCategoryMastery(completed);
+    const priority = categoryMastery.find((entry) => entry.status !== "mastered") ??
+      categoryMastery[0] ??
+      null;
     const activityDays = completed.map((session) =>
       getDayKey(session.completed_at ?? session.started_at),
     );
-
-    const byCategory = new globalThis.Map<
-      string,
-      { label: string; sessions: number; correct: number; answers: number }
-    >();
-    const byCollection = new globalThis.Map<
-      string,
-      { label: string; sessions: number; correct: number; answers: number }
-    >();
-
-    for (const session of completed) {
-      const categoryKey = session.category_id ?? "all";
-      const categoryEntry = byCategory.get(categoryKey) ?? {
-        label: session.categories?.name ?? "Toutes les catégories",
-        sessions: 0,
-        correct: 0,
-        answers: 0,
-      };
-      categoryEntry.sessions += 1;
-      categoryEntry.correct += session.correct_answers;
-      categoryEntry.answers += session.total_answers;
-      byCategory.set(categoryKey, categoryEntry);
-
-      const collectionKey = session.collection_id;
-      const collectionEntry = byCollection.get(collectionKey) ?? {
-        label: session.collections?.name ?? "Collection",
-        sessions: 0,
-        correct: 0,
-        answers: 0,
-      };
-      collectionEntry.sessions += 1;
-      collectionEntry.correct += session.correct_answers;
-      collectionEntry.answers += session.total_answers;
-      byCollection.set(collectionKey, collectionEntry);
-    }
-
-    const categoryBreakdown = [...byCategory.values()]
-      .map((entry) => ({
-        ...entry,
-        accuracy: entry.answers > 0 ? (entry.correct / entry.answers) * 100 : 0,
-      }))
-      .sort((left, right) => right.sessions - left.sessions)
-      .slice(0, 5);
-
-    const collectionBreakdown = [...byCollection.values()]
-      .map((entry) => ({
-        ...entry,
-        accuracy: entry.answers > 0 ? (entry.correct / entry.answers) * 100 : 0,
-      }))
-      .sort((left, right) => right.sessions - left.sessions)
-      .slice(0, 5);
-
-    const trendKeys = getPastDayKeys(7);
-    const trend = trendKeys.map((key) => {
-      const sessionsForDay = completed.filter((session) =>
-        getDayKey(session.completed_at ?? session.started_at) === key,
+    const trend = getPastDayKeys(14).map((key) => {
+      const sessionsForDay = completed.filter(
+        (session) => getDayKey(session.completed_at ?? session.started_at) === key,
       );
       const answers = sessionsForDay.reduce(
         (sum, session) => sum + session.total_answers,
@@ -204,30 +250,30 @@ export function StatisticsPage({
         (sum, session) => sum + session.correct_answers,
         0,
       );
-
       return {
         key,
-        label: new Intl.DateTimeFormat("fr-FR", { weekday: "short" }).format(
-          new Date(key),
-        ),
-        sessions: sessionsForDay.length,
-        accuracy: answers > 0 ? (correct / answers) * 100 : 0,
+        label: new Intl.DateTimeFormat("fr-FR", {
+          day: "2-digit",
+          month: "2-digit",
+        }).format(new Date(key)),
+        answers,
+        accuracy: getAccuracy(correct, answers),
       };
     });
 
     return {
-      totalSessions: sessions.length,
       completedSessions: completed.length,
-      averageAccuracy,
       totalAnswers,
-      totalCorrect,
-      bestSession,
-      categoryBreakdown,
-      collectionBreakdown,
+      averageAccuracy: getAccuracy(totalCorrect, totalAnswers),
       currentStreak: getCurrentStreak(activityDays),
-      bestStreak: getBestStreak(activityDays),
-      activeDays: new Set(activityDays).size,
+      categoryMastery,
+      priority,
       trend,
+      maxDailyAnswers: Math.max(...trend.map((day) => day.answers), 1),
+      masteredCount: categoryMastery.filter(
+        (entry) => entry.status === "mastered",
+      ).length,
+      totalErrors: totalAnswers - totalCorrect,
     };
   }, [sessions]);
 
@@ -240,72 +286,60 @@ export function StatisticsPage({
           <span>Atlas</span>
         </Link>
         <nav className="atlas-nav" aria-label="Navigation principale">
-          <NavLink to="/atlas">
-            <MapIcon />
-            Atlas
-          </NavLink>
-          <NavLink to="/collections">
-            <Bookmark />
-            Collections
-          </NavLink>
-          <NavLink to="/training">
-            <GraduationCap />
-            Entraînement
-          </NavLink>
-          <NavLink to="/statistics">
-            <BarChart3 />
-            Statistiques
-          </NavLink>
+          <NavLink to="/atlas"><MapIcon />Atlas</NavLink>
+          <NavLink to="/collections"><Bookmark />Collections</NavLink>
+          <NavLink to="/training"><GraduationCap />Entraînement</NavLink>
+          <NavLink to="/statistics"><BarChart3 />Statistiques</NavLink>
+          <NavLink to="/leaderboard"><Trophy />Classement</NavLink>
         </nav>
         <ProfileMenu
           email={user?.email}
-          onSignOut={() => {
-            void signOut();
-          }}
+          onSignOut={() => void signOut()}
         />
       </header>
 
       <div className="collections-layout statistics-layout">
         <aside className="panel collections-sidebar statistics-sidebar">
           <p className="eyebrow">Progression</p>
-          <h1>Statistiques</h1>
+          <h1>Mon entraînement</h1>
           <p className="admin-sidebar-note">
-            Une lecture plus claire de ta régularité, de ta précision et des
-            collections où tu progresses le plus vite.
+            Cette page met en avant ce qui mérite une révision, pas seulement le
+            nombre de parties jouées.
           </p>
 
           <section className="atlas-filter-section">
-            <h2>Résumé</h2>
+            <h2>Vue rapide</h2>
             <div className="statistics-summary-list">
-              <span>Sessions jouées</span>
-              <strong>{metrics.totalSessions}</strong>
-              <span>Sessions terminées</span>
-              <strong>{metrics.completedSessions}</strong>
-              <span>Réponses validées</span>
+              <span>Précision globale</span>
+              <strong>{formatPercent(metrics.averageAccuracy)}</strong>
+              <span>Questions répondues</span>
               <strong>{metrics.totalAnswers}</strong>
-              <span>Jours actifs</span>
-              <strong>{metrics.activeDays}</strong>
+              <span>Catégories maîtrisées</span>
+              <strong>{metrics.masteredCount}/{metrics.categoryMastery.length}</strong>
+              <span>Série actuelle</span>
+              <strong>{metrics.currentStreak} jour(s)</strong>
             </div>
           </section>
-
-          <section className="atlas-filter-section">
-            <h2>Séries</h2>
+          <section className="atlas-filter-section premium-upsell-card">
+            <h2>Plan</h2>
             <div className="statistics-summary-list">
-              <span>Série actuelle</span>
-              <strong>{metrics.currentStreak} jour(x)</strong>
-              <span>Meilleure série</span>
-              <strong>{metrics.bestStreak} jour(x)</strong>
+              <span>Offre actuelle</span>
+              <strong>{formatBillingPlan(billing?.planKey ?? "free")}</strong>
+              <span>Défi quotidien</span>
+              <strong>{hasAdvancedStatistics ? "Débloqué" : "Premium"}</strong>
             </div>
+            <p className="admin-sidebar-note">
+              {hasAdvancedStatistics
+                ? "Le premium actif débloque déjà le défi quotidien; les analyses avancées restent en préparation."
+                : "Le premium actuel est centré sur le défi quotidien. Les futures analyses de cette page ne sont pas encore incluses."}
+            </p>
           </section>
         </aside>
 
         <section className="statistics-content">
           {sessionsQuery.isLoading ? (
-            <section className="panel">
-              <p role="status">Chargement des statistiques...</p>
-            </section>
+            <section className="panel"><p role="status">Chargement des statistiques...</p></section>
           ) : null}
-
           {sessionsQuery.error ? (
             <section className="panel">
               <p className="notice notice-error" role="alert">
@@ -316,212 +350,198 @@ export function StatisticsPage({
 
           {!sessionsQuery.isLoading && !sessionsQuery.error ? (
             <>
+              <section className="statistics-priority panel">
+                <div className="statistics-priority-icon" aria-hidden="true">
+                  <Brain />
+                </div>
+                <div className="statistics-priority-copy">
+                  <span className="statistics-kicker">Priorité de révision</span>
+                  {metrics.priority ? (
+                    <>
+                      <h2>{metrics.priority.label}</h2>
+                      <p>
+                        {formatPercent(metrics.priority.accuracy)} de réussite sur {metrics.priority.answers} questions,
+                        avec {metrics.priority.errors} erreur(s). C’est actuellement le meilleur levier de progression.
+                      </p>
+                      <div className="statistics-priority-meta">
+                        <span>{metrics.priority.collectionLabel}</span>
+                        <span>{getMasteryLabel(metrics.priority.status)}</span>
+                        <span>{formatSignedPercent(metrics.priority.trend)} récemment</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2>Commence une première session</h2>
+                      <p>Quelques réponses suffisent pour construire une recommandation personnalisée.</p>
+                    </>
+                  )}
+                </div>
+                <Link
+                  className="statistics-review-button"
+                  to={
+                    metrics.priority
+                      ? `/training?collection=${encodeURIComponent(metrics.priority.collectionId)}&category=${encodeURIComponent(metrics.priority.id)}`
+                      : "/training"
+                  }
+                >
+                  Réviser maintenant <ArrowRight aria-hidden="true" />
+                </Link>
+              </section>
+
               <div className="atlas-stats statistics-cards">
                 <article>
-                  <span className="stat-icon stat-icon-blue">
-                    <ListChecks />
-                  </span>
-                  <div>
-                    <span>Sessions terminées</span>
-                    <strong>{metrics.completedSessions}</strong>
-                  </div>
+                  <span className="stat-icon stat-icon-blue"><ListChecks /></span>
+                  <div><span>Sessions terminées</span><strong>{metrics.completedSessions}</strong></div>
                 </article>
                 <article>
-                  <span className="stat-icon stat-icon-green">
-                    <Target />
-                  </span>
-                  <div>
-                    <span>Précision moyenne</span>
-                    <strong>{formatPercent(metrics.averageAccuracy)}</strong>
-                  </div>
+                  <span className="stat-icon stat-icon-green"><CheckCircle2 /></span>
+                  <div><span>Catégories maîtrisées</span><strong>{metrics.masteredCount}</strong></div>
                 </article>
                 <article>
-                  <span className="stat-icon stat-icon-red">
-                    <Trophy />
-                  </span>
-                  <div>
-                    <span>Meilleure session</span>
-                    <strong>
-                      {metrics.bestSession
-                        ? `${metrics.bestSession.correct_answers}/${metrics.bestSession.total_answers}`
-                        : "-"}
-                    </strong>
-                  </div>
+                  <span className="stat-icon stat-icon-red"><CircleAlert /></span>
+                  <div><span>Erreurs à travailler</span><strong>{metrics.totalErrors}</strong></div>
                 </article>
               </div>
 
-              <div className="statistics-grid statistics-grid-wide">
-                <section className="panel">
-                  <div className="detail-heading">
-                    <div>
-                      <h2>Rythme récent</h2>
-                      <p>Activité sur les 7 derniers jours.</p>
-                    </div>
-                    <span className="official-badge statistics-mini-badge">
-                      <CalendarRange aria-hidden="true" />
-                      7 jours
-                    </span>
+              <section className="panel statistics-mastery-panel">
+                <div className="detail-heading">
+                  <div>
+                    <h2>Maîtrise par catégorie</h2>
+                    <p>Les catégories les plus faibles apparaissent en premier.</p>
                   </div>
-                  <div className="statistics-trend-chart" aria-label="Tendance récente">
-                    {metrics.trend.map((day) => (
-                      <article key={day.key} className="statistics-trend-day">
-                        <span className="statistics-trend-label">{day.label}</span>
-                        <div className="statistics-trend-bar-shell">
-                          <div
-                            className="statistics-trend-bar"
-                            style={{ height: `${Math.max(day.sessions * 24, 10)}px` }}
-                          />
+                  <span className="official-badge statistics-mini-badge">
+                    <Target aria-hidden="true" />Objectif 80%
+                  </span>
+                </div>
+                {metrics.categoryMastery.length === 0 ? (
+                  <p className="atlas-state">Les catégories apparaîtront après tes premières sessions terminées.</p>
+                ) : (
+                  <div className="statistics-mastery-list">
+                    {metrics.categoryMastery.map((entry) => {
+                      const TrendIcon = entry.trend >= 0 ? TrendingUp : TrendingDown;
+                      return (
+                        <article key={`${entry.collectionId}:${entry.id}`} className={`statistics-mastery-card ${entry.status}`}>
+                          <div className="statistics-mastery-main">
+                            <strong>{entry.label}</strong>
+                            <span>{entry.collectionLabel} · {entry.answers} questions</span>
+                          </div>
+                          <div className="statistics-mastery-progress">
+                            <div><span style={{ width: `${entry.accuracy}%` }} /></div>
+                            <strong>{formatPercent(entry.accuracy)}</strong>
+                          </div>
+                          <span className={`statistics-mastery-status ${entry.status}`}>
+                            {getMasteryLabel(entry.status)}
+                          </span>
+                          <span className={`statistics-mastery-trend ${entry.trend < 0 ? "down" : ""}`}>
+                            <TrendIcon aria-hidden="true" />{formatSignedPercent(entry.trend)}
+                          </span>
+                          <Link
+                            className="statistics-mastery-action"
+                            aria-label={`Réviser ${entry.label}`}
+                            to={`/training?collection=${encodeURIComponent(entry.collectionId)}&category=${encodeURIComponent(entry.id)}`}
+                          >
+                            <ArrowRight aria-hidden="true" />
+                          </Link>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+
+              <section className="panel statistics-trend-panel">
+                <div className="detail-heading">
+                  <div>
+                    <h2>Rythme sur 14 jours</h2>
+                    <p>Volume quotidien et précision obtenue.</p>
+                  </div>
+                  <span className="official-badge statistics-mini-badge">
+                    <CalendarRange aria-hidden="true" />14 jours
+                  </span>
+                </div>
+                <div className="statistics-trend-chart" aria-label="Tendance récente">
+                  {metrics.trend.map((day) => (
+                    <article key={day.key} className="statistics-trend-day">
+                      <span className="statistics-trend-label">{day.label}</span>
+                      <div className="statistics-trend-bar-shell">
+                        <div
+                          className="statistics-trend-bar"
+                          style={{
+                            height: `${Math.max(
+                              (day.answers / metrics.maxDailyAnswers) * 100,
+                              day.answers > 0 ? 8 : 0,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <strong>{day.answers}</strong>
+                      <span className="statistics-trend-meta">
+                        {day.answers > 0 ? formatPercent(day.accuracy) : "-"}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              </section>
+
+              <section className="panel statistics-premium-panel">
+                <div className="detail-heading">
+                  <div>
+                    <h2>Roadmap analyses</h2>
+                    <p>
+                      Cette zone montre ce qui est prévu ensuite, sans le présenter
+                      comme déjà inclus dans l'offre premium actuelle.
+                    </p>
+                  </div>
+                  <span className="official-badge statistics-mini-badge">
+                    <Brain aria-hidden="true" />
+                    Roadmap
+                  </span>
+                </div>
+                <div
+                  className={`statistics-premium-grid ${
+                    hasAdvancedStatistics ? "enabled" : "locked"
+                  }`}
+                >
+                  <article>
+                    <strong>Comparaison 30 jours</strong>
+                    <span>Comparer précision, volume et régularité sur une période plus longue.</span>
+                  </article>
+                  <article>
+                    <strong>Catégories qui régressent</strong>
+                    <span>Détecter les zones qui glissent avant qu'elles ne deviennent un vrai point faible.</span>
+                  </article>
+                  <article>
+                    <strong>Révision intelligente</strong>
+                    <span>Prioriser les prochaines sessions selon le meilleur gain pédagogique attendu.</span>
+                  </article>
+                </div>
+              </section>
+
+              <section className="panel">
+                <div className="detail-heading">
+                  <div><h2>Dernières sessions</h2><p>Les résultats les plus récents.</p></div>
+                  <Clock3 aria-hidden="true" />
+                </div>
+                {sessions.length === 0 ? (
+                  <p className="atlas-state">Aucune session enregistrée pour le moment.</p>
+                ) : (
+                  <div className="statistics-session-list">
+                    {sessions.slice(0, 6).map((session) => (
+                      <article key={session.id} className="statistics-session-card">
+                        <div>
+                          <strong>{session.categories?.name ?? "Toutes les catégories"}</strong>
+                          <span>{session.collections?.name ?? "Collection"}</span>
                         </div>
-                        <strong>{day.sessions}</strong>
-                        <span className="statistics-trend-meta">
-                          {day.sessions > 0 ? formatPercent(day.accuracy) : "-"}
-                        </span>
+                        <div>
+                          <strong>{session.correct_answers}/{session.total_answers}</strong>
+                          <span>{formatPercent(getAccuracy(session.correct_answers, session.total_answers))}</span>
+                        </div>
+                        <time>{formatDate(session.completed_at ?? session.started_at)}</time>
                       </article>
                     ))}
                   </div>
-                </section>
-              </div>
-
-              <div className="statistics-grid">
-                <section className="panel">
-                  <div className="detail-heading">
-                    <div>
-                      <h2>Dernières sessions</h2>
-                      <p>Les entraînements les plus récents.</p>
-                    </div>
-                  </div>
-                  {sessions.length === 0 ? (
-                    <p className="atlas-state">Aucune session enregistrée pour le moment.</p>
-                  ) : (
-                    <div className="statistics-session-list">
-                      {sessions.slice(0, 8).map((session) => {
-                        const accuracy =
-                          session.total_answers > 0
-                            ? (session.correct_answers / session.total_answers) * 100
-                            : 0;
-                        return (
-                          <article key={session.id} className="statistics-session-card">
-                            <div>
-                              <strong>{session.collections?.name ?? "Collection"}</strong>
-                              <span>
-                                {session.categories?.name ?? "Toutes les catégories"}
-                              </span>
-                            </div>
-                            <div>
-                              <strong>
-                                {session.correct_answers}/{session.total_answers}
-                              </strong>
-                              <span>{formatPercent(accuracy)}</span>
-                            </div>
-                            <time>{formatDate(session.completed_at ?? session.started_at)}</time>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-
-                <section className="panel">
-                  <div className="detail-heading">
-                    <div>
-                      <h2>Par catégorie</h2>
-                      <p>Les catégories les plus travaillées.</p>
-                    </div>
-                  </div>
-                  {metrics.categoryBreakdown.length === 0 ? (
-                    <p className="atlas-state">
-                      Les catégories apparaîtront après tes premières sessions.
-                    </p>
-                  ) : (
-                    <div className="statistics-breakdown-list">
-                      {metrics.categoryBreakdown.map((entry) => (
-                        <article key={entry.label} className="statistics-breakdown-card">
-                          <div>
-                            <strong>{entry.label}</strong>
-                            <span>{entry.sessions} session(s)</span>
-                          </div>
-                          <div>
-                            <strong>{formatPercent(entry.accuracy)}</strong>
-                            <span>
-                              {entry.correct}/{entry.answers} bonnes réponses
-                            </span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="panel">
-                  <div className="detail-heading">
-                    <div>
-                      <h2>Par collection</h2>
-                      <p>Les espaces où tu t'entraînes le plus.</p>
-                    </div>
-                  </div>
-                  {metrics.collectionBreakdown.length === 0 ? (
-                    <p className="atlas-state">
-                      Les collections apparaîtront après tes premières sessions.
-                    </p>
-                  ) : (
-                    <div className="statistics-breakdown-list">
-                      {metrics.collectionBreakdown.map((entry) => (
-                        <article key={entry.label} className="statistics-breakdown-card">
-                          <div>
-                            <strong>{entry.label}</strong>
-                            <span>{entry.sessions} session(s)</span>
-                          </div>
-                          <div>
-                            <strong>{formatPercent(entry.accuracy)}</strong>
-                            <span>
-                              {entry.correct}/{entry.answers} bonnes réponses
-                            </span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section className="panel statistics-highlight-panel">
-                  <div className="detail-heading">
-                    <div>
-                      <h2>Lecture rapide</h2>
-                      <p>Quelques repères pour la suite.</p>
-                    </div>
-                    <span className="official-badge statistics-mini-badge">
-                      <Flame aria-hidden="true" />
-                      Coaching
-                    </span>
-                  </div>
-                  <div className="statistics-highlight-list">
-                    <article>
-                      <strong>
-                        {metrics.averageAccuracy >= 80
-                          ? "Très bon niveau actuel"
-                          : metrics.averageAccuracy >= 60
-                            ? "Bonne base à stabiliser"
-                            : "Base en construction"}
-                      </strong>
-                      <p>
-                        {metrics.averageAccuracy >= 80
-                          ? "Ta précision moyenne est déjà solide. Le prochain levier sera la régularité."
-                          : metrics.averageAccuracy >= 60
-                            ? "Tu tiens un niveau cohérent. Quelques sessions ciblées peuvent faire monter la courbe vite."
-                            : "Le plus rentable maintenant est d'enchaîner des sessions courtes et fréquentes."}
-                      </p>
-                    </article>
-                    <article>
-                      <strong>Collection à travailler</strong>
-                      <p>
-                        {metrics.collectionBreakdown[0]
-                          ? `Tu joues surtout sur ${metrics.collectionBreakdown[0].label}. C'est un bon candidat pour des objectifs plus fins.`
-                          : "Dès que tu auras plusieurs sessions, cette zone te suggérera où concentrer tes efforts."}
-                      </p>
-                    </article>
-                  </div>
-                </section>
-              </div>
+                )}
+              </section>
             </>
           ) : null}
         </section>

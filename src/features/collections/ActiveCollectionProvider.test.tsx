@@ -87,4 +87,41 @@ describe("ActiveCollectionProvider", () => {
       );
     });
   });
+
+  it("prefers a public collection by default when no choice is stored", async () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+    const api = {
+      listCollections: vi.fn().mockResolvedValue([
+        {
+          id: "collection-1",
+          name: "Ma collection privée",
+          role: "owner",
+          visibility: "private",
+        },
+        {
+          id: "collection-public",
+          name: "Collection officielle",
+          role: null,
+          visibility: "public_readonly",
+        },
+      ]),
+    } as unknown as CollectionApi;
+
+    render(
+      <ActiveCollectionProvider api={api} storage={storage}>
+        <Probe />
+      </ActiveCollectionProvider>,
+      { wrapper: Wrapper },
+    );
+
+    expect(await screen.findByText("Collection officielle")).toBeVisible();
+    expect(storage.getItem("geotrainer.activeCollectionId")).toBe(
+      "collection-public",
+    );
+  });
 });

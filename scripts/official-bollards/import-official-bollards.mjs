@@ -158,6 +158,12 @@ function cleanGoogleMapsUrl(url) {
   if (!url) return null;
   try {
     const parsed = new URL(url);
+    if (parsed.hostname === "goo.gl" && parsed.pathname.startsWith("/maps")) {
+      return parsed.toString();
+    }
+    if (parsed.hostname === "maps.app.goo.gl") {
+      return parsed.toString();
+    }
     if (
       parsed.hostname.includes("google.") &&
       (parsed.pathname.includes("/maps") || parsed.hostname.includes("maps"))
@@ -415,13 +421,18 @@ async function enrichEntry(entry) {
     /<meta property="og:image" content="([^"]+)"/i,
   );
   const googleMapsMatch = html.match(
-    /href="(https?:\/\/(?:www\.)?(?:maps\.app\.goo\.gl|maps\.google\.[^"\/]+|www\.google\.[^"\/]+\/maps[^"]*))"/i,
+    /href="(https?:\/\/(?:www\.)?(?:goo\.gl\/maps\/[^"]+|maps\.app\.goo\.gl[^"]+|maps\.google\.[^"\/]+[^"]*|www\.google\.[^"\/]+\/maps[^"]*))"/i,
+  );
+  const streetViewMatch = html.match(
+    /src="(https:\/\/www\.google\.com\/maps\/embed\/v1\/streetview[^"]+)"/i,
   );
 
   return {
     ...entry,
     imageUrl: ogImageMatch?.[1] ?? entry.imageUrl,
-    googleMapsUrl: cleanGoogleMapsUrl(googleMapsMatch?.[1] ?? null),
+    googleMapsUrl: cleanGoogleMapsUrl(
+      googleMapsMatch?.[1] ?? streetViewMatch?.[1] ?? null,
+    ),
   };
 }
 

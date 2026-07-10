@@ -1,4 +1,9 @@
 export type TrainingDifficulty = "easy" | "medium" | "expert";
+export type TrainingCoverage = "whole_country" | "selected_regions" | "drawn_zone";
+export type TrainingZoneGeoJson = {
+  type: "Polygon";
+  coordinates: number[][][];
+};
 
 export type TrainingClue = {
   id: string;
@@ -6,12 +11,14 @@ export type TrainingClue = {
   countryName: string;
   categoryId: string;
   categoryName: string;
+  categoryIcon?: string | null;
   difficulty: TrainingDifficulty;
   imageUrl: string | null;
   imageAlt: string;
-  coverage: "whole_country" | "selected_regions";
+  coverage: TrainingCoverage;
   regionIds: string[];
   regionNames: string[];
+  zoneGeoJson: TrainingZoneGeoJson | null;
 };
 
 export type TrainingQuestion = {
@@ -30,6 +37,17 @@ export type TrainingAnswer = {
   selectedLabel: string;
   correctLabel: string;
   isCorrect: boolean;
+};
+
+export type AnswerXpPreview = {
+  estimatedDelta: number;
+  difficulty: TrainingDifficulty;
+};
+
+export type CompletedTrainingSessionResult = {
+  xpDelta: number;
+  xpTotal: number;
+  xpAwarded: boolean;
 };
 
 function shuffle<T>(items: T[], random: () => number) {

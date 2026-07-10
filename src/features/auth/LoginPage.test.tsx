@@ -63,7 +63,7 @@ describe("LoginPage", () => {
     await user.type(screen.getByLabelText("Mot de passe"), "secret123");
     await user.click(screen.getByRole("button", { name: "Se connecter" }));
 
-    expect(screen.getByRole("button", { name: "Connexion en cours…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Connexion en cours..." })).toBeDisabled();
 
     resolveSignIn?.({ error: new Error("Identifiants invalides") });
 

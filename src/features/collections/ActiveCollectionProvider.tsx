@@ -22,6 +22,16 @@ import {
 
 const STORAGE_KEY = "geotrainer.activeCollectionId";
 
+function pickDefaultCollection(
+  collections: ActiveCollectionContextValue["collections"],
+) {
+  return (
+    collections.find((item) => item.visibility === "public_readonly") ??
+    collections[0] ??
+    null
+  );
+}
+
 export function ActiveCollectionProvider({
   children,
   api: suppliedApi,
@@ -50,7 +60,7 @@ export function ActiveCollectionProvider({
   const collections = useMemo(() => query.data ?? [], [query.data]);
   const activeCollection =
     collections.find((item) => item.id === requestedId) ??
-    collections[0] ??
+    pickDefaultCollection(collections) ??
     null;
 
   useEffect(() => {

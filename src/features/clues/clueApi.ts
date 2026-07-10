@@ -9,6 +9,7 @@ import {
   type ParsedClueEditForm,
   type ParsedClueForm,
 } from "./clueSchema";
+import type { ClueZoneGeoJson } from "./clueLocationTypes";
 
 type Tables = Database["public"]["Tables"];
 type DraftInsert = Tables["clues"]["Insert"];
@@ -21,6 +22,7 @@ export type ClueCreationStage =
   | "upload"
   | "metadata"
   | "regions"
+  | "zone"
   | "publication";
 
 function toFriendlyClueErrorMessage(cause: unknown) {
@@ -39,6 +41,13 @@ function toFriendlyClueErrorMessage(cause: unknown) {
 
   return "Impossible d'enregistrer l'indice.";
 }
+
+type SupabaseErrorLike = {
+  message: string;
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+};
 
 export class ClueCreationError extends Error {
   constructor(
@@ -64,8 +73,9 @@ export type ClueDataClient = {
     collectionId: string;
     categoryId: string;
     countryCode: string;
-    coverage: "whole_country" | "selected_regions";
+    coverage: "whole_country" | "selected_regions" | "drawn_zone";
     regionIds: string[];
+    zoneGeoJson: ClueZoneGeoJson | null;
     difficulty: "easy" | "medium" | "expert";
     title: string;
     characteristics: string[];
@@ -87,6 +97,8 @@ export type ClueDataClient = {
   insertImage(input: ImageInsert): Promise<void>;
   insertRegions(clueId: string, regionIds: string[]): Promise<void>;
   replaceRegions(clueId: string, regionIds: string[]): Promise<void>;
+  upsertZone(clueId: string, zoneGeoJson: ClueZoneGeoJson): Promise<void>;
+  deleteZone(clueId: string): Promise<void>;
   deleteImageMetadata(imageIds: string[]): Promise<void>;
   updateImageSortOrders(
     updates: Array<{
@@ -123,13 +135,11 @@ function draftInput(input: ParsedClueForm | ParsedClueEditForm): DraftInsert {
   };
 }
 
-function draftInputWithCoverage(
-  input: ParsedClueForm | ParsedClueEditForm,
-  coverage: DraftInsert["coverage"],
-): DraftInsert {
+function draftInputWithPreviousIdentity(input: ParsedClueEditForm): DraftInsert {
   return {
     ...draftInput(input),
-    coverage,
+    category_id: input.previousCategoryId,
+    coverage: input.previousCoverage,
   };
 }
 
@@ -189,6 +199,9 @@ export function createClueApi(
         if (input.coverage === "selected_regions") {
           stage = "regions";
           await client.insertRegions(clue.id, input.regionIds);
+        } else if (input.coverage === "drawn_zone" && input.zoneGeoJson) {
+          stage = "zone";
+          await client.upsertZone(clue.id, input.zoneGeoJson);
         }
 
         stage = "publication";
@@ -232,29 +245,52 @@ export function createClueApi(
       const insertedImageIds: string[] = [];
       const keptImages = input.existingImages;
       const nextImages = [...keptImages];
-      const switchesToWholeCountry =
-        input.previousCoverage === "selected_regions" &&
-        input.coverage === "whole_country";
+      const coverageChanged = input.previousCoverage !== input.coverage;
+      const categoryChanged = input.previousCategoryId !== input.categoryId;
       const hasImageStructureChanges =
         input.images.length > 0 || input.removedImageIds.length > 0;
 
       try {
         await client.updateClue(
           input.clueId,
-          switchesToWholeCountry
-            ? draftInputWithCoverage(input, "selected_regions")
+          coverageChanged || categoryChanged
+            ? draftInputWithPreviousIdentity(input)
             : draftInput(input),
         );
 
         stage = "regions";
-        await client.replaceRegions(
-          input.clueId,
-          input.coverage === "selected_regions" ? input.regionIds : [],
-        );
+        if (
+          input.previousCoverage === "selected_regions" &&
+          input.coverage !== "selected_regions"
+        ) {
+          await client.replaceRegions(input.clueId, []);
+        }
 
-        if (switchesToWholeCountry) {
+        stage = "zone";
+        if (
+          input.previousCoverage === "drawn_zone" &&
+          input.coverage !== "drawn_zone"
+        ) {
+          await client.deleteZone(input.clueId);
+        }
+
+        if (coverageChanged || categoryChanged) {
           stage = "update";
           await client.updateClue(input.clueId, draftInput(input));
+        }
+
+        stage = "regions";
+        if (input.coverage === "selected_regions") {
+          await client.replaceRegions(input.clueId, input.regionIds);
+        } else if (input.previousCoverage !== "selected_regions") {
+          await client.replaceRegions(input.clueId, []);
+        }
+
+        stage = "zone";
+        if (input.coverage === "drawn_zone" && input.zoneGeoJson) {
+          await client.upsertZone(input.clueId, input.zoneGeoJson);
+        } else if (input.previousCoverage !== "drawn_zone") {
+          await client.deleteZone(input.clueId);
         }
 
         for (const [index, file] of input.images.entries()) {
@@ -334,16 +370,36 @@ export function createClueApi(
         });
       }
     },
+
+    async delete(clueId: string): Promise<void> {
+      const clue = await client.loadForEdit(clueId);
+      if (!clue) {
+        return;
+      }
+
+      if (clue.coverage === "drawn_zone") {
+        await client.deleteZone(clueId);
+      }
+
+      const imagePaths = clue.existingImages.map((image) => image.storagePath);
+      if (imagePaths.length > 0) {
+        await client.removeImages(imagePaths);
+        await client.deleteImageMetadata(
+          clue.existingImages.map((image) => image.id),
+        );
+      }
+
+      await client.deleteClue(clueId);
+    },
   };
 }
 
-function throwIfError(
-  error: { message: string; code?: string } | null,
-  fallbackCode: string,
-) {
+function throwIfError(error: SupabaseErrorLike | null, fallbackCode: string) {
   if (error) {
     throw Object.assign(new Error(error.message), {
       code: error.code ?? fallbackCode,
+      details: error.details,
+      hint: error.hint,
     });
   }
 }
@@ -356,7 +412,7 @@ export function createSupabaseClueDataClient(
       const { data, error } = await supabase
         .from("clues")
         .select(
-          "id, collection_id, category_id, country_code, coverage, difficulty, title, characteristics, notes, google_maps_url, clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id)",
+          "id, collection_id, category_id, country_code, coverage, difficulty, title, characteristics, notes, google_maps_url, clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id), clue_zones(geojson)",
         )
         .eq("id", clueId)
         .single();
@@ -374,6 +430,9 @@ export function createSupabaseClueDataClient(
         notes: data.notes ?? "",
         googleMapsUrl: data.google_maps_url ?? "",
         regionIds: (data.clue_regions ?? []).map((region) => region.region_id),
+        zoneGeoJson:
+          (((data.clue_zones ?? null) as { geojson: ClueZoneGeoJson | null } | null)
+            ?.geojson ?? null),
         existingImages: [...(data.clue_images ?? [])]
           .sort((left, right) => left.sort_order - right.sort_order)
           .map((image) => ({
@@ -386,9 +445,15 @@ export function createSupabaseClueDataClient(
     },
 
     async insertDraft(input) {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      throwIfError(userError, "clue_user_lookup_failed");
+      if (!userData.user) {
+        throw new Error("Utilisateur non connecte.");
+      }
+
       const { data, error } = await supabase
         .from("clues")
-        .insert(input)
+        .insert({ ...input, author_id: userData.user.id })
         .select("id")
         .single();
       throwIfError(error, "clue_draft_failed");
@@ -433,6 +498,22 @@ export function createSupabaseClueDataClient(
       throwIfError(deleteError, "clue_regions_failed");
       if (regionIds.length === 0) return;
       await this.insertRegions(clueId, regionIds);
+    },
+
+    async upsertZone(clueId, zoneGeoJson) {
+      const { error } = await supabase.from("clue_zones").upsert({
+        clue_id: clueId,
+        geojson: zoneGeoJson,
+      });
+      throwIfError(error, "clue_zone_failed");
+    },
+
+    async deleteZone(clueId) {
+      const { error } = await supabase
+        .from("clue_zones")
+        .delete()
+        .eq("clue_id", clueId);
+      throwIfError(error, "clue_zone_failed");
     },
 
     async deleteImageMetadata(imageIds) {

@@ -60,6 +60,30 @@ test("normalizes Natural Earth countries to ISO2 features", () => {
   assert.ok(result.features.every(({ geometry }) => geometry));
 });
 
+test("repairs double-encoded region labels without changing their stable id", () => {
+  const sourceName = "RegiÃ³n de ValparaÃ­so";
+  const source = {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: {
+        shapeGroup: "CHL",
+        shapeID: "region-1",
+        shapeName: sourceName,
+      },
+      geometry: polygon,
+    }],
+  };
+
+  const result = normalizeRegionCollection(source, "CL", "CHL");
+
+  assert.equal(result.features[0].properties.name, "Región de Valparaíso");
+  assert.equal(
+    result.features[0].properties.id,
+    createRegionId("CL", "region-1", sourceName),
+  );
+});
+
 test("uses canonical names when merged territories appear first", () => {
   const source = {
     type: "FeatureCollection",

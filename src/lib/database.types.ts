@@ -9,7 +9,16 @@ export type Json =
 type CollectionRole = "owner" | "editor";
 type CollectionVisibility = "private" | "public_readonly";
 type PlatformRole = "admin" | "super_admin";
-type CoverageMode = "whole_country" | "selected_regions";
+type BillingPlanKey = "free" | "premium_monthly" | "premium_yearly";
+type BillingSubscriptionStatus =
+  | "inactive"
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid";
+type BillingFeatureSource = "manual" | "promo" | "admin";
+type CoverageMode = "whole_country" | "selected_regions" | "drawn_zone";
 type ClueDifficulty = "easy" | "medium" | "expert";
 type InvitationStatus =
   | "pending"
@@ -30,6 +39,9 @@ export type Database = {
           display_name: string;
           avatar_url: string | null;
           email: string | null;
+          username_changed_at: string | null;
+          leaderboard_visible: boolean;
+          xp_total: string;
           created_at: string;
           updated_at: string;
         };
@@ -38,6 +50,9 @@ export type Database = {
           display_name?: string;
           avatar_url?: string | null;
           email?: string | null;
+          username_changed_at?: string | null;
+          leaderboard_visible?: boolean;
+          xp_total?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -46,6 +61,9 @@ export type Database = {
           display_name?: string;
           avatar_url?: string | null;
           email?: string | null;
+          username_changed_at?: string | null;
+          leaderboard_visible?: boolean;
+          xp_total?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -89,12 +107,142 @@ export type Database = {
           },
         ];
       };
+      billing_customers: {
+        Row: {
+          user_id: string;
+          stripe_customer_id: string | null;
+          checkout_email: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          stripe_customer_id?: string | null;
+          checkout_email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          stripe_customer_id?: string | null;
+          checkout_email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_customers_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          stripe_price_id: string | null;
+          plan_key: BillingPlanKey;
+          status: BillingSubscriptionStatus;
+          cancel_at_period_end: boolean;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          trial_end: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_price_id?: string | null;
+          plan_key?: BillingPlanKey;
+          status?: BillingSubscriptionStatus;
+          cancel_at_period_end?: boolean;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          trial_end?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_price_id?: string | null;
+          plan_key?: BillingPlanKey;
+          status?: BillingSubscriptionStatus;
+          cancel_at_period_end?: boolean;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          trial_end?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_feature_entitlements: {
+        Row: {
+          id: string;
+          user_id: string;
+          feature_key: string;
+          source: BillingFeatureSource;
+          expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          feature_key: string;
+          source: BillingFeatureSource;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          feature_key?: string;
+          source?: BillingFeatureSource;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_feature_entitlements_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       collections: {
         Row: {
           id: string;
           owner_id: string | null;
           name: string;
           description: string | null;
+          is_official: boolean;
           visibility: CollectionVisibility;
           created_at: string;
           updated_at: string;
@@ -104,6 +252,7 @@ export type Database = {
           owner_id?: string | null;
           name: string;
           description?: string | null;
+          is_official?: boolean;
           visibility?: CollectionVisibility;
           created_at?: string;
           updated_at?: string;
@@ -113,6 +262,7 @@ export type Database = {
           owner_id?: string | null;
           name?: string;
           description?: string | null;
+          is_official?: boolean;
           visibility?: CollectionVisibility;
           created_at?: string;
           updated_at?: string;
@@ -443,6 +593,35 @@ export type Database = {
           },
         ];
       };
+      clue_zones: {
+        Row: {
+          clue_id: string;
+          geojson: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          clue_id: string;
+          geojson: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          clue_id?: string;
+          geojson?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clue_zones_clue_id_fkey";
+            columns: ["clue_id"];
+            isOneToOne: true;
+            referencedRelation: "clues";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clue_images: {
         Row: {
           id: string;
@@ -490,6 +669,10 @@ export type Database = {
           country_code: string | null;
           category_id: string | null;
           total_questions: number;
+          is_ranked: boolean;
+          challenge_type: string;
+          challenge_key: string | null;
+          duration_ms: number | null;
           correct_answers: number;
           total_answers: number;
           started_at: string;
@@ -505,6 +688,10 @@ export type Database = {
           country_code?: string | null;
           category_id?: string | null;
           total_questions: number;
+          is_ranked?: boolean;
+          challenge_type?: string;
+          challenge_key?: string | null;
+          duration_ms?: number | null;
           correct_answers?: number;
           total_answers?: number;
           started_at?: string;
@@ -520,6 +707,10 @@ export type Database = {
           country_code?: string | null;
           category_id?: string | null;
           total_questions?: number;
+          is_ranked?: boolean;
+          challenge_type?: string;
+          challenge_key?: string | null;
+          duration_ms?: number | null;
           correct_answers?: number;
           total_answers?: number;
           started_at?: string;
@@ -616,6 +807,57 @@ export type Database = {
           },
         ];
       };
+      xp_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          training_session_id: string;
+          total_delta: number;
+          correct_count: number;
+          wrong_count: number;
+          before_xp: string;
+          after_xp: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          training_session_id: string;
+          total_delta: number;
+          correct_count?: number;
+          wrong_count?: number;
+          before_xp: string;
+          after_xp: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          training_session_id?: string;
+          total_delta?: number;
+          correct_count?: number;
+          wrong_count?: number;
+          before_xp?: string;
+          after_xp?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "xp_events_training_session_id_fkey";
+            columns: ["training_session_id"];
+            isOneToOne: true;
+            referencedRelation: "training_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "xp_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -642,6 +884,10 @@ export type Database = {
         Args: { target_collection_id: string; target_status: ClueStatus };
         Returns: boolean;
       };
+      compute_ranked_answer_xp: {
+        Args: { p_difficulty: ClueDifficulty; p_is_correct: boolean };
+        Returns: number;
+      };
       is_platform_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
@@ -649,6 +895,27 @@ export type Database = {
       is_super_admin: {
         Args: Record<PropertyKey, never>;
         Returns: boolean;
+      };
+      manage_platform_role: {
+        Args: {
+          target_user_id: string;
+          target_role?: PlatformRole | null;
+        };
+        Returns: boolean;
+      };
+      has_premium_access: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      get_my_billing_status: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          plan_key: BillingPlanKey;
+          status: BillingSubscriptionStatus;
+          cancel_at_period_end: boolean;
+          current_period_end: string | null;
+          premium_enabled: boolean;
+        }[];
       };
       is_collection_public: {
         Args: { target_collection_id: string };
@@ -694,8 +961,222 @@ export type Database = {
           collection_name: string;
         }[];
       };
+      start_training_session: {
+        Args: {
+          p_collection_id: string;
+          p_category_id: string | null;
+          p_mode: TrainingMode;
+          p_country_code: string | null;
+          p_total_questions: number;
+          p_challenge_type?: string;
+          p_challenge_key?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["training_sessions"]["Row"][];
+      };
+      complete_training_session: {
+        Args: { p_session_id: string };
+        Returns: {
+          id: string;
+          user_id: string;
+          collection_id: string;
+          mode: TrainingMode;
+          country_code: string | null;
+          category_id: string | null;
+          total_questions: number;
+          is_ranked: boolean;
+          challenge_type: string;
+          challenge_key: string | null;
+          duration_ms: number | null;
+          correct_answers: number;
+          total_answers: number;
+          started_at: string;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+          xp_delta: number;
+          xp_total: string;
+          xp_awarded: boolean;
+        }[];
+      };
+      get_my_daily_challenge_progress: {
+        Args: { p_collection_id: string; p_challenge_key: string };
+        Returns: {
+          completed_sessions: number;
+          best_accuracy_percent: number | null;
+          best_duration_ms: number | null;
+          latest_completed_at: string | null;
+        }[];
+      };
+      get_or_create_daily_challenge: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          status: string;
+          challenge_id: string;
+          challenge_key: string;
+          collection_id: string;
+          collection_name: string;
+          category_id: string | null;
+          category_name: string;
+          mode: string;
+          question_count: number;
+          seconds_until_reset: number;
+          attempt_status: string;
+        }[];
+      };
+      start_daily_challenge_attempt: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          attempt_id: string;
+          challenge_id: string;
+          challenge_key: string;
+          collection_id: string;
+          collection_name: string;
+          category_id: string | null;
+          category_name: string;
+          mode: string;
+          question_count: number;
+          current_position: number;
+          is_premium: boolean;
+          started_at: string;
+          answered_steps: {
+            position: number;
+            is_correct: boolean;
+          }[];
+          questions: {
+            position: number;
+            clue_id: string;
+            image_storage_path: string;
+            image_alt: string;
+            difficulty: ClueDifficulty;
+            category_name: string;
+            category_icon: string | null;
+          }[];
+        }[];
+      };
+      submit_daily_challenge_answer: {
+        Args: {
+          p_attempt_id: string;
+          p_position: number;
+          p_selected_code: string;
+        };
+        Returns: {
+          position: number;
+          selected_code: string;
+          selected_label: string;
+          correct_code: string;
+          correct_label: string;
+          is_correct: boolean;
+          completed: boolean;
+          current_position: number;
+          correct_answers: number;
+          total_questions: number;
+          duration_ms: number | null;
+          xp_delta: number;
+          xp_total: string | null;
+          xp_awarded: boolean;
+        }[];
+      };
+      get_daily_challenge_leaderboard: {
+        Args: {
+          p_challenge_key: string;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: {
+          user_id: string;
+          username: string;
+          avatar_url: string | null;
+          rank: number;
+          correct_answers: number;
+          accuracy_percent: number;
+          duration_ms: number;
+          daily_points: number;
+          completed_at: string;
+          xp_total: string;
+          total_count: number;
+        }[];
+      };
+      get_global_daily_leaderboard: {
+        Args: { p_limit?: number; p_offset?: number };
+        Returns: {
+          user_id: string;
+          username: string;
+          avatar_url: string | null;
+          rank: number;
+          total_points: string;
+          participation_count: number;
+          correct_answers: string;
+          total_answers: string;
+          accuracy_percent: number;
+          total_duration_ms: string;
+          xp_total: string;
+          total_count: number;
+        }[];
+      };
+      get_my_daily_challenge_leaderboard_progress: {
+        Args: { p_challenge_key: string };
+        Returns: {
+          rank: number | null;
+          correct_answers: number | null;
+          accuracy_percent: number | null;
+          duration_ms: number | null;
+          daily_points: number | null;
+          visible: boolean;
+        }[];
+      };
+      get_my_global_daily_leaderboard_progress: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          rank: number | null;
+          total_points: string;
+          participation_count: number;
+          correct_answers: string;
+          total_answers: string;
+          accuracy_percent: number | null;
+          total_duration_ms: string;
+          visible: boolean;
+        }[];
+      };
+      list_official_leaderboard_categories: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          id: string;
+          name: string;
+          icon: string | null;
+          collection_id: string;
+          collection_name: string;
+        }[];
+      };
+      get_category_leaderboard: {
+        Args: { p_category_id: string; p_limit?: number; p_offset?: number };
+        Returns: {
+          user_id: string;
+          username: string;
+          avatar_url: string | null;
+          rank: number;
+          accuracy_percent: number;
+          average_ms_per_answer: number;
+          quiz_count: number;
+          xp_total: string;
+          total_count: number;
+        }[];
+      };
+      get_my_category_progress: {
+        Args: { p_category_id: string };
+        Returns: {
+          rank: number | null;
+          accuracy_percent: number | null;
+          average_ms_per_answer: number | null;
+          quiz_count: number;
+          remaining_quizzes: number;
+          visible: boolean;
+        }[];
+      };
     };
     Enums: {
+      billing_plan_key: BillingPlanKey;
+      billing_subscription_status: BillingSubscriptionStatus;
+      billing_feature_source: BillingFeatureSource;
       platform_role: PlatformRole;
       collection_visibility: CollectionVisibility;
       collection_role: CollectionRole;

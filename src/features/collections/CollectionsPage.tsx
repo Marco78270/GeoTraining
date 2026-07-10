@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Map,
   ShieldCheck,
+  Trophy,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
@@ -104,11 +105,15 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
           </NavLink>
           <NavLink to="/training">
             <GraduationCap />
-            EntraÃ®nement
+            Entraînement
           </NavLink>
           <NavLink to="/statistics">
             <BarChart3 />
             Statistiques
+          </NavLink>
+          <NavLink to="/leaderboard">
+            <Trophy />
+            Classement
           </NavLink>
         </nav>
         <ProfileMenu
@@ -164,7 +169,7 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
               type="submit"
               disabled={create.isPending}
             >
-              {create.isPending ? "CrÃ©ation..." : "CrÃ©er la collection"}
+              {create.isPending ? "Création..." : "Créer la collection"}
             </button>
           </form>
           {create.error ? (
@@ -177,8 +182,8 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
         <div className="collections-content">
           {!isLoading && collections.length === 0 ? (
             <section className="panel empty-state">
-              <h2>Votre premiÃ¨re collection</h2>
-              <p>CrÃ©ez un espace privÃ© pour classer vos indices GeoGuessr.</p>
+              <h2>Votre première collection</h2>
+              <p>Créez un espace privé pour classer vos indices GeoGuessr.</p>
             </section>
           ) : null}
           {activeCollection ? (
@@ -188,11 +193,11 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
                   <p className="eyebrow">
                     {isPublicReadOnly
                       ? canAdministerActiveCollection
-                        ? "Publique Â· Administration"
-                        : "Publique Â· Lecture seule"
+                        ? "Publique · Administration"
+                        : "Publique · Lecture seule"
                       : activeCollection.role === "owner"
-                        ? "PropriÃ©taire"
-                        : "Ã‰diteur"}
+                        ? "Propriétaire"
+                        : "Éditeur"}
                   </p>
                   <div className="collection-title-row">
                     <h2>{activeCollection.name}</h2>
@@ -236,7 +241,7 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
                       onClick={() => {
                         if (
                           window.confirm(
-                            `Supprimer dÃ©finitivement ${activeCollection.name} ?`,
+                            `Supprimer définitivement ${activeCollection.name} ?`,
                           )
                         ) {
                           remove.mutate(activeCollection.id);
@@ -249,6 +254,7 @@ export function CollectionsPage({ api: suppliedApi }: { api?: CollectionApi }) {
                 ) : null}
               </section>
               <CategoryList
+                key={activeCollection.id}
                 collectionId={activeCollection.id}
                 readOnly={!canEditActiveCollection}
                 api={api}

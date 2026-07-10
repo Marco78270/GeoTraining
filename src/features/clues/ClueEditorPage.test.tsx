@@ -62,6 +62,7 @@ it("recharge un indice en édition depuis le clueId quand l'état de navigation 
       countryCode: "FR",
       coverage: "whole_country",
       regionIds: [],
+      zoneGeoJson: null,
       difficulty: "medium",
       title: "STOP français",
       characteristics: ["Octogone rouge"],
@@ -78,6 +79,7 @@ it("recharge un indice en édition depuis le clueId quand l'état de navigation 
     }),
     create: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
   } as unknown as ClueApi;
 
   render(
@@ -101,7 +103,7 @@ it("recharge un indice en édition depuis le clueId quand l'état de navigation 
     </QueryClientProvider>,
   );
 
-  expect(screen.getByRole("status")).toHaveTextContent("Chargement de l’indice");
+  expect(screen.getByRole("status")).toHaveTextContent("Chargement de l’indice...");
 
   await waitFor(() => {
     expect(clueApi.loadForEdit).toHaveBeenCalledWith("clue-1");

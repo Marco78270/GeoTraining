@@ -61,6 +61,17 @@ describe("send collection invite handler", () => {
     expect(deps.authenticate).not.toHaveBeenCalled();
   });
 
+  it("rejects browser origins when no allowlist is configured", async () => {
+    const deps = dependencies({
+      allowedOrigins: new Set(),
+    });
+    const response = await createInviteHandler(deps)(post());
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: "origin_not_allowed" });
+    expect(deps.authenticate).not.toHaveBeenCalled();
+  });
+
   it("falls back to the trusted request origin when APP_URL is not configured", async () => {
     const deps = dependencies({ appUrl: "" });
     const response = await createInviteHandler(deps)(post());

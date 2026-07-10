@@ -1,0 +1,519 @@
+[
+  {
+    "id": "f870f8d9-3a34-4705-b0e0-34a11b684b90",
+    "countryCode": "AR",
+    "title": "Argentina: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Argentina, road lines frequently consist of white dashes in the center alongside a continuous yellow line.",
+      "Uruguay also has this combination."
+    ],
+    "notes": "In Argentina, road lines frequently consist of white dashes in the center alongside a continuous yellow line.\n\nUruguay also has this combination.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/f870f8d9-3a34-4705-b0e0-34a11b684b90/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/f870f8d9-3a34-4705-b0e0-34a11b684b90/",
+    "attributionText": "Argentina: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/f870f8d9-3a34-4705-b0e0-34a11b684b90.jpg",
+    "imageAltText": "Argentina street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/aiXccjJFcrjMTifs5",
+    "regionIds": []
+  },
+  {
+    "id": "7a060db4-816b-4766-8d33-24d31ddf8a2c",
+    "countryCode": "BR",
+    "title": "Brazil: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Brazil, roads typically have double yellow lines in the middle and white outer lines."
+    ],
+    "notes": "In Brazil, roads typically have double yellow lines in the middle and white outer lines.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/7a060db4-816b-4766-8d33-24d31ddf8a2c/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/7a060db4-816b-4766-8d33-24d31ddf8a2c/",
+    "attributionText": "Brazil: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/7a060db4-816b-4766-8d33-24d31ddf8a2c.jpg",
+    "imageAltText": "Brazil street marking meta",
+    "googleMapsUrl": "https://maps.app.goo.gl/NuWVYH8csVXfyRc67",
+    "regionIds": []
+  },
+  {
+    "id": "6d6dfc54-d11a-438e-ab42-f69c29414d0c",
+    "countryCode": "CL",
+    "title": "Chile: street markings meta",
+    "difficulty": "easy",
+    "characteristics": [
+      "Chile sometimes has all-yellow road lines.",
+      "In South America, this is unique to Chile."
+    ],
+    "notes": "Chile sometimes has all-yellow road lines. In South America, this is unique to Chile.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/6d6dfc54-d11a-438e-ab42-f69c29414d0c/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/6d6dfc54-d11a-438e-ab42-f69c29414d0c/",
+    "attributionText": "Chile: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/6d6dfc54-d11a-438e-ab42-f69c29414d0c.jpg",
+    "imageAltText": "Chile street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/h7wpueKQzyhmJ8tq8",
+    "regionIds": []
+  },
+  {
+    "id": "97644570-b3da-42c5-b3ef-d7168ee9f11d",
+    "countryCode": "CL",
+    "title": "Chile: street markings meta",
+    "difficulty": "easy",
+    "characteristics": [
+      "In Chile, all-white road lines are common.",
+      "This is a good clue for Chile when in South America, but it's not unique.",
+      "Argentina also sometimes has all-white roads."
+    ],
+    "notes": "In Chile, all-white road lines are common. This is a good clue for Chile when in South America, but it's not unique. Argentina also sometimes has all-white roads.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/97644570-b3da-42c5-b3ef-d7168ee9f11d/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/97644570-b3da-42c5-b3ef-d7168ee9f11d/",
+    "attributionText": "Chile: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/97644570-b3da-42c5-b3ef-d7168ee9f11d.jpg",
+    "imageAltText": "Chile street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/HZSynoeHbdQWtZ966",
+    "regionIds": []
+  },
+  {
+    "id": "2742f558-36a9-4114-8b05-5342d4d80276",
+    "countryCode": "CZ",
+    "title": "Czech Republic: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Czechia, roads often have solid outer lines with no center line, a feature useful for distinguishing Czechia from Slovakia."
+    ],
+    "notes": "In Czechia, roads often have solid outer lines with no center line, a feature useful for distinguishing Czechia from Slovakia.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/2742f558-36a9-4114-8b05-5342d4d80276/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/2742f558-36a9-4114-8b05-5342d4d80276/",
+    "attributionText": "Czech Republic: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/2742f558-36a9-4114-8b05-5342d4d80276.jpg",
+    "imageAltText": "Czechia street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/NJhv3x7yf2rZZTUc6",
+    "regionIds": []
+  },
+  {
+    "id": "cbae3057-1e82-4a9e-ba7a-5dcc18b9a84e",
+    "countryCode": "DK",
+    "title": "Denmark: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Denmark, main roads often feature distinct short-dashed edge markings."
+    ],
+    "notes": "In Denmark, main roads often feature distinct short-dashed edge markings.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/cbae3057-1e82-4a9e-ba7a-5dcc18b9a84e/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/cbae3057-1e82-4a9e-ba7a-5dcc18b9a84e/",
+    "attributionText": "Denmark: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/cbae3057-1e82-4a9e-ba7a-5dcc18b9a84e.jpg",
+    "imageAltText": "Denmark street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/bNfuCqir5vCdJe3r9",
+    "regionIds": []
+  },
+  {
+    "id": "72751c77-8a87-4b59-8dc6-b1d2a8a43234",
+    "countryCode": "FI",
+    "title": "Finland: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Finland, road lines usually consist of solid white side lines (when present) and a center line that can be white or yellow, sometimes accompanied by a secondary line or stripes."
+    ],
+    "notes": "In Finland, road lines usually consist of solid white side lines (when present) and a center line that can be white or yellow, sometimes accompanied by a secondary line or stripes.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/72751c77-8a87-4b59-8dc6-b1d2a8a43234/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/72751c77-8a87-4b59-8dc6-b1d2a8a43234/",
+    "attributionText": "Finland: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/72751c77-8a87-4b59-8dc6-b1d2a8a43234.jpg",
+    "imageAltText": "Finland street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/EV9vN1dTpc6qxzpUA",
+    "regionIds": []
+  },
+  {
+    "id": "bf37748d-9a60-488d-9ef8-db14e19ab6bd",
+    "countryCode": "FR",
+    "title": "France: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "Many French roads have these very long, white dashes along both sides of the road.",
+      "Nowhere else in Europe has such long side dashes as French dashes."
+    ],
+    "notes": "Many French roads have these very long, white dashes along both sides of the road. Nowhere else in Europe has such long side dashes as French dashes.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/bf37748d-9a60-488d-9ef8-db14e19ab6bd/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/bf37748d-9a60-488d-9ef8-db14e19ab6bd/",
+    "attributionText": "France: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/bf37748d-9a60-488d-9ef8-db14e19ab6bd.jpg",
+    "imageAltText": "France street marking meta",
+    "googleMapsUrl": null,
+    "regionIds": []
+  },
+  {
+    "id": "e0fbe3c0-5dcc-4769-a00c-8348e8533002",
+    "countryCode": "FR",
+    "title": "France: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "The French island of Corsica often has shorter, white dashes on the sides of the road.",
+      "It also has mountains in the centre of the island and a Mediterranean feel elsewhere."
+    ],
+    "notes": "The French island of Corsica often has shorter, white dashes on the sides of the road. It also has mountains in the centre of the island and a Mediterranean feel elsewhere.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/e0fbe3c0-5dcc-4769-a00c-8348e8533002/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/e0fbe3c0-5dcc-4769-a00c-8348e8533002/",
+    "attributionText": "France: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/e0fbe3c0-5dcc-4769-a00c-8348e8533002.jpg",
+    "imageAltText": "France street marking meta",
+    "googleMapsUrl": null,
+    "regionIds": []
+  },
+  {
+    "id": "ac2ebe81-2356-42da-9403-b7ffa6a81047",
+    "countryCode": "GR",
+    "title": "Greece: street markings meta",
+    "difficulty": "expert",
+    "characteristics": [
+      "Many Greek roads feature a double white or yellow center line.",
+      "This is rare in Europe and a good sign for Greece."
+    ],
+    "notes": "Many Greek roads feature a double white or yellow center line.\n\nThis is rare in Europe and a good sign for Greece.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/ac2ebe81-2356-42da-9403-b7ffa6a81047/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/ac2ebe81-2356-42da-9403-b7ffa6a81047/",
+    "attributionText": "Greece: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/ac2ebe81-2356-42da-9403-b7ffa6a81047.jpg",
+    "imageAltText": "Greece street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/vzb6wJQUkDGuf55dA",
+    "regionIds": []
+  },
+  {
+    "id": "f786bb3c-945a-42b2-8b54-c584443c6320",
+    "countryCode": "ID",
+    "title": "Indonesia: street markings meta",
+    "difficulty": "easy",
+    "characteristics": [
+      "In Indonesia, the outer road lines are always white.",
+      "The center line is white or yellow.",
+      "Malaysia, in contrast, never has yellow road markings.",
+      "Thailand, similar to Indonesia, can have white or yellow road markings."
+    ],
+    "notes": "In Indonesia, the outer road lines are always white. The center line is white or yellow.\n\nMalaysia, in contrast, never has yellow road markings. Thailand, similar to Indonesia, can have white or yellow road markings.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/f786bb3c-945a-42b2-8b54-c584443c6320/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/f786bb3c-945a-42b2-8b54-c584443c6320/",
+    "attributionText": "Indonesia: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/f786bb3c-945a-42b2-8b54-c584443c6320.jpg",
+    "imageAltText": "Indonesia street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/D3vzStNrzPdtjifi8",
+    "regionIds": []
+  },
+  {
+    "id": "ecaeee67-bf27-4f9b-a68c-47fd89faffe1",
+    "countryCode": "IE",
+    "title": "Ireland: street markings meta",
+    "difficulty": "expert",
+    "characteristics": [
+      "Yellow, dashed edge lines on the road are quite common in Ireland but very rare in the U.",
+      "K..",
+      "This is a good method to tell Ireland apart from the U.K."
+    ],
+    "notes": "Yellow, dashed edge lines on the road are quite common in Ireland but very rare in the U. K.. This is a good method to tell Ireland apart from the U.K.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/ecaeee67-bf27-4f9b-a68c-47fd89faffe1/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/ecaeee67-bf27-4f9b-a68c-47fd89faffe1/",
+    "attributionText": "Ireland: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/ecaeee67-bf27-4f9b-a68c-47fd89faffe1.jpg",
+    "imageAltText": "Ireland street marking meta",
+    "googleMapsUrl": null,
+    "regionIds": []
+  },
+  {
+    "id": "7421d1fd-5ddb-45ba-8584-b8f2dce7967c",
+    "countryCode": "IS",
+    "title": "Iceland: street markings meta",
+    "difficulty": "easy",
+    "characteristics": [
+      "In Iceland, some roads feature white, dashed edge markings, with grass often extending right up to the edge of the road.",
+      "Additionally, roads in Iceland often have a distinctive dark color."
+    ],
+    "notes": "In Iceland, some roads feature white, dashed edge markings, with grass often extending right up to the edge of the road. Additionally, roads in Iceland often have a distinctive dark color.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/7421d1fd-5ddb-45ba-8584-b8f2dce7967c/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/7421d1fd-5ddb-45ba-8584-b8f2dce7967c/",
+    "attributionText": "Iceland: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/7421d1fd-5ddb-45ba-8584-b8f2dce7967c.jpg",
+    "imageAltText": "Iceland street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/pxEQ4b4eK3KS9riN9",
+    "regionIds": []
+  },
+  {
+    "id": "2f8a7b08-f226-4c2f-92d8-036c4f8bc3b0",
+    "countryCode": "MY",
+    "title": "Malaysia: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "Malaysia often has black-and-white street markings and guardrails."
+    ],
+    "notes": "Malaysia often has black-and-white street markings and guardrails.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/2f8a7b08-f226-4c2f-92d8-036c4f8bc3b0/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/2f8a7b08-f226-4c2f-92d8-036c4f8bc3b0/",
+    "attributionText": "Malaysia: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/2f8a7b08-f226-4c2f-92d8-036c4f8bc3b0.jpg",
+    "imageAltText": "Malaysia street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/RvdG6NsHj3eHVj9y8",
+    "regionIds": []
+  },
+  {
+    "id": "89835587-af10-44e0-a6bd-756a7f314c62",
+    "countryCode": "MY",
+    "title": "Malaysia: street markings meta",
+    "difficulty": "easy",
+    "characteristics": [
+      "Malaysia occasionally features a unique road characteristic: thick, yellow lines that run perpendicular to the road."
+    ],
+    "notes": "Malaysia occasionally features a unique road characteristic: thick, yellow lines that run perpendicular to the road.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/89835587-af10-44e0-a6bd-756a7f314c62/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/89835587-af10-44e0-a6bd-756a7f314c62/",
+    "attributionText": "Malaysia: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/89835587-af10-44e0-a6bd-756a7f314c62.jpg",
+    "imageAltText": "Malaysia street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/aaT2n4Pd9jHkUsaE8",
+    "regionIds": []
+  },
+  {
+    "id": "b855ae17-7bc5-45f3-9f44-6f3923397925",
+    "countryCode": "MY",
+    "title": "Malaysia: street markings meta",
+    "difficulty": "expert",
+    "characteristics": [
+      "Malaysia sometimes has these double, white, continuous road lines.",
+      "These are fairly rare around the rest of the world."
+    ],
+    "notes": "Malaysia sometimes has these double, white, continuous road lines. These are fairly rare around the rest of the world.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/b855ae17-7bc5-45f3-9f44-6f3923397925/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/b855ae17-7bc5-45f3-9f44-6f3923397925/",
+    "attributionText": "Malaysia: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/b855ae17-7bc5-45f3-9f44-6f3923397925.jpg",
+    "imageAltText": "Malaysia street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/8LmxGfzoByLWg8iJ8",
+    "regionIds": []
+  },
+  {
+    "id": "235b83c0-08b5-4538-b6d5-76df6f6fbbaa",
+    "countryCode": "NO",
+    "title": "Norway: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "Norway often has dashed white lines on the side of the road.",
+      "Norway’s dashed lines stand out in the Nordics as the lines themselves are longer than the gap between the lines."
+    ],
+    "notes": "Norway often has dashed white lines on the side of the road.\n\nNorway’s dashed lines stand out in the Nordics as the lines themselves are longer than the gap between the lines.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/235b83c0-08b5-4538-b6d5-76df6f6fbbaa/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/235b83c0-08b5-4538-b6d5-76df6f6fbbaa/",
+    "attributionText": "Norway: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/235b83c0-08b5-4538-b6d5-76df6f6fbbaa.jpg",
+    "imageAltText": "Norway street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/SESK87NWigCCVke19",
+    "regionIds": []
+  },
+  {
+    "id": "4ab03d3d-8836-4483-ab7e-100097c45b63",
+    "countryCode": "NO",
+    "title": "Norway: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Norway, roads often feature yellow center lines and white side lines."
+    ],
+    "notes": "In Norway, roads often feature yellow center lines and white side lines.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/4ab03d3d-8836-4483-ab7e-100097c45b63/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/4ab03d3d-8836-4483-ab7e-100097c45b63/",
+    "attributionText": "Norway: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/4ab03d3d-8836-4483-ab7e-100097c45b63.jpg",
+    "imageAltText": "Norway street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/HWD9pBZf1snLiKyS6",
+    "regionIds": []
+  },
+  {
+    "id": "a06eadde-9eaa-421e-840f-9095625031de",
+    "countryCode": "PH",
+    "title": "Philippines: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "Street markings in the Philippines are typically white but can sometimes be single or double yellow lines."
+    ],
+    "notes": "Street markings in the Philippines are typically white but can sometimes be single or double yellow lines.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/a06eadde-9eaa-421e-840f-9095625031de/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/a06eadde-9eaa-421e-840f-9095625031de/",
+    "attributionText": "Philippines: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/a06eadde-9eaa-421e-840f-9095625031de.jpg",
+    "imageAltText": "Philippines street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/ie3WVsUpq2qHHx2Z6",
+    "regionIds": []
+  },
+  {
+    "id": "7eef6ba4-4d5a-4843-ae4d-f01f5a1fd986",
+    "countryCode": "PL",
+    "title": "Poland: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "Poland’s double middle lines are very common and usually a good clue for Poland."
+    ],
+    "notes": "Poland’s double middle lines are very common and usually a good clue for Poland.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/7eef6ba4-4d5a-4843-ae4d-f01f5a1fd986/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/7eef6ba4-4d5a-4843-ae4d-f01f5a1fd986/",
+    "attributionText": "Poland: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/7eef6ba4-4d5a-4843-ae4d-f01f5a1fd986.jpg",
+    "imageAltText": "Poland street marking meta",
+    "googleMapsUrl": "https://maps.app.goo.gl/7qUwJgi1e7uupTWC7?g_st=ic",
+    "regionIds": []
+  },
+  {
+    "id": "3e2816d4-3367-4a8c-a822-d04f65df679b",
+    "countryCode": "QA",
+    "title": "Qatar: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "Qatari roads are mainly surrounded by these black and white curbs that look like they have been freshly painted."
+    ],
+    "notes": "Qatari roads are mainly surrounded by these black and white curbs that look like they have been freshly painted.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/3e2816d4-3367-4a8c-a822-d04f65df679b/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/3e2816d4-3367-4a8c-a822-d04f65df679b/",
+    "attributionText": "Qatar: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/3e2816d4-3367-4a8c-a822-d04f65df679b.jpg",
+    "imageAltText": "Qatar street marking meta",
+    "googleMapsUrl": null,
+    "regionIds": []
+  },
+  {
+    "id": "40f6f198-fba5-4863-9974-692dba3e115a",
+    "countryCode": "RW",
+    "title": "Rwanda: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "The paved road quality in Rwanda is high.",
+      "Roads typically feature a yellow center line and white sidelines.",
+      "Black-and-white curbs are common."
+    ],
+    "notes": "The paved road quality in Rwanda is high. Roads typically feature a yellow center line and white sidelines. Black-and-white curbs are common.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/40f6f198-fba5-4863-9974-692dba3e115a/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/40f6f198-fba5-4863-9974-692dba3e115a/",
+    "attributionText": "Rwanda: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/40f6f198-fba5-4863-9974-692dba3e115a.jpg",
+    "imageAltText": "Rwanda street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/UpU55ztBvVb18iKb7",
+    "regionIds": []
+  },
+  {
+    "id": "89c58ba7-7deb-453a-b040-1984645aab4c",
+    "countryCode": "SE",
+    "title": "Sweden: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Sweden, roads typically have white dashed side lines and a white center line, with the gaps between the side dashes being longer than the dashes themselves.",
+      "This is in contrast to Norway, where the side dashes are longer than the gaps between them."
+    ],
+    "notes": "In Sweden, roads typically have white dashed side lines and a white center line, with the gaps between the side dashes being longer than the dashes themselves.\n\nThis is in contrast to Norway, where the side dashes are longer than the gaps between them.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/89c58ba7-7deb-453a-b040-1984645aab4c/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/89c58ba7-7deb-453a-b040-1984645aab4c/",
+    "attributionText": "Sweden: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/89c58ba7-7deb-453a-b040-1984645aab4c.jpg",
+    "imageAltText": "Sweden street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/m2mB33SSXWSj9NTdA",
+    "regionIds": []
+  },
+  {
+    "id": "4562a3c7-fdd0-4c2a-a56a-d3da74921a4d",
+    "countryCode": "TH",
+    "title": "Thailand: street markings meta",
+    "difficulty": "easy",
+    "characteristics": [
+      "Thailand sometimes has yellow middle lines, striped or solid.",
+      "However, white middle lines are common too.",
+      "Malaysia, in contrast, ONLY has white road markings."
+    ],
+    "notes": "Thailand sometimes has yellow middle lines, striped or solid. However, white middle lines are common too.\n\nMalaysia, in contrast, ONLY has white road markings.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/4562a3c7-fdd0-4c2a-a56a-d3da74921a4d/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/4562a3c7-fdd0-4c2a-a56a-d3da74921a4d/",
+    "attributionText": "Thailand: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/4562a3c7-fdd0-4c2a-a56a-d3da74921a4d.jpg",
+    "imageAltText": "Thailand street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/xR11vPytaTKt869T6",
+    "regionIds": []
+  },
+  {
+    "id": "6b2328fd-a264-4531-b12d-92ff8fb6aa8a",
+    "countryCode": "UY",
+    "title": "Uruguay: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Uruguay, roads often feature triple lines, consisting of double yellow lines with white dashes in between.",
+      "This design is not found elsewhere in the Americas."
+    ],
+    "notes": "In Uruguay, roads often feature triple lines, consisting of double yellow lines with white dashes in between. This design is not found elsewhere in the Americas.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/6b2328fd-a264-4531-b12d-92ff8fb6aa8a/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/6b2328fd-a264-4531-b12d-92ff8fb6aa8a/",
+    "attributionText": "Uruguay: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/6b2328fd-a264-4531-b12d-92ff8fb6aa8a.jpg",
+    "imageAltText": "Uruguay street marking meta",
+    "googleMapsUrl": "https://maps.app.goo.gl/TpaNA7Z8UvFgaj9H9",
+    "regionIds": []
+  },
+  {
+    "id": "fb2ce6cf-7d2a-4c69-b5bb-3676fd9a744d",
+    "countryCode": "UY",
+    "title": "Uruguay: street markings meta",
+    "difficulty": "medium",
+    "characteristics": [
+      "In Uruguay, road lines frequently consist of white dashes in the center alongside a continuous yellow line.",
+      "copy",
+      "Argentina also has this combination."
+    ],
+    "notes": "In Uruguay, road lines frequently consist of white dashes in the center alongside a continuous yellow line. copy\n\nArgentina also has this combination.\n\nIndice officiel public importe depuis Geometas.",
+    "sourceName": "Geometas - Street Markings",
+    "sourceUrl": "https://geometas.com/metas/detail/fb2ce6cf-7d2a-4c69-b5bb-3676fd9a744d/",
+    "licenseName": "Geometas source page",
+    "licenseUrl": "https://geometas.com/metas/detail/fb2ce6cf-7d2a-4c69-b5bb-3676fd9a744d/",
+    "attributionText": "Uruguay: street markings meta. Reference image and metadata imported from Geometas.",
+    "imageUrl": "https://paulplay-storage-1.fra1.digitaloceanspaces.com/geometas/fb2ce6cf-7d2a-4c69-b5bb-3676fd9a744d.jpg",
+    "imageAltText": "Uruguay street marking meta",
+    "googleMapsUrl": "https://goo.gl/maps/PqRM4AMksXFJ5TvH8",
+    "regionIds": []
+  }
+]

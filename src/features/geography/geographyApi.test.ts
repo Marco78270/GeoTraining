@@ -1,11 +1,15 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  clearGeoJsonCache,
   GEOGRAPHY_STALE_TIME,
+  WORLD_GEOJSON_PATH,
+  WORLD_OUTLINE_GEOJSON_PATH,
   geographyQueries,
   listCountries,
   listRegions,
   loadRegionGeoJson,
+  loadWorldOutlineGeoJson,
   loadWorldGeoJson,
   type GeographyDataClient,
 } from "./geographyApi";
@@ -54,6 +58,10 @@ function createClient(): GeographyDataClient {
 }
 
 describe("geographyApi", () => {
+  beforeEach(() => {
+    clearGeoJsonCache();
+  });
+
   it("liste les pays triés par nom", async () => {
     const client = createClient();
 
@@ -94,8 +102,29 @@ describe("geographyApi", () => {
 
     await expect(loadWorldGeoJson(fetcher)).resolves.toEqual(geoJson);
     await expect(loadRegionGeoJson("fr", fetcher)).resolves.toEqual(geoJson);
-    expect(fetcher).toHaveBeenNthCalledWith(1, "/geography/world.geojson");
+    expect(fetcher).toHaveBeenNthCalledWith(1, WORLD_GEOJSON_PATH);
     expect(fetcher).toHaveBeenNthCalledWith(2, "/geography/regions/FR.geojson");
+  });
+
+  it("met en cache les GeoJSON partages avec le fetch global", async () => {
+    const geoJson = {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: { iso2: "FR" }, geometry: null }],
+    };
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(geoJson),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(loadWorldGeoJson()).resolves.toEqual(geoJson);
+    await expect(loadWorldGeoJson()).resolves.toEqual(geoJson);
+    await expect(loadWorldOutlineGeoJson()).resolves.toEqual(geoJson);
+    await expect(loadWorldOutlineGeoJson()).resolves.toEqual(geoJson);
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, WORLD_GEOJSON_PATH);
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, WORLD_OUTLINE_GEOJSON_PATH);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it("signale les réponses HTTP et GeoJSON invalides", async () => {
@@ -106,10 +135,10 @@ describe("geographyApi", () => {
     });
 
     await expect(loadWorldGeoJson(failedFetcher)).rejects.toThrow(
-      "Impossible de charger /geography/world.geojson (HTTP 404).",
+      `Impossible de charger ${WORLD_GEOJSON_PATH} (HTTP 404).`,
     );
     await expect(loadWorldGeoJson(invalidFetcher)).rejects.toThrow(
-      "Le fichier /geography/world.geojson n'est pas une FeatureCollection GeoJSON valide.",
+      `Le fichier ${WORLD_GEOJSON_PATH} n'est pas une FeatureCollection GeoJSON valide.`,
     );
   });
 

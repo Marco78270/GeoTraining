@@ -5,7 +5,13 @@ playwright-report/
 test-results/
 output/
 debug.log
+DockerDesktopWSL/
+.codex-remote-attachments/
+.agents/
+.mcp.json
+.tmp-home/
 supabase/.temp/
+supabase/.branches/
 *.local
 .env
 .env.*

@@ -7,6 +7,14 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDirectory, "../..");
 const GEOBOUNDARIES_COMMIT = "9469f09592ced973a3448cf66b6100b741b64c0d";
 
+function repairDoubleEncodedUtf8(value) {
+  if (typeof value !== "string" || !/[ÃÂ]/.test(value)) {
+    return value;
+  }
+  const repaired = Buffer.from(value, "latin1").toString("utf8");
+  return repaired.includes("�") ? value : repaired;
+}
+
 function assertFeatureCollection(collection, label) {
   if (
     !collection ||
@@ -317,7 +325,7 @@ export function normalizeRegionCollection(collection, countryCode, sourceCountry
                   properties.shapeName,
                 ),
             countryCode: normalizedCountryCode,
-            name: properties.shapeName,
+            name: repairDoubleEncodedUtf8(properties.shapeName),
             sourceId: properties.shapeID,
           },
           geometry: simplifyGeometry(feature.geometry, 0.01),

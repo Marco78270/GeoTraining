@@ -1,5 +1,15 @@
 {$APP_DOMAIN} {
-  encode zstd gzip
+	encode zstd gzip
 
-  reverse_proxy geotrainer-atlas:5173
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; font-src 'self' data:; upgrade-insecure-requests"
+		-Server
+	}
+
+	reverse_proxy geotrainer-atlas:5173
 }

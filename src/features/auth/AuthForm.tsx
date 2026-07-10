@@ -159,8 +159,8 @@ export function AuthForm({
           >
             {pending
               ? isLogin
-                ? "Connexion en cours…"
-                : "Création en cours…"
+                ? "Connexion en cours..."
+                : "Création en cours..."
               : isLogin
                 ? "Se connecter"
                 : "Créer mon compte"}

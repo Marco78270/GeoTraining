@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_CLUE_IMAGE_BYTES,
-  parseClueForm,
   parseClueEditForm,
+  parseClueForm,
   type ClueFormInput,
 } from "./clueSchema";
+import type { ClueZoneGeoJson } from "./clueLocationTypes";
 
 function image(
   name = "stop.webp",
@@ -12,6 +13,20 @@ function image(
   size = 1_024,
 ) {
   return new File([new Uint8Array(size)], name, { type });
+}
+
+function validZone(): ClueZoneGeoJson {
+  return {
+    type: "Polygon",
+    coordinates: [
+      [
+        [2.2, 48.8],
+        [2.3, 48.8],
+        [2.35, 48.9],
+        [2.2, 48.8],
+      ],
+    ],
+  };
 }
 
 function validInput(
@@ -23,6 +38,7 @@ function validInput(
     countryCode: "FR",
     coverage: "whole_country",
     regionIds: [],
+    zoneGeoJson: null,
     difficulty: "easy",
     title: "Panneau STOP français",
     characteristics: ["Bordure blanche"],
@@ -114,6 +130,38 @@ describe("parseClueForm", () => {
       ).regionIds,
     ).toEqual(["FR-IDF"]);
   });
+
+  it("ignore la zone dessinée quand le mode n'est pas libre", () => {
+    expect(
+      parseClueForm(
+        validInput({
+          coverage: "whole_country",
+          zoneGeoJson: validZone(),
+        }),
+      ).zoneGeoJson,
+    ).toBeNull();
+  });
+
+  it("exige une zone dessinée valide pour la couverture libre", () => {
+    expect(() =>
+      parseClueForm(
+        validInput({
+          coverage: "drawn_zone",
+          zoneGeoJson: null,
+        }),
+      ),
+    ).toThrow("Dessinez une zone valide sur l'atlas.");
+
+    expect(
+      parseClueForm(
+        validInput({
+          coverage: "drawn_zone",
+          zoneGeoJson: validZone(),
+        }),
+      ).zoneGeoJson,
+    ).toEqual(validZone());
+  });
+
   it("accepte un lien Google Maps HTTP(S) valide et le normalise", () => {
     expect(
       parseClueForm(
@@ -131,11 +179,12 @@ describe("parseClueForm", () => {
     ).toThrow("Ajoutez une URL HTTP(S) valide pour Google Maps.");
   });
 
-  it("accepte une edition sans nouvelle image si une image existante reste", () => {
+  it("accepte une édition sans nouvelle image si une image existante reste", () => {
     expect(
       parseClueEditForm({
         ...validInput({ images: [] }),
         clueId: "clue-1",
+        previousCategoryId: "category-1",
         previousCoverage: "whole_country",
         existingImages: [
           {
@@ -150,11 +199,12 @@ describe("parseClueForm", () => {
     ).toHaveLength(1);
   });
 
-  it("refuse une edition qui supprime la derniere image restante", () => {
+  it("refuse une édition qui supprime la dernière image restante", () => {
     expect(() =>
       parseClueEditForm({
         ...validInput({ images: [] }),
         clueId: "clue-1",
+        previousCategoryId: "category-1",
         previousCoverage: "whole_country",
         existingImages: [
           {

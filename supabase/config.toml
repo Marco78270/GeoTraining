@@ -38,3 +38,17 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
+
+# Stripe signs webhook requests itself, so this endpoint must not require a
+# Supabase JWT. Signature verification remains mandatory in the function.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.admin-user-management]
+verify_jwt = true
+
+[functions.billing-session]
+verify_jwt = true
+
+[functions.send-collection-invite]
+verify_jwt = true

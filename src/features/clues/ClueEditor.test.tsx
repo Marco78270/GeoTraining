@@ -58,6 +58,15 @@ function dependencies() {
         created_at: "2026-06-11T00:00:00.000Z",
         updated_at: "2026-06-11T00:00:00.000Z",
       },
+      {
+        id: "category-bollards",
+        collection_id: collection.id,
+        name: "Bollards",
+        icon: "sign",
+        color: "#20D4E6",
+        created_at: "2026-06-11T00:00:00.000Z",
+        updated_at: "2026-06-11T00:00:00.000Z",
+      },
     ]),
   } as unknown as CollectionApi;
   const geographyClient: GeographyDataClient = {
@@ -96,24 +105,22 @@ function renderEditor(
   deps = dependencies(),
   props: Partial<Parameters<typeof ClueEditor>[0]> = {},
   context: ActiveCollectionContextValue = collectionContext,
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  }),
 ) {
   render(
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false } },
-        })
-      }
-    >
+    <QueryClientProvider client={queryClient}>
       <ActiveCollectionContext.Provider value={context}>
         <ClueEditor {...deps} {...props} />
       </ActiveCollectionContext.Provider>
     </QueryClientProvider>,
   );
-  return deps;
+  return { ...deps, queryClient };
 }
 
 async function reachLocationStep(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /Mode avancé/i }));
   await user.upload(
     screen.getByLabelText("Images de l’indice"),
     new File(["photo"], "stop.jpg", { type: "image/jpeg" }),
@@ -131,6 +138,7 @@ it("affiche cinq étapes et gère pays entier ou régions indépendantes", async
   const user = userEvent.setup();
   const { geographyClient } = renderEditor();
 
+  await user.click(screen.getByRole("button", { name: /Mode avancé/i }));
   expect(screen.getByRole("heading", { name: "1. Images" })).toBeVisible();
   expect(screen.getAllByRole("listitem")).toHaveLength(5);
   await reachLocationStep(user);
@@ -211,6 +219,70 @@ it("publie après la dernière étape et conserve le formulaire en cas d'erreur"
   });
 }, 10_000);
 
+it("ajoute une image collee depuis le presse-papiers", async () => {
+  const deps = dependencies();
+  renderEditor(deps);
+
+  const pastedFile = new File(["clipboard"], "clipboard.png", {
+    type: "image/png",
+  });
+  const uploadZone = screen.getByText("Choisir ou coller des images").closest("label");
+  expect(uploadZone).not.toBeNull();
+
+  const pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(pasteEvent, "clipboardData", {
+    value: {
+      items: [
+        {
+          kind: "file",
+          type: "image/png",
+          getAsFile: () => pastedFile,
+        },
+      ],
+    },
+  });
+  uploadZone?.dispatchEvent(pasteEvent);
+
+  expect(await screen.findByText("clipboard.png")).toBeVisible();
+});
+
+it("publie un indice pays entier depuis le mode rapide", async () => {
+  const user = userEvent.setup();
+  const deps = dependencies();
+  renderEditor(deps);
+
+  expect(screen.getByRole("button", { name: /Mode rapide/i })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await user.upload(
+    screen.getByLabelText(/Images de l.indice/i),
+    new File(["photo"], "stop.jpg", { type: "image/jpeg" }),
+  );
+  expect(await screen.findByRole("option", { name: "Panneaux STOP" })).toBeVisible();
+  await user.selectOptions(screen.getByLabelText("Catégorie"), "category-stop");
+  await screen.findByRole("option", { name: "France" });
+  await user.selectOptions(screen.getByLabelText("Pays"), "FR");
+  await user.type(screen.getByLabelText("Titre"), "STOP français");
+  await user.click(screen.getByLabelText("Moyen"));
+  await user.click(screen.getByRole("button", { name: "Publier l’indice" }));
+
+  await waitFor(() => {
+    expect(deps.clueApi.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collectionId: "collection-1",
+        categoryIds: ["category-stop"],
+        countryCode: "FR",
+        coverage: "whole_country",
+        regionIds: [],
+        zoneGeoJson: null,
+        difficulty: "medium",
+        title: "STOP français",
+      }),
+    );
+  });
+});
+
 it("préremplit un indice en mode édition et appelle update", async () => {
   const user = userEvent.setup();
   const deps = dependencies();
@@ -223,6 +295,7 @@ it("préremplit un indice en mode édition et appelle update", async () => {
       countryCode: "FR",
       coverage: "selected_regions",
       regionIds: ["FR-IDF"],
+      zoneGeoJson: null,
       difficulty: "medium",
       title: "STOP français",
       characteristics: ["Octogone rouge"],
@@ -247,11 +320,12 @@ it("préremplit un indice en mode édition et appelle update", async () => {
   expect(screen.getByDisplayValue("STOP français")).toBeVisible();
   expect(screen.getByDisplayValue("Présent sur les routes.")).toBeVisible();
   await user.click(screen.getByRole("button", { name: "Continuer" }));
-  await user.click(screen.getByRole("button", { name: "Mettre à jour l’indice" }));
+  await user.click(screen.getByRole("button", { name: /Mettre .* jour .*indice/i }));
 
   expect(deps.clueApi.update).toHaveBeenCalledWith(
     expect.objectContaining({
       clueId: "clue-1",
+      previousCategoryId: "category-stop",
       previousCoverage: "selected_regions",
       existingImages: [
         expect.objectContaining({
@@ -264,7 +338,61 @@ it("préremplit un indice en mode édition et appelle update", async () => {
   );
 });
 
-it("verrouille la collection, la catégorie et le pays en mode édition", async () => {
+it("invalide les indices de la collection apres une mise a jour", async () => {
+  const user = userEvent.setup();
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+  const deps = dependencies();
+
+  renderEditor(
+    deps,
+    {
+      mode: "edit",
+      initialClue: {
+        id: "clue-1",
+        collectionId: "collection-1",
+        categoryId: "category-stop",
+        countryCode: "FR",
+        coverage: "whole_country",
+        regionIds: [],
+        zoneGeoJson: null,
+        difficulty: "medium",
+        title: "STOP français",
+        characteristics: ["Octogone rouge"],
+        notes: "Présent sur les routes.",
+        googleMapsUrl: "",
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "STOP 1",
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+    collectionContext,
+    queryClient,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.clear(screen.getByLabelText("Titre"));
+  await user.type(screen.getByLabelText("Titre"), "STOP mis a jour");
+  await user.click(screen.getByRole("button", { name: "Continuer" }));
+  await user.click(screen.getByRole("button", { name: "Mettre à jour l’indice" }));
+
+  await waitFor(() => {
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["collections", "collection-1", "clues"],
+    });
+  });
+});
+
+it("verrouille la collection et le pays mais laisse la categorie modifiable en mode edition", async () => {
   const user = userEvent.setup();
   const deps = dependencies();
   renderEditor(deps, {
@@ -276,6 +404,7 @@ it("verrouille la collection, la catégorie et le pays en mode édition", async 
       countryCode: "FR",
       coverage: "selected_regions",
       regionIds: ["FR-IDF"],
+      zoneGeoJson: null,
       difficulty: "medium",
       title: "STOP français",
       characteristics: ["Octogone rouge"],
@@ -295,7 +424,8 @@ it("verrouille la collection, la catégorie et le pays en mode édition", async 
   await user.click(screen.getByRole("button", { name: "Continuer" }));
 
   expect(screen.getByLabelText("Collection")).toBeDisabled();
-  expect(screen.getByLabelText("Catégorie")).toBeDisabled();
+  expect(screen.getByLabelText(/Cat/)).toBeEnabled();
+  await user.selectOptions(screen.getByLabelText(/Cat/), "category-bollards");
 
   await user.click(screen.getByRole("button", { name: "Continuer" }));
 
@@ -362,6 +492,7 @@ it("autorise un admin de plateforme a publier dans une collection publique", asy
     },
   );
 
+  await user.click(screen.getByRole("button", { name: /Mode avancé/i }));
   await user.upload(
     screen.getByLabelText("Images de l’indice"),
     new File(["photo"], "stop.jpg", { type: "image/jpeg" }),

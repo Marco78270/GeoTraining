@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   globalSetup: "./playwright.global-setup.ts",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: "http://127.0.0.1:4173",
     trace: "on-first-retry",
   },
   projects: [

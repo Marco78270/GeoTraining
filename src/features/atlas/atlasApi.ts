@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../lib/database.types";
 import { getSupabaseClient } from "../../lib/supabase";
+import type { ClueZoneGeoJson } from "../clues/clueLocationTypes";
+import { WORLD_GEOJSON_PATH } from "../geography/geographyApi";
 export type Difficulty = "easy" | "medium" | "expert";
 
 export type AtlasCategory = {
@@ -18,7 +20,8 @@ export type AtlasClue = {
   categoryId: string;
   title: string;
   difficulty: Difficulty;
-  coverage: "whole_country" | "selected_regions";
+  coverage: "whole_country" | "selected_regions" | "drawn_zone";
+  zoneGeoJson: ClueZoneGeoJson | null;
   characteristics: string[];
   notes: string | null;
   googleMapsUrl: string | null;
@@ -60,7 +63,7 @@ type PublishedClueRow = {
   country_code: string;
   title: string;
   difficulty: Difficulty;
-  coverage: "whole_country" | "selected_regions";
+  coverage: "whole_country" | "selected_regions" | "drawn_zone";
   characteristics: string[];
   notes: string | null;
   google_maps_url: string | null;
@@ -69,7 +72,7 @@ type PublishedClueRow = {
   license_name: string | null;
   license_url: string | null;
   attribution_text: string | null;
-  categories: { name: string | null } | null;
+  categories: { name: string | null; icon: string | null; color: string | null } | null;
   countries: { name: string } | null;
   clue_images: Array<{
     id: string;
@@ -81,6 +84,14 @@ type PublishedClueRow = {
     region_id: string;
     regions: { name: string } | null;
   }>;
+  clue_zones:
+    | Array<{
+        geojson: ClueZoneGeoJson | null;
+      }>
+    | {
+        geojson: ClueZoneGeoJson | null;
+      }
+    | null;
 };
 
 function isMissingClueSourceMetadata(
@@ -94,6 +105,26 @@ function isMissingClueSourceMetadata(
     error.message.includes("license_url") ||
     error.message.includes("attribution_text")
   );
+}
+
+function isSignedUrlAccessError(error: { message: string; code?: string } | null) {
+  if (!error) return false;
+  const message = error.message.toLowerCase();
+  return (
+    error.code === "403" ||
+    error.code === "401" ||
+    message.includes("permission") ||
+    message.includes("access denied") ||
+    message.includes("row-level security") ||
+    message.includes("unauthorized")
+  );
+}
+
+function readClueZoneGeoJson(clueZones: PublishedClueRow["clue_zones"]) {
+  if (Array.isArray(clueZones)) {
+    return clueZones.find((zone) => zone.geojson)?.geojson ?? null;
+  }
+  return clueZones?.geojson ?? null;
 }
 
 type Position = [number, number];
@@ -127,6 +158,25 @@ const OFFICIAL_PLATES_CATEGORY_ID = "f1000000-0000-0000-0000-000000000003";
 
 function buildOfficialFlagFallbackUrl(countryCode: string) {
   return `https://flagcdn.com/w320/${countryCode.toLowerCase()}.png`;
+}
+
+function buildWikimediaFileFallbackUrl(sourceUrl: string | null) {
+  if (!sourceUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(sourceUrl);
+    if (
+      url.hostname !== "commons.wikimedia.org" ||
+      !url.pathname.startsWith("/wiki/File:")
+    ) {
+      return null;
+    }
+    return `https://commons.wikimedia.org/wiki/Special:FilePath/${url.pathname.slice("/wiki/File:".length)}?width=1200`;
+  } catch {
+    return null;
+  }
 }
 
 function canUseOfficialFlagFallback(clue: PublishedClueRow) {
@@ -198,6 +248,40 @@ function buildOfficialPlateFallbackUrl(clue: PublishedClueRow) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function buildGenericClueFallbackUrl(clue: PublishedClueRow) {
+  const countryName = clue.countries?.name ?? clue.country_code;
+  const categoryName = clue.categories?.name ?? "Indice";
+  const accent =
+    clue.difficulty === "expert"
+      ? "#ff6b6b"
+      : clue.difficulty === "medium"
+        ? "#f4c84f"
+        : "#4fd38a";
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
+      <defs>
+        <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+          <stop offset="0%" stop-color="#0f1f33"/>
+          <stop offset="100%" stop-color="#10293d"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="675" fill="url(#bg)"/>
+      <rect x="96" y="96" width="1008" height="483" rx="28" fill="#11273a" stroke="${accent}" stroke-width="4"/>
+      <text x="600" y="210" fill="#8ba6bf" font-size="38" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${escapeSvgText(
+        categoryName.toUpperCase(),
+      )}</text>
+      <text x="600" y="320" fill="#f7fbff" font-size="72" font-weight="700" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${escapeSvgText(
+        countryName,
+      )}</text>
+      <text x="600" y="408" fill="#d5e3ef" font-size="46" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">${escapeSvgText(
+        clue.title,
+      )}</text>
+      <text x="600" y="510" fill="#8ba6bf" font-size="28" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">Visuel de secours GeoTrainer</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 function countryCenter(
   feature: WorldFeatureCollection["features"][number] | undefined,
 ): Position | null {
@@ -264,6 +348,10 @@ export function createAtlasApi(client: AtlasDataClient) {
           .map((item) => item.regions?.name)
           .filter((name): name is string => Boolean(name));
         const regionIds = clue.clue_regions.map((item) => item.region_id);
+        const zoneGeoJson =
+          clue.coverage === "drawn_zone"
+            ? readClueZoneGeoJson(clue.clue_zones)
+            : null;
         const atlasImages = images
           .map((image) => {
             const url = signedUrls[image.storage_path];
@@ -299,11 +387,22 @@ export function createAtlasApi(client: AtlasDataClient) {
                 ]
               : canUseOfficialPlateFallback(clue)
                 ? [
+                  {
+                    id: `fallback-${clue.id}`,
+                    storagePath: "",
+                    altText: `Plaque de ${clue.countries?.name ?? clue.country_code}`,
+                    url:
+                      buildWikimediaFileFallbackUrl(clue.source_url) ??
+                      buildOfficialPlateFallbackUrl(clue),
+                  },
+                ]
+              : clue.source_name || clue.source_url
+                ? [
                     {
                       id: `fallback-${clue.id}`,
                       storagePath: "",
-                      altText: `Plaque de ${clue.countries?.name ?? clue.country_code}`,
-                      url: buildOfficialPlateFallbackUrl(clue),
+                      altText: `${clue.title} - visuel de secours`,
+                      url: buildGenericClueFallbackUrl(clue),
                     },
                   ]
               : [];
@@ -316,6 +415,7 @@ export function createAtlasApi(client: AtlasDataClient) {
           title: clue.title,
           difficulty: clue.difficulty,
           coverage: clue.coverage,
+          zoneGeoJson,
           characteristics: clue.characteristics,
           notes: clue.notes,
           googleMapsUrl: clue.google_maps_url,
@@ -346,6 +446,8 @@ export function createAtlasApi(client: AtlasDataClient) {
             {
               id: clue.category_id,
               name: clue.categories?.name ?? clue.category_id,
+              icon: clue.categories?.icon ?? null,
+              color: clue.categories?.color ?? null,
             },
           ]),
         ).values()].map((category) => {
@@ -360,8 +462,8 @@ export function createAtlasApi(client: AtlasDataClient) {
             countries: new Set(
               categoryClues.map((clue) => clue.country_code),
             ).size,
-            icon: null,
-            color: null,
+            icon: category.icon,
+            color: category.color,
           };
         }),
         countries: [...countries.values()].sort((left, right) =>
@@ -382,7 +484,7 @@ export function createSupabaseAtlasDataClient(
       const query = supabase
         .from("clues")
         .select(
-          "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, source_name, source_url, license_name, license_url, attribution_text, categories(name), countries(name), clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id, regions(name))",
+          "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, source_name, source_url, license_name, license_url, attribution_text, categories(name, icon, color), countries(name), clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id, regions(name)), clue_zones(geojson)",
         )
         .eq("collection_id", collectionId)
         .eq("status", "published")
@@ -392,7 +494,7 @@ export function createSupabaseAtlasDataClient(
         const legacyResult = await supabase
           .from("clues")
           .select(
-            "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, categories(name), countries(name), clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id, regions(name))",
+            "id, category_id, country_code, title, difficulty, coverage, characteristics, notes, google_maps_url, categories(name, icon, color), countries(name), clue_images(id, storage_path, alt_text, sort_order), clue_regions(region_id, regions(name)), clue_zones(geojson)",
           )
           .eq("collection_id", collectionId)
           .eq("status", "published")
@@ -405,6 +507,7 @@ export function createSupabaseAtlasDataClient(
           license_name: null,
           license_url: null,
           attribution_text: null,
+          clue_zones: row.clue_zones ?? null,
         })) as unknown as PublishedClueRow[];
       }
       if (error) throw error;
@@ -416,7 +519,16 @@ export function createSupabaseAtlasDataClient(
       const { data, error } = await supabase.storage
         .from("clue-images")
         .createSignedUrls(paths, 60 * 60);
-      if (error) throw error;
+      if (error) {
+        if (isSignedUrlAccessError(error)) {
+          console.warn(
+            "[atlasApi] Signed image URLs unavailable for current user, using fallbacks instead.",
+            error.message,
+          );
+          return {};
+        }
+        throw error;
+      }
       return Object.fromEntries(
         data
           .map((item, index) => [paths[index], item.signedUrl] as const)
@@ -427,7 +539,7 @@ export function createSupabaseAtlasDataClient(
     },
 
     async loadWorld() {
-      const response = await fetch("/geography/world.geojson");
+      const response = await fetch(WORLD_GEOJSON_PATH);
       if (!response.ok) {
         throw new Error("Impossible de charger la géographie mondiale.");
       }

@@ -1,12 +1,13 @@
 import "../styles/global.css";
 import { lazy, Suspense, type ReactNode } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireSession } from "../features/auth/RequireSession";
 import { useAuth } from "../features/auth/authContext";
 import { ActiveCollectionProvider } from "../features/collections/ActiveCollectionProvider";
 import type { CollectionApi } from "../features/collections/collectionApi";
+import { getClueApi, type ClueApi } from "../features/clues/clueApi";
 
 const AtlasPage = lazy(async () => {
   const module = await import("../features/atlas/AtlasPage");
@@ -24,6 +25,10 @@ const StatisticsPage = lazy(async () => {
   const module = await import("../features/statistics/StatisticsPage");
   return { default: module.StatisticsPage };
 });
+const LeaderboardPage = lazy(async () => {
+  const module = await import("../features/leaderboard/LeaderboardPage");
+  return { default: module.LeaderboardPage };
+});
 const ClueEditorPage = lazy(async () => {
   const module = await import("../features/clues/ClueEditorPage");
   return { default: module.ClueEditorPage };
@@ -36,6 +41,14 @@ const AdminPage = lazy(async () => {
   const module = await import("../features/admin/AdminPage");
   return { default: module.AdminPage };
 });
+const ProfilePage = lazy(async () => {
+  const module = await import("../features/profile/ProfilePage");
+  return { default: module.ProfilePage };
+});
+const PricingPage = lazy(async () => {
+  const module = await import("../features/pricing/PricingPage");
+  return { default: module.PricingPage };
+});
 
 function RootRedirect() {
   const { session, loading } = useAuth();
@@ -43,7 +56,7 @@ function RootRedirect() {
   if (loading) {
     return (
       <main className="session-loading" role="status">
-        Chargement de votre session…
+        Chargement de votre session...
       </main>
     );
   }
@@ -54,7 +67,7 @@ function RootRedirect() {
 function PageLoadingFallback() {
   return (
     <main className="session-loading" role="status">
-      Chargement du module…
+      Chargement du module...
     </main>
   );
 }
@@ -73,7 +86,23 @@ function CollectionWorkspace({
   );
 }
 
-export function App({ collectionApi }: { collectionApi?: CollectionApi }) {
+function CollectionWorkspaceRoute({ api }: { api?: CollectionApi }) {
+  return (
+    <CollectionWorkspace api={api}>
+      <Outlet />
+    </CollectionWorkspace>
+  );
+}
+
+export function App({
+  collectionApi,
+  clueApi,
+}: {
+  collectionApi?: CollectionApi;
+  clueApi?: ClueApi;
+}) {
+  const resolvedClueApi = clueApi ?? getClueApi();
+
   return (
     <Routes>
       <Route path="/" element={<RootRedirect />} />
@@ -81,61 +110,38 @@ export function App({ collectionApi }: { collectionApi?: CollectionApi }) {
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<RequireSession />}>
         <Route
-          path="/atlas"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <AtlasPage />
-            </CollectionWorkspace>
-          }
-        />
-        <Route
-          path="/collections"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <CollectionsPage api={collectionApi} />
-            </CollectionWorkspace>
-          }
-        />
-        <Route
-          path="/training"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <TrainingPage />
-            </CollectionWorkspace>
-          }
-        />
-        <Route
-          path="/statistics"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <StatisticsPage />
-            </CollectionWorkspace>
-          }
-        />
-        <Route
-          path="/admin"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <AdminPage />
-            </CollectionWorkspace>
-          }
-        />
-        <Route
-          path="/clues/new"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <ClueEditorPage collectionApi={collectionApi} />
-            </CollectionWorkspace>
-          }
-        />
-        <Route
-          path="/clues/:clueId/edit"
-          element={
-            <CollectionWorkspace api={collectionApi}>
-              <ClueEditorPage collectionApi={collectionApi} />
-            </CollectionWorkspace>
-          }
-        />
+          element={<CollectionWorkspaceRoute api={collectionApi} />}
+        >
+          <Route path="/atlas" element={<AtlasPage />} />
+          <Route
+            path="/collections"
+            element={<CollectionsPage api={collectionApi} />}
+          />
+          <Route path="/training" element={<TrainingPage />} />
+          <Route path="/statistics" element={<StatisticsPage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/pricing" element={<PricingPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route
+            path="/clues/new"
+            element={
+              <ClueEditorPage
+                clueApi={resolvedClueApi}
+                collectionApi={collectionApi}
+              />
+            }
+          />
+          <Route
+            path="/clues/:clueId/edit"
+            element={
+              <ClueEditorPage
+                clueApi={resolvedClueApi}
+                collectionApi={collectionApi}
+              />
+            }
+          />
+        </Route>
         <Route
           path="/invitations/:token"
           element={<AcceptInvitationPage api={collectionApi} />}

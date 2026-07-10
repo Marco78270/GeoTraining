@@ -7,6 +7,7 @@ import {
   AuthContext,
   type AuthContextValue,
 } from "../auth/authContext";
+import type { BillingApi } from "../billing/billingApi";
 import { StatisticsPage } from "./StatisticsPage";
 import type { StatisticsApi } from "./statisticsApi";
 
@@ -34,7 +35,11 @@ function createStatisticsApi(overrides: Partial<StatisticsApi> = {}): Statistics
         country_code: null,
         category_id: "flags",
         total_questions: 10,
-        correct_answers: 8,
+        is_ranked: true,
+        challenge_type: "standard",
+        challenge_key: null,
+        duration_ms: 600000,
+        correct_answers: 4,
         total_answers: 10,
         started_at: "2026-06-13T08:00:00.000Z",
         completed_at: "2026-06-13T08:10:00.000Z",
@@ -49,17 +54,25 @@ function createStatisticsApi(overrides: Partial<StatisticsApi> = {}): Statistics
 }
 
 function renderStatisticsPage(statisticsApi: StatisticsApi = createStatisticsApi()) {
+  const billingApi: BillingApi = {
+    loadCurrent: async () => ({
+      planKey: "free",
+      status: "inactive",
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: null,
+      premiumEnabled: false,
+    }),
+    startCheckout: async () => ({ url: "https://billing.example.test/checkout" }),
+    openPortal: async () => ({ url: "https://billing.example.test/portal" }),
+  };
+
   render(
     <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false } },
-        })
-      }
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
       <MemoryRouter>
         <AuthContext.Provider value={authValue}>
-          <StatisticsPage statisticsApi={statisticsApi} />
+          <StatisticsPage statisticsApi={statisticsApi} billingApi={billingApi} />
         </AuthContext.Provider>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -67,23 +80,33 @@ function renderStatisticsPage(statisticsApi: StatisticsApi = createStatisticsApi
 }
 
 describe("StatisticsPage", () => {
-  it("renders the statistics heading and summary cards", async () => {
+  it("turns the weakest category into an actionable review priority", async () => {
     renderStatisticsPage();
 
-    expect(await screen.findByRole("heading", { name: /statistiques/i })).toBeVisible();
-    expect(await screen.findByText("Précision moyenne")).toBeVisible();
-    expect((await screen.findAllByText("80%")).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("heading", { name: "Mon entraînement" }))
+      .toBeVisible();
+    expect(await screen.findByText("Priorité de révision")).toBeVisible();
+    expect(screen.getAllByText("Drapeaux").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("À travailler").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: /réviser maintenant/i }))
+      .toHaveAttribute(
+        "href",
+        "/training?collection=collection-1&category=flags",
+      );
+    expect(screen.getByText("Gratuit")).toBeVisible();
+    expect(screen.getByRole("heading", { name: /roadmap analyses/i })).toBeVisible();
   });
 
-  it("shows an empty state when no sessions exist", async () => {
+  it("shows a useful empty state when no sessions exist", async () => {
     renderStatisticsPage(
       createStatisticsApi({
         loadSessions: async () => [],
       }),
     );
 
-    expect(
-      await screen.findByText(/aucune session enregistrée pour le moment/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/commence une première session/i))
+      .toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /réviser maintenant/i }))
+      .toHaveAttribute("href", "/training");
   });
 });

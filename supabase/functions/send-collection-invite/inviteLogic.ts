@@ -63,8 +63,7 @@ function normalizeEmail(value: string) {
 }
 
 function corsHeaders(origin: string | null, allowedOrigins: Set<string>) {
-  const allowed =
-    origin && (allowedOrigins.size === 0 || allowedOrigins.has(origin));
+  const allowed = origin && allowedOrigins.has(origin);
   return {
     "Access-Control-Allow-Origin": allowed ? origin : "null",
     "Access-Control-Allow-Headers": "authorization, content-type, x-client-info",
@@ -74,7 +73,7 @@ function corsHeaders(origin: string | null, allowedOrigins: Set<string>) {
 }
 
 function isTrustedOrigin(origin: string | null, allowedOrigins: Set<string>) {
-  return Boolean(origin) && (allowedOrigins.size === 0 || allowedOrigins.has(origin!));
+  return Boolean(origin) && allowedOrigins.has(origin!);
 }
 
 function resolveAppUrl(
@@ -109,7 +108,7 @@ function response(
 export function createInviteHandler(deps: InviteHandlerDependencies) {
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get("origin");
-    if (origin && deps.allowedOrigins.size > 0 && !deps.allowedOrigins.has(origin)) {
+    if (origin && !deps.allowedOrigins.has(origin)) {
       return response(
         403,
         { error: "origin_not_allowed" },

@@ -91,6 +91,7 @@ Préparer un fichier `.env` ou exporter ces variables avant le démarrage :
 
 ```env
 APP_DOMAIN=geotrainer.duckdns.org
+APP_URL=https://geotrainer.duckdns.org
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
@@ -139,7 +140,7 @@ docker compose up -d --build
 
 6. vérifier ensuite que le site répond bien sur `https://<ton-sous-domaine>.duckdns.org`.
 
-Commande PowerShell de mise Ã  jour DuckDNS :
+Commande PowerShell de mise à jour DuckDNS :
 
 ```powershell
 $env:DUCKDNS_TOKEN="ton-token"
@@ -274,9 +275,52 @@ Note :
 - `/register` : création de compte ;
 - `/atlas` : carte interactive ;
 - `/collections` : collections, catégories et partage ;
+- `/pricing` : offres gratuite et premium ;
 - `/clues/new` : import d'un nouvel indice ;
 - `/clues/:clueId/edit` : édition d'un indice ;
 - `/invitations/:token` : acceptation d'une invitation.
+
+## Paiement premium Stripe
+
+La base technique du premium est maintenant intégrée :
+
+- route front `\/pricing` ;
+- table `public.billing_customers` ;
+- table `public.billing_subscriptions` ;
+- table `public.billing_feature_entitlements` ;
+- fonction SQL `public.get_my_billing_status()` ;
+- Edge Function `billing-session` pour ouvrir Stripe Checkout ou le Customer Portal ;
+- Edge Function `stripe-webhook` pour synchroniser l'état de l'abonnement dans Supabase.
+
+Variables attendues côté projet / Edge Functions :
+
+```env
+APP_URL=https://geotrainer.duckdns.org
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PREMIUM_MONTHLY_PRICE_ID=price_xxx
+STRIPE_PREMIUM_YEARLY_PRICE_ID=price_xxx
+STRIPE_BILLING_PORTAL_CONFIGURATION_ID=bpc_xxx
+BILLING_ALLOWED_ORIGINS=https://geotrainer.duckdns.org,http://127.0.0.1:5173
+```
+
+Déployer les fonctions :
+
+```bash
+npx supabase functions deploy billing-session
+npx supabase functions deploy stripe-webhook
+```
+
+Exemples de webhooks Stripe à écouter :
+
+- `checkout.session.completed`
+- `customer.subscription.created`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+- `invoice.paid`
+- `invoice.payment_failed`
+
+Pour le portail client, Stripe recommande de le configurer d'abord dans le Dashboard puis de créer une session portail côté serveur avec le `customer` et un `return_url` [Customer Portal](https://docs.stripe.com/customer-management/integrate-customer-portal.md). Pour les abonnements, Stripe recommande Checkout Sessions en `mode: subscription` plutôt qu'une logique manuelle basée sur PaymentIntents [Checkout subscriptions](https://docs.stripe.com/payments/checkout/build-subscriptions.md), [Billing subscriptions](https://docs.stripe.com/billing/subscriptions/designing-integration.md).
 
 ## Configuration Auth Supabase
 

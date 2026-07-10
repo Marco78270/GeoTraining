@@ -1,3 +1,8 @@
+import {
+  type ClueZoneGeoJson,
+  isClueZoneGeoJson,
+} from "./clueLocationTypes";
+
 export const MAX_CLUE_IMAGES = 6;
 export const MAX_CLUE_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -9,7 +14,10 @@ const acceptedImageTypes = new Set([
 const difficulties = new Set(["easy", "medium", "expert"]);
 
 export type ClueDifficulty = "easy" | "medium" | "expert";
-export type ClueCoverage = "whole_country" | "selected_regions";
+export type ClueCoverage =
+  | "whole_country"
+  | "selected_regions"
+  | "drawn_zone";
 
 export type ClueFormInput = {
   collectionId: string;
@@ -17,6 +25,7 @@ export type ClueFormInput = {
   countryCode: string;
   coverage: ClueCoverage;
   regionIds: string[];
+  zoneGeoJson: ClueZoneGeoJson | null;
   difficulty: ClueDifficulty;
   title: string;
   characteristics: string[];
@@ -34,6 +43,7 @@ export type PersistedClueImage = {
 
 export type ClueEditInput = ClueFormInput & {
   clueId: string;
+  previousCategoryId: string;
   previousCoverage: ClueCoverage;
   existingImages: PersistedClueImage[];
   removedImageIds: string[];
@@ -58,6 +68,7 @@ export type ParsedClueForm = Omit<
 
 export type ParsedClueEditForm = ParsedClueForm & {
   clueId: string;
+  previousCategoryId: string;
   previousCoverage: ClueCoverage;
   existingImages: PersistedClueImage[];
   removedImageIds: string[];
@@ -124,6 +135,33 @@ function validateNewImages(images: File[]) {
   }
 }
 
+function normalizeZoneGeoJson(zoneGeoJson: unknown) {
+  if (!zoneGeoJson) return null;
+  if (!isClueZoneGeoJson(zoneGeoJson)) {
+    throw new ClueValidationError(
+      "regionIds",
+      "Dessinez une zone valide sur l'atlas.",
+    );
+  }
+
+  if (
+    zoneGeoJson.coordinates.length === 0 ||
+    zoneGeoJson.coordinates.some((ring) => ring.length < 4)
+  ) {
+    throw new ClueValidationError(
+      "regionIds",
+      "Dessinez une zone valide sur l'atlas.",
+    );
+  }
+
+  return {
+    type: "Polygon" as const,
+    coordinates: zoneGeoJson.coordinates.map((ring) =>
+      ring.map((point) => [point[0], point[1]]),
+    ),
+  };
+}
+
 function parseBaseClueForm(input: ClueFormInput): Omit<ParsedClueForm, "images"> {
   const collectionId = requireValue(
     input.collectionId,
@@ -149,13 +187,25 @@ function parseBaseClueForm(input: ClueFormInput): Omit<ParsedClueForm, "images">
   }
 
   const regionIds =
-    input.coverage === "whole_country"
-      ? []
-      : [...new Set(input.regionIds.map((regionId) => regionId.trim()).filter(Boolean))];
+    input.coverage === "selected_regions"
+      ? [...new Set(input.regionIds.map((regionId) => regionId.trim()).filter(Boolean))]
+      : [];
+  const zoneGeoJson =
+    input.coverage === "drawn_zone"
+      ? normalizeZoneGeoJson(input.zoneGeoJson)
+      : null;
+
   if (input.coverage === "selected_regions" && regionIds.length === 0) {
     throw new ClueValidationError(
       "regionIds",
       "Sélectionnez au moins une région.",
+    );
+  }
+
+  if (input.coverage === "drawn_zone" && !zoneGeoJson) {
+    throw new ClueValidationError(
+      "regionIds",
+      "Dessinez une zone valide sur l'atlas.",
     );
   }
 
@@ -165,6 +215,7 @@ function parseBaseClueForm(input: ClueFormInput): Omit<ParsedClueForm, "images">
     countryCode,
     coverage: input.coverage,
     regionIds,
+    zoneGeoJson,
     difficulty: input.difficulty,
     title: requireValue(input.title, "title", "Ajoutez un titre."),
     characteristics: input.characteristics
@@ -210,6 +261,7 @@ export function parseClueEditForm(input: ClueEditInput): ParsedClueEditForm {
 
   return {
     clueId: input.clueId.trim(),
+    previousCategoryId: input.previousCategoryId.trim(),
     previousCoverage: input.previousCoverage,
     ...parseBaseClueForm(input),
     existingImages,

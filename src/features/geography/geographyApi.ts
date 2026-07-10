@@ -18,8 +18,11 @@ export type GeoJsonFetcher = (
 ) => Promise<Pick<Response, "ok" | "status" | "json">>;
 
 export const GEOGRAPHY_STALE_TIME = 24 * 60 * 60 * 1000;
+export const WORLD_GEOJSON_PATH = "/geography/world-detailed.geojson";
+export const WORLD_OUTLINE_GEOJSON_PATH = "/geography/world.geojson";
 
 const frenchCollator = new Intl.Collator("fr", { sensitivity: "base" });
+const geoJsonCache = new Map<string, Promise<FeatureCollection>>();
 
 function normalizeCountryCode(countryCode: string) {
   const normalized = countryCode.trim().toUpperCase();
@@ -85,9 +88,9 @@ function isFeatureCollection(value: unknown): value is FeatureCollection {
   return candidate.type === "FeatureCollection" && Array.isArray(candidate.features);
 }
 
-async function loadGeoJson(
+async function fetchGeoJson(
   path: string,
-  fetcher: GeoJsonFetcher = fetch,
+  fetcher: GeoJsonFetcher,
 ): Promise<FeatureCollection> {
   const response = await fetcher(path);
   if (!response.ok) {
@@ -102,10 +105,37 @@ async function loadGeoJson(
   return payload;
 }
 
+async function loadGeoJson(
+  path: string,
+  fetcher: GeoJsonFetcher = fetch,
+): Promise<FeatureCollection> {
+  if (fetcher !== fetch) {
+    return fetchGeoJson(path, fetcher);
+  }
+
+  const cached = geoJsonCache.get(path);
+  if (cached) {
+    return cached;
+  }
+
+  const request = fetchGeoJson(path, fetcher).catch((error: unknown) => {
+    geoJsonCache.delete(path);
+    throw error;
+  });
+  geoJsonCache.set(path, request);
+  return request;
+}
+
 export function loadWorldGeoJson(
   fetcher: GeoJsonFetcher = fetch,
 ): Promise<FeatureCollection> {
-  return loadGeoJson("/geography/world.geojson", fetcher);
+  return loadGeoJson(WORLD_GEOJSON_PATH, fetcher);
+}
+
+export function loadWorldOutlineGeoJson(
+  fetcher: GeoJsonFetcher = fetch,
+): Promise<FeatureCollection> {
+  return loadGeoJson(WORLD_OUTLINE_GEOJSON_PATH, fetcher);
 }
 
 export function loadRegionGeoJson(
@@ -114,6 +144,10 @@ export function loadRegionGeoJson(
 ): Promise<FeatureCollection> {
   const normalizedCode = normalizeCountryCode(countryCode);
   return loadGeoJson(`/geography/regions/${normalizedCode}.geojson`, fetcher);
+}
+
+export function clearGeoJsonCache() {
+  geoJsonCache.clear();
 }
 
 export const geographyQueries = {

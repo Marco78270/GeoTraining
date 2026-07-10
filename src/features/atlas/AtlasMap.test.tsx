@@ -1,6 +1,11 @@
 import { render, waitFor } from "@testing-library/react";
 import type { MapLayerMouseEvent } from "maplibre-gl";
 import { beforeEach, expect, it, vi } from "vitest";
+import {
+  clearGeoJsonCache,
+  WORLD_GEOJSON_PATH,
+  WORLD_OUTLINE_GEOJSON_PATH,
+} from "../geography/geographyApi";
 import { atlasCountries } from "./atlasDemoData";
 import { AtlasMap } from "./AtlasMap";
 
@@ -80,10 +85,11 @@ async function getMap() {
 
 beforeEach(() => {
   mapState.instances.length = 0;
+  clearGeoJsonCache();
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation(async (input: string) => {
-      if (input === "/geography/world.geojson") {
+      if (input === WORLD_GEOJSON_PATH) {
         return {
           ok: true,
           json: async () => ({
@@ -251,13 +257,24 @@ it("configure le GeoJSON local et les couches pays", async () => {
   expect(map.options).toMatchObject({ center: [5, 18], zoom: 1.15 });
   expect(addSource).toHaveBeenCalledWith("world-demo", {
     type: "geojson",
-    data: "/geography/world.geojson",
+    data: WORLD_GEOJSON_PATH,
+    promoteId: "iso2",
+  });
+  expect(addSource).toHaveBeenCalledWith("world-outline", {
+    type: "geojson",
+    data: WORLD_OUTLINE_GEOJSON_PATH,
     promoteId: "iso2",
   });
   expect(map.layers.map((layer) => layer.id)).toEqual([
     "countries-fill",
     "countries-line",
+    "visible-clue-zones-fill",
+    "visible-clue-zones-line",
   ]);
+  expect(map.layers[1]).toMatchObject({
+    id: "countries-line",
+    source: "world-outline",
+  });
   const fillColor = (map.layers[0].paint as Record<string, unknown>)["fill-color"];
   expect(Array.isArray(fillColor)).toBe(true);
   const fillColorText = JSON.stringify(fillColor);
@@ -372,7 +389,7 @@ it("reserve le curseur et le survol interactifs aux pays documentes", async () =
   );
 });
 
-it("zoome sur les limites du pays puis revient au monde", async () => {
+it("conserve le zoom utilisateur quand la vue ou la selection change", async () => {
   const { rerender } = render(
     <AtlasMap
       markers={atlasCountries}
@@ -384,10 +401,7 @@ it("zoome sur les limites du pays puis revient au monde", async () => {
   );
   const map = await getMap();
   map.emit("load");
-
-  await waitFor(() => {
-    expect(fetch).toHaveBeenCalledWith("/geography/world.geojson");
-  });
+  map.fitBounds.mockClear();
 
   rerender(
     <AtlasMap
@@ -397,18 +411,6 @@ it("zoome sur les limites du pays puis revient au monde", async () => {
       onCountrySelect={vi.fn()}
       onViewportChange={vi.fn()}
     />,
-  );
-
-  expect(map.fitBounds).toHaveBeenCalledWith(
-    [
-      [-5, 41],
-      [9, 51],
-    ],
-    expect.objectContaining({
-      padding: 40,
-      duration: 900,
-      maxZoom: 4.8,
-    }),
   );
 
   rerender(
@@ -421,10 +423,7 @@ it("zoome sur les limites du pays puis revient au monde", async () => {
     />,
   );
 
-  expect(map.fitBounds).toHaveBeenCalledWith(
-    [[-168, -56], [178, 75]],
-    expect.objectContaining({ padding: 34, duration: 800 }),
-  );
+  expect(map.fitBounds).not.toHaveBeenCalled();
 });
 
 it("efface l'ancienne selection quand le pays disparait des resultats", async () => {
@@ -663,4 +662,195 @@ it("actualise les couleurs regionales sans recreer la carte", async () => {
   });
   expect(JSON.stringify(map.setPaintProperty.mock.calls)).toContain("US-TX");
   expect(map.fitBounds).not.toHaveBeenCalled();
+});
+
+it("dessine toutes les zones visibles de la categorie active", async () => {
+  const visibleZones = [
+    {
+      id: "zone-1",
+      difficulty: "expert" as const,
+      selected: true,
+      geoJson: {
+        type: "Polygon" as const,
+        coordinates: [
+          [
+            [-101, 38],
+            [-98, 38],
+            [-98, 41],
+            [-101, 41],
+            [-101, 38],
+          ],
+        ],
+      },
+    },
+  ];
+  render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="US"
+      viewport="country"
+      visibleZones={visibleZones}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+  const map = await getMap();
+  const addSource = vi.spyOn(map, "addSource");
+  map.emit("load");
+
+  expect(addSource).toHaveBeenCalledWith(
+    "visible-clue-zones",
+    expect.objectContaining({
+      data: expect.objectContaining({
+        features: [
+          expect.objectContaining({
+            properties: expect.objectContaining({
+              id: "zone-1",
+              difficulty: "expert",
+              selected: true,
+            }),
+          }),
+        ],
+      }),
+    }),
+  );
+  expect(map.layers.map((layer) => layer.id)).toEqual(
+    expect.arrayContaining([
+      "visible-clue-zones-fill",
+      "visible-clue-zones-line",
+    ]),
+  );
+});
+
+it("zoome sur le pays quand un focus explicite est demande", async () => {
+  const { rerender } = render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="FR"
+      viewport="country"
+      focusRequestToken={0}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+  const map = await getMap();
+  map.emit("load");
+
+  await waitFor(() => {
+    expect(fetch).toHaveBeenCalledWith("/geography/regions/FR.geojson");
+  });
+  map.fitBounds.mockClear();
+
+  rerender(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="FR"
+      viewport="country"
+      focusRequestToken={1}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+
+  await waitFor(() => {
+    expect(map.fitBounds).toHaveBeenCalledWith(
+      [
+        [1, 48],
+        [3, 49],
+      ],
+      expect.objectContaining({
+        padding: 40,
+        duration: 0,
+      }),
+    );
+  });
+});
+
+it("zoome sur la region selectionnee quand un focus explicite est demande", async () => {
+  const { rerender } = render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="US"
+      selectedRegionId="US-KY"
+      viewport="country"
+      focusRequestToken={0}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+  const map = await getMap();
+  map.emit("load");
+
+  await waitFor(() => {
+    expect(fetch).toHaveBeenCalledWith("/geography/regions/US.geojson");
+  });
+  map.fitBounds.mockClear();
+
+  rerender(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="US"
+      selectedRegionId="US-KY"
+      viewport="country"
+      focusRequestToken={1}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+
+  await waitFor(() => {
+    expect(map.fitBounds).toHaveBeenCalledWith(
+      [
+        [-89.6, 36.5],
+        [-81.9, 39.2],
+      ],
+      expect.objectContaining({
+        padding: 40,
+        duration: 0,
+      }),
+    );
+  });
+});
+
+it("evite de remettre a jour les zones visibles quand les donnees ne changent pas", async () => {
+  const visibleZones = [
+    {
+      id: "zone-1",
+      difficulty: "medium" as const,
+      selected: false,
+      geoJson: {
+        type: "Polygon" as const,
+        coordinates: [[[-1, 44], [0, 44], [0, 45], [-1, 45], [-1, 44]]],
+      },
+    },
+  ];
+  const { rerender } = render(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="FR"
+      viewport="world"
+      visibleZones={visibleZones}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+  const map = await getMap();
+  map.emit("load");
+  const source = map.getSource("visible-clue-zones") as MockGeoJSONSource;
+
+  source.setData.mockClear();
+  rerender(
+    <AtlasMap
+      markers={atlasCountries}
+      selectedCountryCode="FR"
+      viewport="world"
+      visibleZones={[...visibleZones]}
+      onCountrySelect={vi.fn()}
+      onViewportChange={vi.fn()}
+    />,
+  );
+
+  await waitFor(() => {
+    expect(source.setData).not.toHaveBeenCalled();
+  });
 });

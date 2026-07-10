@@ -8,10 +8,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..", "..");
 const outputDir = path.join(repoRoot, "output");
-const datasetPaths = [
+const defaultDatasetPaths = [
   path.join(__dirname, "plates.v1.json"),
   path.join(__dirname, "plates.europe.v1.json"),
   path.join(__dirname, "plates.us-states.v1.json"),
+  path.join(__dirname, "plates.geometas.v1.json"),
 ];
 
 loadLocalEnv();
@@ -24,6 +25,10 @@ const OFFICIAL_COLLECTION_ID = "f0000000-0000-0000-0000-000000000001";
 const PLATES_CATEGORY_ID = "f1000000-0000-0000-0000-000000000003";
 const DRY_RUN = process.argv.includes("--dry-run");
 const MISSING_IMAGES_ONLY = process.argv.includes("--missing-images-only");
+const GEOMETAS_ONLY = process.argv.includes("--geometas-only");
+const datasetPaths = GEOMETAS_ONLY
+  ? [path.join(__dirname, "plates.geometas.v1.json")]
+  : defaultDatasetPaths;
 const FETCH_RETRY_ATTEMPTS = 6;
 const FETCH_RETRY_BASE_DELAY_MS = 3000;
 const FETCH_REQUEST_SPACING_MS = 1500;
@@ -397,6 +402,7 @@ async function upsertClue(entry, authorId) {
     license_name: entry.licenseName,
     license_url: entry.licenseUrl,
     attribution_text: entry.attributionText,
+    google_maps_url: entry.googleMapsUrl ?? null,
     author_id: authorId,
   };
 
@@ -411,6 +417,7 @@ async function upsertClue(entry, authorId) {
     title: entry.title,
     characteristics: entry.characteristics,
     notes: entry.notes,
+    google_maps_url: entry.googleMapsUrl ?? null,
     author_id: authorId,
   };
 
@@ -494,6 +501,7 @@ async function main() {
   const summary = {
     dryRun: DRY_RUN,
     missingImagesOnly: MISSING_IMAGES_ONLY,
+    geometasOnly: GEOMETAS_ONLY,
     total: entries.length,
     authorId,
     created: 0,

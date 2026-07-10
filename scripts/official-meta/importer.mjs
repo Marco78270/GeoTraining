@@ -98,6 +98,10 @@ export function validateEntry(entry) {
     regionIds: [...new Set(regionIds.map((id) => id.trim()))],
     coverage:
       regionIds.length > 0 ? "selected_regions" : "whole_country",
+    googleMapsUrl:
+      typeof entry.googleMapsUrl === "string" && entry.googleMapsUrl.trim()
+        ? validateOptionalHttpUrl(entry.googleMapsUrl, "googleMapsUrl")
+        : null,
   };
 }
 
@@ -149,6 +153,7 @@ export function buildCluePayload(
     license_name: entry.licenseName.trim(),
     license_url: entry.licenseUrl.trim(),
     attribution_text: entry.attributionText.trim(),
+    google_maps_url: entry.googleMapsUrl,
     author_id: authorId,
   };
 }
@@ -248,6 +253,19 @@ export function validateRemoteImageUrl(value) {
     throw new Error(`Adresse image interdite: ${hostname}.`);
   }
   return parsed;
+}
+
+function validateOptionalHttpUrl(value, fieldName) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${fieldName} doit etre une URL HTTP(S) valide.`);
+  }
+  if (!/^https?:/iu.test(parsed.protocol)) {
+    throw new Error(`${fieldName} doit etre une URL HTTP(S) valide.`);
+  }
+  return parsed.toString();
 }
 
 export async function fetchImage(
@@ -716,7 +734,7 @@ async function loadExistingSnapshot(supabase, clueId) {
   const result = await supabase
     .from("clues")
     .select(
-      "id, collection_id, category_id, country_code, coverage, difficulty, status, title, characteristics, notes, source_name, source_url, license_name, license_url, attribution_text, author_id, clue_images(id, clue_id, storage_path, alt_text, sort_order)",
+      "id, collection_id, category_id, country_code, coverage, difficulty, status, title, characteristics, notes, source_name, source_url, license_name, license_url, attribution_text, google_maps_url, author_id, clue_images(id, clue_id, storage_path, alt_text, sort_order)",
     )
     .eq("id", clueId)
     .maybeSingle();

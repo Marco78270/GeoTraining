@@ -361,7 +361,7 @@
       "cachePath": "scripts/geography/cache/geoBoundaries-CHL-ADM1_simplified.geojson",
       "outputPath": "public/geography/regions/CL.geojson",
       "sha256": "64ca160bd88f899ab5b2134733e1e191059fe20cdc9329dc189b40c1a9d194fa",
-      "outputSha256": "e91f62e01578b674ac10a4fc1542b1de7fdb99b961797533e29d9bbdbf8141a1"
+      "outputSha256": "88278d4091fe9a4fa400c513f3dd12a6aff31fe898e907a46a0658d7979cf7e5"
     },
     {
       "countryCode": "CM",
@@ -1186,7 +1186,7 @@
       "cachePath": "scripts/geography/cache/geoBoundaries-MEX-ADM1_simplified.geojson",
       "outputPath": "public/geography/regions/MX.geojson",
       "sha256": "3983d09aba2a2ce368c50d457ea39e4aaf5f8949821e49d983f33feb17e97034",
-      "outputSha256": "47d4198f567a6b83f68911b6dd41961f75ccd1667eed97184d205b3cb569d9aa"
+      "outputSha256": "c475a5c9b36f2ece121b07a5606bf4f00d698bedcb4abd3406f441c3b041391d"
     },
     {
       "countryCode": "MY",
@@ -1395,7 +1395,7 @@
       "cachePath": "scripts/geography/cache/geoBoundaries-PRT-ADM1_simplified.geojson",
       "outputPath": "public/geography/regions/PT.geojson",
       "sha256": "942823efb1d26e42fc59a0e4091be7db30b5d284e5acb07e9492caf868fa8a52",
-      "outputSha256": "24e92027e2d634ed22968599c54c4598e2f1b17746b861e78e065e70bd914317"
+      "outputSha256": "faf34e5c49c27af036e2be3cba8d99744328b2efa06ba61d0b556436c5352078"
     },
     {
       "countryCode": "PY",
@@ -1877,7 +1877,7 @@
     "url": "https://www.iso.org/obp/ui/#search",
     "license": "ISO terms and conditions",
     "path": "scripts/geography/iso-country-overrides.json",
-    "sha256": "2886f76c73e7bce78d2266893cc1548aaf931ddb9f5afe16b929517e4af9577d"
+    "sha256": "e33c52a9ef86ac257ed68a27c5885c12dfba81b134fd07122da651fd57958778"
   },
   "legacyRegionIdMappings": {
     "FR-COR": "FR-20R"

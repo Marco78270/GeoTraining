@@ -5,9 +5,24 @@ import {
   type ClueDataClient,
 } from "./clueApi";
 import type { ClueEditInput, ClueFormInput } from "./clueSchema";
+import type { ClueZoneGeoJson } from "./clueLocationTypes";
 
 function image(name: string, type: string) {
   return new File(["image"], name, { type });
+}
+
+function drawnZone(): ClueZoneGeoJson {
+  return {
+    type: "Polygon",
+    coordinates: [
+      [
+        [36.8, -1.35],
+        [36.9, -1.35],
+        [36.92, -1.25],
+        [36.8, -1.35],
+      ],
+    ],
+  };
 }
 
 function form(): ClueFormInput {
@@ -17,6 +32,7 @@ function form(): ClueFormInput {
     countryCode: "FR",
     coverage: "selected_regions",
     regionIds: ["FR-IDF", "FR-OCC"],
+    zoneGeoJson: null,
     difficulty: "medium",
     title: "Panneau STOP",
     characteristics: ["Contour blanc"],
@@ -47,11 +63,17 @@ function client(events: string[]): ClueDataClient {
     insertRegions: vi.fn(async (_clueId, regionIds) => {
       events.push(`regions:${regionIds.join(",")}`);
     }),
-    updateClue: vi.fn(async () => {
-      events.push("update");
-    }),
     replaceRegions: vi.fn(async (_clueId, regionIds) => {
       events.push(`replaceRegions:${regionIds.join(",")}`);
+    }),
+    upsertZone: vi.fn(async (_clueId, zoneGeoJson) => {
+      events.push(`zone:${zoneGeoJson.coordinates[0].length}`);
+    }),
+    deleteZone: vi.fn(async () => {
+      events.push("deleteZone");
+    }),
+    updateClue: vi.fn(async () => {
+      events.push("update");
     }),
     deleteImageMetadata: vi.fn(async (imageIds) => {
       events.push(`deleteImageMetadata:${imageIds.join(",")}`);
@@ -127,7 +149,28 @@ describe("createClueApi", () => {
     });
 
     expect(dataClient.insertRegions).not.toHaveBeenCalled();
+    expect(dataClient.upsertZone).not.toHaveBeenCalled();
     expect(events.at(-1)).toBe("publish");
+  });
+
+  it("cree une zone dessinee quand la couverture libre est choisie", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    const api = createClueApi(dataClient, () => "image-1");
+
+    await expect(
+      api.create({
+        ...form(),
+        coverage: "drawn_zone",
+        regionIds: ["FR-IDF"],
+        zoneGeoJson: drawnZone(),
+        images: [image("zone.jpg", "image/jpeg")],
+      }),
+    ).resolves.toEqual({ id: "clue-1" });
+
+    expect(dataClient.insertRegions).not.toHaveBeenCalled();
+    expect(dataClient.upsertZone).toHaveBeenCalledWith("clue-1", drawnZone());
+    expect(events).toContain("zone:4");
   });
 
   it("supprime les objets charges et le brouillon si une etape enfant echoue", async () => {
@@ -202,6 +245,7 @@ describe("createClueApi", () => {
     const input: ClueEditInput = {
       ...form(),
       clueId: "clue-1",
+      previousCategoryId: "category-1",
       previousCoverage: "selected_regions",
       countryCode: "KE",
       regionIds: ["KE-30"],
@@ -232,6 +276,7 @@ describe("createClueApi", () => {
       }),
     );
     expect(dataClient.replaceRegions).toHaveBeenCalledWith("clue-1", ["KE-30"]);
+    expect(dataClient.deleteZone).toHaveBeenCalledWith("clue-1");
     expect(dataClient.uploadImage).toHaveBeenCalledWith(
       "collection-1/clue-1/image-3.jpg",
       expect.any(File),
@@ -263,7 +308,7 @@ describe("createClueApi", () => {
     expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
   });
 
-  it("retire d'abord les régions avant de passer un indice au pays entier", async () => {
+  it("retire d'abord les regions avant de passer un indice au pays entier", async () => {
     const events: string[] = [];
     const dataClient = client(events);
     const api = createClueApi(dataClient, () => "image-1");
@@ -272,6 +317,7 @@ describe("createClueApi", () => {
       api.update({
         ...form(),
         clueId: "clue-1",
+        previousCategoryId: "category-1",
         previousCoverage: "selected_regions",
         coverage: "whole_country",
         regionIds: [],
@@ -297,6 +343,7 @@ describe("createClueApi", () => {
       }),
     );
     expect(vi.mocked(dataClient.replaceRegions)).toHaveBeenCalledWith("clue-1", []);
+    expect(vi.mocked(dataClient.deleteZone)).toHaveBeenCalledWith("clue-1");
     expect(vi.mocked(dataClient.updateClue)).toHaveBeenNthCalledWith(
       2,
       "clue-1",
@@ -308,7 +355,7 @@ describe("createClueApi", () => {
     expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
   });
 
-  it("n'actualise pas les métadonnées d'image quand seul le contenu textuel change", async () => {
+  it("remplace la couverture par une zone dessinee lors d'une edition", async () => {
     const events: string[] = [];
     const dataClient = client(events);
     const api = createClueApi(dataClient, () => "image-1");
@@ -317,6 +364,84 @@ describe("createClueApi", () => {
       api.update({
         ...form(),
         clueId: "clue-1",
+        previousCategoryId: "category-1",
+        previousCoverage: "selected_regions",
+        coverage: "drawn_zone",
+        regionIds: ["FR-IDF"],
+        zoneGeoJson: drawnZone(),
+        images: [],
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "STOP 1",
+            sortOrder: 0,
+          },
+        ],
+        removedImageIds: [],
+      }),
+    ).resolves.toEqual({ id: "clue-1" });
+
+    expect(dataClient.replaceRegions).toHaveBeenCalledWith("clue-1", []);
+    expect(dataClient.upsertZone).toHaveBeenCalledWith("clue-1", drawnZone());
+    expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
+    expect(events).toEqual([
+      "update",
+      "replaceRegions:",
+      "update",
+      "zone:4",
+      "publish",
+    ]);
+  });
+
+  it("retire la zone avant de passer un indice vers une couverture regionale", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    const api = createClueApi(dataClient, () => "image-1");
+
+    await expect(
+      api.update({
+        ...form(),
+        clueId: "clue-1",
+        previousCategoryId: "category-1",
+        previousCoverage: "drawn_zone",
+        coverage: "selected_regions",
+        regionIds: ["FR-IDF"],
+        zoneGeoJson: null,
+        images: [],
+        existingImages: [
+          {
+            id: "stored-1",
+            storagePath: "collection-1/clue-1/stored-1.jpg",
+            altText: "STOP 1",
+            sortOrder: 0,
+          },
+        ],
+        removedImageIds: [],
+      }),
+    ).resolves.toEqual({ id: "clue-1" });
+
+    expect(dataClient.deleteZone).toHaveBeenCalledWith("clue-1");
+    expect(dataClient.replaceRegions).toHaveBeenCalledWith("clue-1", ["FR-IDF"]);
+    expect(events).toEqual([
+      "update",
+      "deleteZone",
+      "update",
+      "replaceRegions:FR-IDF",
+      "publish",
+    ]);
+  });
+
+  it("n'actualise pas les metadonnees d'image quand seul le contenu textuel change", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    const api = createClueApi(dataClient, () => "image-1");
+
+    await expect(
+      api.update({
+        ...form(),
+        clueId: "clue-1",
+        previousCategoryId: "category-1",
         previousCoverage: "selected_regions",
         title: "Panneau STOP",
         googleMapsUrl: "https://www.google.com/maps/@1,2,3a,75y",
@@ -335,5 +460,74 @@ describe("createClueApi", () => {
 
     expect(dataClient.updateImageSortOrders).not.toHaveBeenCalled();
     expect(dataClient.publishClue).toHaveBeenCalledWith("clue-1");
+  });
+
+  it("supprime les ressources d'un indice avant de supprimer sa ligne", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    vi.mocked(dataClient.loadForEdit).mockResolvedValueOnce({
+      id: "clue-1",
+      collectionId: "collection-1",
+      categoryId: "category-1",
+      countryCode: "KE",
+      coverage: "drawn_zone",
+      regionIds: [],
+      zoneGeoJson: drawnZone(),
+      difficulty: "medium",
+      title: "Bollards Kenyan",
+      characteristics: ["Peinture noire et blanche"],
+      notes: "Typique du Kenya",
+      googleMapsUrl: "https://www.google.com/maps/@-0.1048,34.759,3a,75y",
+      existingImages: [
+        {
+          id: "stored-1",
+          storagePath: "collection-1/clue-1/stored-1.jpg",
+          altText: "Bollard 1",
+          sortOrder: 0,
+        },
+        {
+          id: "stored-2",
+          storagePath: "collection-1/clue-1/stored-2.webp",
+          altText: "Bollard 2",
+          sortOrder: 1,
+        },
+      ],
+    });
+
+    await expect(createClueApi(dataClient).delete("clue-1")).resolves.toBeUndefined();
+
+    expect(events).toEqual([
+      "deleteZone",
+      "remove:collection-1/clue-1/stored-1.jpg,collection-1/clue-1/stored-2.webp",
+      "deleteImageMetadata:stored-1,stored-2",
+      "delete",
+    ]);
+  });
+
+  it("supprime quand meme la ligne si l'indice n'a ni zone ni image", async () => {
+    const events: string[] = [];
+    const dataClient = client(events);
+    vi.mocked(dataClient.loadForEdit).mockResolvedValueOnce({
+      id: "clue-1",
+      collectionId: "collection-1",
+      categoryId: "category-1",
+      countryCode: "KE",
+      coverage: "whole_country",
+      regionIds: [],
+      zoneGeoJson: null,
+      difficulty: "medium",
+      title: "Bollards Kenyan",
+      characteristics: [],
+      notes: "",
+      googleMapsUrl: "",
+      existingImages: [],
+    });
+
+    await expect(createClueApi(dataClient).delete("clue-1")).resolves.toBeUndefined();
+
+    expect(dataClient.deleteZone).not.toHaveBeenCalled();
+    expect(dataClient.removeImages).not.toHaveBeenCalled();
+    expect(dataClient.deleteImageMetadata).not.toHaveBeenCalled();
+    expect(events).toEqual(["delete"]);
   });
 });

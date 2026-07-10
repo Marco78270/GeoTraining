@@ -20,11 +20,14 @@ const summary = await runOfficialImport({
     id: "f1000000-0000-0000-0000-000000000005",
     name: "Poteaux electriques",
   },
-  datasetPath: new URL("./utility-poles.v1.json", import.meta.url),
+  datasetPath: new URL("./utility-poles.geometas.v1.json", import.meta.url),
   summaryFileName: "official-utility-poles-import-summary.json",
   authorEnvName: "SUPABASE_META_AUTHOR_ID",
   dryRun: process.argv.includes("--dry-run"),
   missingImagesOnly: process.argv.includes("--missing-images-only"),
+  allowedImageHosts: new Set([
+    "paulplay-storage-1.fra1.digitaloceanspaces.com",
+  ]),
   supabase,
 });
 

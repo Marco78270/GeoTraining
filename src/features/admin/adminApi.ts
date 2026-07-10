@@ -30,6 +30,7 @@ export type AdminDataClient = {
   >;
   setRole(userId: string, role: PlatformRole): Promise<void>;
   removeRole(userId: string): Promise<void>;
+  deleteUser(userId: string): Promise<void>;
 };
 
 export function createAdminApi(client: AdminDataClient) {
@@ -59,7 +60,30 @@ export function createAdminApi(client: AdminDataClient) {
     async removePlatformRole(userId: string) {
       await client.removeRole(userId);
     },
+    async deletePlatformUser(userId: string) {
+      await client.deleteUser(userId);
+    },
   };
+}
+
+async function throwFunctionError(error: unknown): Promise<never> {
+  if (
+    error &&
+    typeof error === "object" &&
+    "context" in error &&
+    error.context instanceof Response
+  ) {
+    const payload = (await error.context.json().catch(() => null)) as
+      | { message?: string; error?: string }
+      | null;
+    throw new Error(payload?.message ?? payload?.error ?? error.context.statusText);
+  }
+
+  if (error instanceof Error) {
+    throw error;
+  }
+
+  throw new Error("Une erreur serveur est survenue.");
 }
 
 export function createSupabaseAdminDataClient(
@@ -105,20 +129,29 @@ export function createSupabaseAdminDataClient(
       >;
     },
     async setRole(userId, role) {
-      const { error } = await supabase
-        .from("user_roles")
-        .upsert({ user_id: userId, role });
+      const { error } = await supabase.rpc("manage_platform_role", {
+        target_user_id: userId,
+        target_role: role,
+      });
       if (error) {
         throw error;
       }
     },
     async removeRole(userId) {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
+      const { error } = await supabase.rpc("manage_platform_role", {
+        target_user_id: userId,
+        target_role: null,
+      });
       if (error) {
         throw error;
+      }
+    },
+    async deleteUser(userId) {
+      const { error } = await supabase.functions.invoke("admin-user-management", {
+        body: { action: "delete-user", userId },
+      });
+      if (error) {
+        await throwFunctionError(error);
       }
     },
   };

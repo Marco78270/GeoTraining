@@ -71,7 +71,7 @@ export function ClueEditorPage({
         </Link>
       </nav>
       {isEditMode && loading ? (
-        <p role="status">Chargement de l’indice…</p>
+        <p role="status">Chargement de l’indice...</p>
       ) : isEditMode && (!initialClue || loadError || missingEditLoader) ? (
         <p role="alert">Impossible de charger cet indice pour modification.</p>
       ) : (

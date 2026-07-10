@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createAdminApi } from "./adminApi";
+import { createAdminApi, createSupabaseAdminDataClient } from "./adminApi";
 
 describe("adminApi", () => {
   it("returns the current platform role", async () => {
@@ -8,6 +8,7 @@ describe("adminApi", () => {
       listUsers: vi.fn(),
       setRole: vi.fn(),
       removeRole: vi.fn(),
+      deleteUser: vi.fn(),
     };
 
     await expect(
@@ -36,6 +37,7 @@ describe("adminApi", () => {
       ]),
       setRole: vi.fn(),
       removeRole: vi.fn(),
+      deleteUser: vi.fn(),
     };
 
     await expect(createAdminApi(client).listPlatformUsers()).resolves.toEqual([
@@ -54,5 +56,54 @@ describe("adminApi", () => {
         role: null,
       },
     ]);
+  });
+
+  it("delegates user deletion to the admin client", async () => {
+    const client = {
+      getCurrentRole: vi.fn(),
+      listUsers: vi.fn(),
+      setRole: vi.fn(),
+      removeRole: vi.fn(),
+      deleteUser: vi.fn().mockResolvedValue(undefined),
+    };
+
+    await expect(
+      createAdminApi(client).deletePlatformUser("user-9"),
+    ).resolves.toBeUndefined();
+    expect(client.deleteUser).toHaveBeenCalledWith("user-9");
+  });
+
+  it("delegates removeRole to the admin edge function", async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      auth: { getUser: vi.fn() },
+      rpc,
+      from: vi.fn(),
+    };
+
+    await expect(
+      createSupabaseAdminDataClient(supabase as never).removeRole("user-2"),
+    ).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("manage_platform_role", {
+      target_user_id: "user-2",
+      target_role: null,
+    });
+  });
+
+  it("delegates setRole to the platform role rpc", async () => {
+    const rpc = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      auth: { getUser: vi.fn() },
+      rpc,
+      from: vi.fn(),
+    };
+
+    await expect(
+      createSupabaseAdminDataClient(supabase as never).setRole("user-2", "admin"),
+    ).resolves.toBeUndefined();
+    expect(rpc).toHaveBeenCalledWith("manage_platform_role", {
+      target_user_id: "user-2",
+      target_role: "admin",
+    });
   });
 });

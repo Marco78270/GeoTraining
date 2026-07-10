@@ -25,6 +25,9 @@ const summary = await runOfficialImport({
   authorEnvName: "SUPABASE_META_AUTHOR_ID",
   dryRun: process.argv.includes("--dry-run"),
   missingImagesOnly: process.argv.includes("--missing-images-only"),
+  allowedImageHosts: new Set([
+    "paulplay-storage-1.fra1.digitaloceanspaces.com",
+  ]),
   supabase,
 });
 

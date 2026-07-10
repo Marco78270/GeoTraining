@@ -2,22 +2,18 @@
 import {
   BarChart3,
   Bookmark,
-  Fence,
   Globe2,
   GraduationCap,
-  Leaf,
   Map,
   MapPinned,
-  Milestone,
   Plus,
-  Route,
   Search,
   ShieldCheck,
   Signpost,
   Target,
-  UtilityPole,
+  Trophy,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ProfileMenu } from "../admin/ProfileMenu";
 import {
@@ -26,8 +22,10 @@ import {
 } from "../admin/platformRole";
 import { useAuth } from "../auth/authContext";
 import { useActiveCollection } from "../collections/activeCollectionContext";
+import { getCategoryIcon } from "../collections/categoryIcons";
 import { collectionKeys } from "../collections/collectionKeys";
 import { CollectionPicker } from "../collections/CollectionPicker";
+import { getClueApi, type ClueApi } from "../clues/clueApi";
 import {
   getAtlasApi,
   type AtlasApi,
@@ -35,7 +33,16 @@ import {
   type AtlasCountry,
   type Difficulty,
 } from "./atlasApi";
-import { AtlasMap } from "./AtlasMap";
+import {
+  preloadAtlasExperience,
+  preloadAtlasMapModule,
+  scheduleMapAssetPreload,
+} from "../geography/mapAssetPreload";
+
+const AtlasMap = lazy(async () => {
+  const module = await preloadAtlasMapModule();
+  return { default: module.AtlasMap };
+});
 
 const difficultyOrder: Difficulty[] = ["easy", "medium", "expert"];
 const difficultyLabels: Record<Difficulty, string> = {
@@ -45,18 +52,9 @@ const difficultyLabels: Record<Difficulty, string> = {
 };
 const emptyCategories: AtlasCategory[] = [];
 const emptyCountries: AtlasCountry[] = [];
-const categoryIcons = {
-  sign: Signpost,
-  milestone: Milestone,
-  road: Route,
-  pole: UtilityPole,
-  fence: Fence,
-  leaf: Leaf,
-} as const;
 
 function CategoryIcon({ category }: { category: AtlasCategory }) {
-  const Icon =
-    categoryIcons[category.icon as keyof typeof categoryIcons] ?? Signpost;
+  const Icon = getCategoryIcon(category.icon).Icon;
   return <Icon aria-hidden="true" />;
 }
 
@@ -94,8 +92,10 @@ function filterCountries(
 
 export function AtlasPage({
   atlasApi: suppliedAtlasApi,
+  clueApi: suppliedClueApi,
 }: {
   atlasApi?: AtlasApi;
+  clueApi?: Pick<ClueApi, "delete">;
 }) {
   const { signOut, user } = useAuth();
   const platformRole = usePlatformRole();
@@ -108,6 +108,7 @@ export function AtlasPage({
     error: collectionsError,
   } = useActiveCollection();
   const [atlasApi] = useState(() => suppliedAtlasApi ?? getAtlasApi());
+  const [clueApi] = useState(() => suppliedClueApi ?? getClueApi());
   const isPublicReadOnly = activeCollection?.visibility === "public_readonly";
   const canEditActiveCollection = canWriteCollectionContent(
     activeCollection,
@@ -121,9 +122,14 @@ export function AtlasPage({
     null,
   );
   const [selectedClueId, setSelectedClueId] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
+
+  useEffect(() => scheduleMapAssetPreload(preloadAtlasExperience), []);
   const [viewport, setViewport] = useState<"world" | "country">("world");
+  const [countryFocusToken, setCountryFocusToken] = useState(0);
   const [search, setSearch] = useState("");
+  const [isDeletingClue, setIsDeletingClue] = useState(false);
 
   const query = useQuery({
     queryKey: activeCollectionId
@@ -164,6 +170,12 @@ export function AtlasPage({
     selectedCountry?.clues.find((clue) => clue.id === selectedClueId) ??
     selectedCountry?.clues[0] ??
     null;
+  const safeSelectedImageIndex = selectedClue
+    ? Math.min(selectedImageIndex, Math.max(selectedClue.imageUrls.length - 1, 0))
+    : 0;
+  const selectedImageUrl = selectedClue?.imageUrls[safeSelectedImageIndex] ?? null;
+  const selectedImageAlt =
+    selectedClue?.imageAlts[safeSelectedImageIndex] ?? selectedClue?.title ?? "";
   const effectiveSelectedRegionId =
     selectedRegionId && selectedClue?.regionIds.includes(selectedRegionId)
       ? selectedRegionId
@@ -194,6 +206,24 @@ export function AtlasPage({
       ],
     };
   }, [activeCategory, selectedCountry]);
+  const visibleZones = useMemo(
+    () =>
+      markers.flatMap((country) =>
+        country.clues.flatMap((clue) =>
+          clue.coverage === "drawn_zone" && clue.zoneGeoJson
+            ? [
+                {
+                  id: clue.id,
+                  geoJson: clue.zoneGeoJson,
+                  difficulty: clue.difficulty,
+                  selected: clue.id === selectedClue?.id,
+                },
+              ]
+            : [],
+        ),
+      ),
+    [markers, selectedClue?.id],
+  );
 
   function toggleDifficulty(difficulty: Difficulty) {
     setActiveDifficulties((current) => {
@@ -216,6 +246,7 @@ export function AtlasPage({
     setSelectedCountryCode(code);
     setSelectedClueId(null);
     setSelectedRegionId(null);
+    setSelectedImageIndex(0);
   }
 
   function selectRegion(regionId: string) {
@@ -230,11 +261,39 @@ export function AtlasPage({
     }
     setSelectedClueId(matchingClue.id);
     setSelectedRegionId(regionId);
+    setSelectedImageIndex(0);
     setViewport("country");
+  }
+
+  async function handleDeleteClue() {
+    if (!selectedClue) return;
+
+    const confirmed = window.confirm(
+      `Supprimer définitivement l’indice "${selectedClue.title}" ?`,
+    );
+    if (!confirmed) return;
+
+    setIsDeletingClue(true);
+    try {
+      await clueApi.delete(selectedClue.id);
+      setSelectedClueId(null);
+      setSelectedCountryCode(null);
+      setSelectedRegionId(null);
+      setSelectedImageIndex(0);
+      setViewport("world");
+      await query.refetch();
+    } finally {
+      setIsDeletingClue(false);
+    }
   }
 
   const totalClues = activeCategory?.total ?? 0;
   const totalCountries = activeCategory?.countries ?? 0;
+  const mapFallback = (
+    <div className="atlas-map-frame atlas-map-loading" role="status">
+      Chargement de la carte...
+    </div>
+  );
 
   return (
     <main className="app-shell atlas-app">
@@ -250,6 +309,7 @@ export function AtlasPage({
           <NavLink to="/collections"><Bookmark />Collections</NavLink>
           <NavLink to="/training"><GraduationCap />Entraînement</NavLink>
           <NavLink to="/statistics"><BarChart3 />Statistiques</NavLink>
+          <NavLink to="/leaderboard"><Trophy />Classement</NavLink>
         </nav>
         <ProfileMenu
           email={user?.email}
@@ -302,7 +362,7 @@ export function AtlasPage({
                   >
                     <CategoryIcon category={category} />
                     <span>{category.name}</span>
-                    <span className="category-check" aria-hidden="true">{active ? "?" : ""}</span>
+                    <span className="category-check" aria-hidden="true">{active ? "✓" : ""}</span>
                   </button>
                 );
               })}
@@ -357,19 +417,23 @@ export function AtlasPage({
             </div>
           ) : null}
           <div className="atlas-map-panel">
-            <AtlasMap
-              markers={markers}
-              selectedCountryCode={effectiveSelectedCountryCode}
-              selectedRegionId={effectiveSelectedRegionId}
-              viewport={effectiveSelectedCountryCode ? viewport : "world"}
-              hasWholeCountryCoverage={
-                selectedCountryCoverage.hasWholeCountryCoverage
-              }
-              coveredRegionIds={selectedCountryCoverage.coveredRegionIds}
-              onCountrySelect={selectCountry}
-              onRegionSelect={selectRegion}
-              onViewportChange={setViewport}
-            />
+            <Suspense fallback={mapFallback}>
+              <AtlasMap
+                markers={markers}
+                selectedCountryCode={effectiveSelectedCountryCode}
+                selectedRegionId={effectiveSelectedRegionId}
+                viewport={effectiveSelectedCountryCode ? viewport : "world"}
+                focusRequestToken={countryFocusToken}
+                hasWholeCountryCoverage={
+                  selectedCountryCoverage.hasWholeCountryCoverage
+                }
+                coveredRegionIds={selectedCountryCoverage.coveredRegionIds}
+                visibleZones={visibleZones}
+                onCountrySelect={selectCountry}
+                onRegionSelect={selectRegion}
+                onViewportChange={setViewport}
+              />
+            </Suspense>
             {viewport === "country" ? (
               <button
                 type="button"
@@ -378,6 +442,7 @@ export function AtlasPage({
                   setSelectedCountryCode(null);
                   setSelectedClueId(null);
                   setSelectedRegionId(null);
+                  setSelectedImageIndex(0);
                   setViewport("world");
                 }}
               >
@@ -430,49 +495,76 @@ export function AtlasPage({
 
             <h2 className="atlas-clue-title">{selectedClue.title}</h2>
             {activeCollectionId && (!isPublicReadOnly || canEditActiveCollection) ? (
-              <Link
-                className="zoom-country-button"
-                to={`/clues/${selectedClue.id}/edit`}
-                state={{
-                  initialClue: {
-                    id: selectedClue.id,
-                    collectionId: activeCollectionId,
-                    categoryId: selectedClue.categoryId,
-                    countryCode: selectedCountry.code,
-                    coverage: selectedClue.coverage,
-                    regionIds: selectedClue.regionIds,
-                    difficulty: selectedClue.difficulty,
-                    title: selectedClue.title,
-                    characteristics: selectedClue.characteristics,
-                    notes: selectedClue.notes ?? "",
-                    googleMapsUrl: selectedClue.googleMapsUrl ?? "",
-                    existingImages: selectedClue.images.map((image, index) => ({
-                      id: image.id,
-                      storagePath: image.storagePath,
-                      altText: image.altText,
-                      sortOrder: index,
-                    })),
-                  },
-                }}
-              >
-                Modifier l’indice
-              </Link>
+              <>
+                <Link
+                  className="zoom-country-button"
+                  to={`/clues/${selectedClue.id}/edit`}
+                  state={{
+                    initialClue: {
+                      id: selectedClue.id,
+                      collectionId: activeCollectionId,
+                      categoryId: selectedClue.categoryId,
+                      countryCode: selectedCountry.code,
+                      coverage: selectedClue.coverage,
+                      regionIds: selectedClue.regionIds,
+                      zoneGeoJson: selectedClue.zoneGeoJson,
+                      difficulty: selectedClue.difficulty,
+                      title: selectedClue.title,
+                      characteristics: selectedClue.characteristics,
+                      notes: selectedClue.notes ?? "",
+                      googleMapsUrl: selectedClue.googleMapsUrl ?? "",
+                      existingImages: selectedClue.images.map((image, index) => ({
+                        id: image.id,
+                        storagePath: image.storagePath,
+                        altText: image.altText,
+                        sortOrder: index,
+                      })),
+                    },
+                  }}
+                >
+                  Modifier l’indice
+                </Link>
+                <button
+                  type="button"
+                  className="zoom-country-button"
+                  onClick={() => {
+                    void handleDeleteClue();
+                  }}
+                  disabled={isDeletingClue}
+                >
+                  {isDeletingClue ? "Suppression…" : "Supprimer l’indice"}
+                </button>
+              </>
             ) : null}
-            {selectedClue.imageUrls[0] ? (
-              <img
-                className="atlas-clue-image"
-                src={selectedClue.imageUrls[0]}
-                alt={selectedClue.imageAlts[0] ?? selectedClue.title}
-              />
+            {selectedImageUrl ? (
+              <figure className="atlas-clue-gallery">
+                <img
+                  className="atlas-clue-image"
+                  src={selectedImageUrl}
+                  alt={selectedImageAlt}
+                />
+                {selectedClue.imageUrls.length > 1 ? (
+                  <figcaption>
+                    Image {safeSelectedImageIndex + 1} / {selectedClue.imageUrls.length}
+                  </figcaption>
+                ) : null}
+              </figure>
             ) : null}
             {selectedClue.imageUrls.length > 1 ? (
-              <div className="detail-thumbnails">
-                {selectedClue.imageUrls.slice(1).map((url, index) => (
-                  <img
+              <div className="detail-thumbnails" aria-label="Images de l'indice">
+                {selectedClue.imageUrls.map((url, index) => (
+                  <button
                     key={url}
-                    src={url}
-                    alt={selectedClue.imageAlts[index + 1] ?? selectedClue.title}
-                  />
+                    type="button"
+                    className={index === safeSelectedImageIndex ? "active" : ""}
+                    onClick={() => setSelectedImageIndex(index)}
+                    aria-label={`Afficher l'image ${index + 1}`}
+                  >
+                    <img
+                      src={url}
+                      alt={selectedClue.imageAlts[index] ?? selectedClue.title}
+                    />
+                  </button>
                 ))}
               </div>
             ) : null}
@@ -531,22 +623,34 @@ export function AtlasPage({
               </a>
             ) : null}
             <section className="detail-section detail-regions">
-              <h2>Régions couvertes</h2>
+              <h2>Couverture</h2>
               <div>
-                {selectedClue.regions.length > 0
-                  ? selectedClue.regions.map((region) => <span key={region}>{region}</span>)
-                  : <span>Pays entier</span>}
+                {selectedClue.coverage === "drawn_zone" ? (
+                  <span>Zone dessinée</span>
+                ) : selectedClue.regions.length > 0 ? (
+                  selectedClue.regions.map((region) => <span key={region}>{region}</span>)
+                ) : (
+                  <span>Pays entier</span>
+                )}
               </div>
             </section>
             <button
               type="button"
               className="zoom-country-button"
-              onClick={() => setViewport("country")}
+              onClick={() => {
+                if (selectedClue?.coverage === "selected_regions") {
+                  setSelectedRegionId(selectedClue.regionIds[0] ?? null);
+                }
+                setViewport("country");
+                setCountryFocusToken((current) => current + 1);
+              }}
             >
               <Target aria-hidden="true" />
               Zoomer sur{" "}
               {selectedClue.regions[0]
                 ? `${selectedCountry.name} · ${selectedClue.regions[0]}`
+                : selectedClue.coverage === "drawn_zone"
+                  ? `${selectedCountry.name} · zone dessinée`
                 : selectedCountry.name}
             </button>
           </aside>

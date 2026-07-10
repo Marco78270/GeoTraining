@@ -7,6 +7,80 @@ export type Collection = Tables["collections"]["Row"];
 export type Membership = Tables["collection_members"]["Row"];
 export type Category = Tables["categories"]["Row"];
 
+export type CategoryStats = {
+  categoryId: string;
+  clueCount: number;
+  publishedCount: number;
+  countryCount: number;
+  completeCount: number;
+  completeness: number;
+};
+
+type ClueStatus = Tables["clues"]["Row"]["status"];
+
+export type ClueLibraryFilterRow = {
+  category_id: string;
+  country_code: string;
+  status: ClueStatus;
+  categories: { name: string } | null;
+  countries: { name: string } | null;
+};
+
+export type ClueLibraryFilters = {
+  categories: Array<{ id: string; name: string }>;
+  countries: Array<{ code: string; name: string }>;
+  statuses: ClueStatus[];
+};
+
+export type ClueLibraryRow = {
+  id: string;
+  title: string;
+  status: ClueStatus;
+  difficulty: Tables["clues"]["Row"]["difficulty"];
+  category_id: string;
+  country_code: string;
+  characteristics: string[];
+  notes: string | null;
+  google_maps_url: string | null;
+  created_at: string;
+  categories: { name: string } | null;
+  countries: { name: string } | null;
+  clue_images: Array<{
+    id: string;
+    storage_path: string;
+    alt_text: string | null;
+    sort_order: number;
+  }>;
+};
+
+export type ClueLibraryQuery = {
+  collectionId: string;
+  categoryIds?: string[];
+  countryCodes?: string[];
+  statuses?: ClueStatus[];
+  search?: string;
+  page: number;
+  pageSize: number;
+};
+
+type ClueLibraryDataQuery = Omit<ClueLibraryQuery, "page" | "pageSize"> & {
+  from: number;
+  to: number;
+};
+
+export type ClueLibraryItem = Omit<
+  ClueLibraryRow,
+  "categories" | "countries" | "clue_images"
+> & {
+  categoryName: string;
+  countryName: string;
+  images: Array<{
+    id: string;
+    altText: string | null;
+    url: string;
+  }>;
+};
+
 export type CollectionSummary = Pick<
   Collection,
   | "id"
@@ -73,6 +147,12 @@ export type CollectionDataClient = {
   ): Promise<Collection>;
   deleteCollection(collectionId: string): Promise<void>;
   listCategories(collectionId: string): Promise<Category[]>;
+  listCategoryStats(collectionId: string): Promise<CategoryStats[]>;
+  listClueFilterRows(collectionId: string): Promise<ClueLibraryFilterRow[]>;
+  listClueRows(
+    input: ClueLibraryDataQuery,
+  ): Promise<{ rows: ClueLibraryRow[]; count: number }>;
+  createSignedImageUrls(paths: string[]): Promise<Record<string, string>>;
   insertCategory(input: Tables["categories"]["Insert"]): Promise<Category>;
   updateCategory(
     categoryId: string,
@@ -145,6 +225,108 @@ export function createCollectionApi(client: CollectionDataClient) {
 
     async listCategories(collectionId: string) {
       return client.listCategories(collectionId);
+    },
+
+    async listCategoryStats(collectionId: string) {
+      return client.listCategoryStats(collectionId);
+    },
+
+    async listClueFilters(collectionId: string): Promise<ClueLibraryFilters> {
+      const rows = await client.listClueFilterRows(collectionId);
+      const categories = new Map<string, string>();
+      const countries = new Map<string, string>();
+      const statuses = new Set<ClueStatus>();
+
+      for (const row of rows) {
+        categories.set(
+          row.category_id,
+          row.categories?.name ?? row.category_id,
+        );
+        countries.set(
+          row.country_code,
+          row.countries?.name ?? row.country_code,
+        );
+        statuses.add(row.status);
+      }
+
+      return {
+        categories: [...categories].map(([id, name]) => ({ id, name })).sort(
+          (left, right) => left.name.localeCompare(right.name, "fr"),
+        ),
+        countries: [...countries].map(([code, name]) => ({ code, name })).sort(
+          (left, right) => left.name.localeCompare(right.name, "fr"),
+        ),
+        statuses: (["draft", "published"] as ClueStatus[]).filter((status) =>
+          statuses.has(status),
+        ),
+      };
+    },
+
+    async listClues(input: ClueLibraryQuery) {
+      const page = Math.max(1, input.page);
+      const pageSize = Math.min(100, Math.max(1, input.pageSize));
+      const from = (page - 1) * pageSize;
+      const categoryIds = cleanStringArray(input.categoryIds);
+      const countryCodes = cleanStringArray(input.countryCodes);
+      const statuses = input.statuses
+        ? [...new Set(input.statuses)].filter((status) =>
+            (["draft", "published"] as ClueStatus[]).includes(status),
+          )
+        : undefined;
+
+      if (
+        categoryIds?.length === 0 ||
+        countryCodes?.length === 0 ||
+        statuses?.length === 0
+      ) {
+        return {
+          items: [],
+          total: 0,
+          page,
+          pageSize,
+          totalPages: 0,
+        };
+      }
+
+      const { rows, count } = await client.listClueRows({
+        collectionId: input.collectionId,
+        categoryIds,
+        countryCodes,
+        statuses,
+        search: input.search?.trim() || undefined,
+        from,
+        to: from + pageSize - 1,
+      });
+      const paths = [
+        ...new Set(
+          rows.flatMap((row) =>
+            row.clue_images.map((image) => image.storage_path),
+          ),
+        ),
+      ];
+      const signedUrls = await client.createSignedImageUrls(paths);
+
+      return {
+        items: rows.map((row): ClueLibraryItem => {
+          const { categories, countries, clue_images, ...clue } = row;
+          return {
+            ...clue,
+            categoryName: categories?.name ?? row.category_id,
+            countryName: countries?.name ?? row.country_code,
+            images: [...clue_images]
+              .sort((left, right) => left.sort_order - right.sort_order)
+              .map((image) => ({
+                id: image.id,
+                altText: image.alt_text,
+                url: signedUrls[image.storage_path] ?? "",
+              })),
+          };
+        }),
+        total: count,
+        page,
+        pageSize,
+        totalPages: count > 0 ? Math.ceil(count / pageSize) : 0,
+      };
     },
 
     async createCategory(input: CreateCategoryInput) {
@@ -241,8 +423,16 @@ type MemberProfileRow = Membership & {
   profiles: Pick<Tables["profiles"]["Row"], "display_name" | "avatar_url"> | null;
 };
 
+type CategoryClueSummaryRow = {
+  category_id: string;
+  country_code: string;
+  status: Tables["clues"]["Row"]["status"];
+  clue_images: Array<{ id: string }>;
+};
+
 type LegacyCollectionRow = Omit<Collection, "visibility"> & {
   visibility?: Collection["visibility"];
+  is_official?: Collection["is_official"];
 };
 
 const HIDDEN_PUBLIC_COLLECTION_IDS = new Set([
@@ -262,10 +452,12 @@ function isMissingVisibilityColumn(
 function normalizeCollectionVisibility<
   TCollection extends Omit<Collection, "visibility"> & {
     visibility?: Collection["visibility"];
+    is_official?: Collection["is_official"];
   },
 >(collection: TCollection): Collection {
   return {
     ...collection,
+    is_official: collection.is_official ?? false,
     visibility: collection.visibility ?? "private",
   };
 }
@@ -397,7 +589,15 @@ export function createSupabaseCollectionDataClient(
         collection_name: input.name,
         collection_description: input.description ?? null,
       });
-      return unwrap(result, "collection_create_failed");
+      return normalizeCollectionVisibility(
+        unwrap(
+          result as unknown as {
+            data: LegacyCollectionRow | null;
+            error: { message: string; code?: string } | null;
+          },
+          "collection_create_failed",
+        ),
+      );
     },
 
     async getMembership(collectionId, userId) {
@@ -437,6 +637,146 @@ export function createSupabaseCollectionDataClient(
         .eq("collection_id", collectionId)
         .order("name");
       return unwrap(result, "categories_list_failed");
+    },
+
+    async listCategoryStats(collectionId) {
+      const result = await supabase
+        .from("clues")
+        .select("category_id, country_code, status, clue_images(id)")
+        .eq("collection_id", collectionId);
+      const rows = unwrap(
+        result as unknown as {
+          data: CategoryClueSummaryRow[] | null;
+          error: { message: string; code?: string } | null;
+        },
+        "category_stats_load_failed",
+      );
+      const grouped = new Map<
+        string,
+        {
+          clueCount: number;
+          publishedCount: number;
+          completeCount: number;
+          countries: Set<string>;
+        }
+      >();
+
+      for (const row of rows) {
+        const entry = grouped.get(row.category_id) ?? {
+          clueCount: 0,
+          publishedCount: 0,
+          completeCount: 0,
+          countries: new Set<string>(),
+        };
+        entry.clueCount += 1;
+        entry.countries.add(row.country_code);
+        if (row.status === "published") entry.publishedCount += 1;
+        if (row.status === "published" && row.clue_images.length > 0) {
+          entry.completeCount += 1;
+        }
+        grouped.set(row.category_id, entry);
+      }
+
+      return [...grouped.entries()].map(([categoryId, entry]) => ({
+        categoryId,
+        clueCount: entry.clueCount,
+        publishedCount: entry.publishedCount,
+        countryCount: entry.countries.size,
+        completeCount: entry.completeCount,
+        completeness:
+          entry.clueCount > 0
+            ? Math.round((entry.completeCount / entry.clueCount) * 100)
+            : 0,
+      }));
+    },
+
+    async listClueFilterRows(collectionId) {
+      const pageSize = 1000;
+      const rows: ClueLibraryFilterRow[] = [];
+      let from = 0;
+
+      while (true) {
+        const result = await supabase
+          .from("clues")
+          .select(
+            "category_id, country_code, status, categories(name), countries(name)",
+          )
+          .eq("collection_id", collectionId)
+          .in("status", ["draft", "published"])
+          .order("created_at")
+          .order("id")
+          .range(from, from + pageSize - 1);
+        const page = unwrap(
+          result as unknown as {
+            data: ClueLibraryFilterRow[] | null;
+            error: { message: string; code?: string } | null;
+          },
+          "clue_library_filters_failed",
+        );
+        rows.push(...page);
+        if (page.length < pageSize) {
+          return rows;
+        }
+        from += pageSize;
+      }
+    },
+
+    async listClueRows(input) {
+      const allowedStatuses = ["draft", "published"] as ClueStatus[];
+      const statuses = input.statuses
+        ? input.statuses.filter((status) => allowedStatuses.includes(status))
+        : allowedStatuses;
+      let query = supabase
+        .from("clues")
+        .select(
+          "id, title, status, difficulty, category_id, country_code, characteristics, notes, google_maps_url, created_at, categories(name), countries(name), clue_images(id, storage_path, alt_text, sort_order)",
+          { count: "exact" },
+        )
+        .eq("collection_id", input.collectionId)
+        .in("status", statuses)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(input.from, input.to);
+
+      if (input.categoryIds?.length) {
+        query = query.in("category_id", input.categoryIds);
+      }
+      if (input.countryCodes?.length) {
+        query = query.in("country_code", input.countryCodes);
+      }
+      if (input.search) {
+        query = query.ilike("title", `%${escapeLikePattern(input.search)}%`);
+      }
+
+      const { data, error, count } = await query;
+      if (error) {
+        throw new CollectionError(
+          error.code ?? "clue_library_load_failed",
+          error.message,
+        );
+      }
+      return {
+        rows: (data ?? []) as unknown as ClueLibraryRow[],
+        count: count ?? 0,
+      };
+    },
+
+    async createSignedImageUrls(paths) {
+      if (paths.length === 0) return {};
+      const { data, error } = await supabase.storage
+        .from("clue-images")
+        .createSignedUrls(paths, 60 * 60);
+      if (error) {
+        throw new CollectionError(
+          error.name || "clue_library_images_failed",
+          error.message,
+        );
+      }
+      return Object.fromEntries(
+        data.flatMap((item, index) =>
+          item.signedUrl ? [[paths[index], item.signedUrl] as const] : [],
+        ),
+      );
     },
 
     async insertCategory(input) {
@@ -533,6 +873,16 @@ export function createSupabaseCollectionDataClient(
   };
 }
 
+function cleanStringArray(values: string[] | undefined) {
+  return values
+    ? [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+    : undefined;
+}
+
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
 let defaultApi: CollectionApi | undefined;
 
 export function getCollectionApi() {
@@ -541,29 +891,3 @@ export function getCollectionApi() {
   );
   return defaultApi;
 }
-
-export const listCollections = () => getCollectionApi().listCollections();
-export const createCollection = (input: CreateCollectionInput) =>
-  getCollectionApi().createCollection(input);
-export const updateCollection = (
-  collectionId: string,
-  input: CreateCollectionInput,
-) => getCollectionApi().updateCollection(collectionId, input);
-export const deleteCollection = (collectionId: string) =>
-  getCollectionApi().deleteCollection(collectionId);
-export const createCategory = (input: CreateCategoryInput) =>
-  getCollectionApi().createCategory(input);
-export const updateCategory = (
-  categoryId: string,
-  input: Pick<CreateCategoryInput, "name" | "icon" | "color">,
-) => getCollectionApi().updateCategory(categoryId, input);
-export const deleteCategory = (categoryId: string) =>
-  getCollectionApi().deleteCategory(categoryId);
-export const listMembers = (collectionId: string) =>
-  getCollectionApi().listMembers(collectionId);
-export const inviteEditor = (collectionId: string, email: string) =>
-  getCollectionApi().inviteEditor(collectionId, email);
-export const acceptInvitation = (token: string) =>
-  getCollectionApi().acceptInvitation(token);
-export const removeEditor = (collectionId: string, userId: string) =>
-  getCollectionApi().removeEditor(collectionId, userId);
